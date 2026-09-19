@@ -1,5 +1,7 @@
+pub(crate) mod scene;
 use crate::ui::{CYAN, INK, MUTED, PAPER, PINK, RULE, VIOLET};
 use macroquad::prelude::*;
+use scene::Scene;
 use sim::{Material, Shape, World};
 
 pub struct Viewport {
@@ -82,14 +84,6 @@ fn interpolate_angle(previous: f32, current: f32, alpha: f32) -> f32 {
 }
 
 fn draw_terrain(world: &World, viewport: &Viewport) {
-    let water = Color::from_rgba(91, 171, 227, 255);
-    let bridge_color = Color::from_rgba(218, 223, 191, 255);
-    let rectangle = |min: sim::Vec2, max: sim::Vec2, fill, edge| {
-        let a = viewport.screen(v(min));
-        let b = viewport.screen(v(max));
-        draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, fill);
-        draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 1.5, edge);
-    };
     crate::terrain_view::draw(world.terrain(), viewport);
     if world.scene() == sim::Scene::Terrain {
         for (label, position, color) in [
@@ -100,7 +94,18 @@ fn draw_terrain(world: &World, viewport: &Viewport) {
             draw_text(label, p.x, p.y, 17.0, color);
         }
     }
-    for bridge in world.bridges() {
+}
+
+fn draw_bridges(scene: &Scene, viewport: &Viewport) {
+    let rectangle = |min: sim::Vec2, max: sim::Vec2, fill, edge| {
+        let a = viewport.screen(v(min));
+        let b = viewport.screen(v(max));
+        draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, fill);
+        draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 1.5, edge);
+    };
+    for bridge in &scene.bridges {
+        let water = tint(Color::from_rgba(91, 171, 227, 255), bridge.opacity);
+        let bridge_color = tint(Color::from_rgba(218, 223, 191, 255), bridge.opacity);
         if bridge.intact {
             rectangle(bridge.deck.min, bridge.deck.max, PAPER, bridge_color);
             let vertical = (bridge.controls[1] - bridge.controls[0]).y.abs()
@@ -130,7 +135,7 @@ fn draw_terrain(world: &World, viewport: &Viewport) {
             }
         } else {
             let t = bridge.fall_progress;
-            for body in bridge.fragments {
+            for body in &bridge.fragments {
                 let Shape::Triangle { vertices } = body.shape else {
                     continue;
                 };
@@ -171,7 +176,11 @@ fn draw_terrain(world: &World, viewport: &Viewport) {
         }
         for (i, control) in bridge.controls.iter().enumerate() {
             let p = viewport.screen(v(*control));
-            let color = if bridge.intact { bridge_color } else { PINK };
+            let color = if bridge.intact {
+                bridge_color
+            } else {
+                tint(PINK, bridge.opacity)
+            };
             draw_circle_lines(p.x, p.y, viewport.scale * 0.3, 1.8, color);
             let label = if bridge.intact {
                 if i == 0 { "B" } else { "A" }
@@ -192,7 +201,60 @@ pub fn draw_world(
     overlay: bool,
     sparks: &[Spark],
     blasts: &[Blast],
+    observed: Option<(&Scene, &sim::Vision)>,
 ) {
+    let live = observed.is_none().then(|| Scene::capture(world));
+    let scene = observed
+        .map(|(scene, _)| scene)
+        .unwrap_or_else(|| live.as_ref().unwrap());
+    let vision = observed.map(|(_, vision)| vision);
+    draw_background(world, viewport);
+    if let Some(vision) = vision {
+        draw_sight_shading(viewport, vision);
+    }
+    draw_bridges(scene, viewport);
+    draw_objects(scene, viewport, alpha, overlay);
+    if overlay && observed.is_none() {
+        for bond in world.bonds() {
+            let p = viewport.screen(v(bond.position));
+            draw_circle(p.x, p.y, 2.0, load_color(bond.load));
+        }
+    }
+    draw_tanks(world, scene, viewport, aim, alpha);
+    draw_effects(world, viewport, alpha, sparks, blasts, vision);
+    draw_crosshair(world, viewport, aim);
+}
+
+// Ordinary screen-space geometry only; objects never pass through a texture/mask.
+fn draw_sight_shading(viewport: &Viewport, vision: &sim::Vision) {
+    let color = Color::new(0.0, 0.0, 0.0, 0.25);
+    let rect = viewport.rect;
+    if vision.boundary.is_empty() {
+        draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
+        return;
+    }
+    let origin = viewport.screen(v(vision.origin));
+    let radius = [
+        vec2(rect.x, rect.y),
+        vec2(rect.right(), rect.y),
+        vec2(rect.right(), rect.bottom()),
+        vec2(rect.x, rect.bottom()),
+    ]
+    .into_iter()
+    .map(|p| p.distance(origin))
+    .fold(0.0_f32, f32::max)
+        + 1.0;
+    for i in 0..vision.boundary.len() {
+        let a = viewport.screen(v(vision.boundary[i]));
+        let b = viewport.screen(v(vision.boundary[(i + 1) % vision.boundary.len()]));
+        let outer_a = origin + (a - origin).normalize_or_zero() * radius;
+        let outer_b = origin + (b - origin).normalize_or_zero() * radius;
+        draw_triangle(a, outer_a, outer_b, color);
+        draw_triangle(a, outer_b, b, color);
+    }
+}
+
+pub(crate) fn draw_background(world: &World, viewport: &Viewport) {
     let rect = viewport.rect;
     draw_rectangle(rect.x, rect.y, rect.w, rect.h, PAPER);
     // Sparse scale marks; no movement grid or textured surfaces.
@@ -204,18 +266,24 @@ pub fn draw_world(
         }
     }
     draw_terrain(world, viewport);
-    for (team, p) in world.flags() {
+}
+
+fn draw_objects(scene: &Scene, viewport: &Viewport, alpha: f32, overlay: bool) {
+    for &(team, p, opacity) in &scene.flags {
         flag_marker(
             viewport.screen(v(p)),
             viewport.scale,
-            if team == sim::level::Team::Blue {
-                CYAN
-            } else {
-                PINK
-            },
+            tint(
+                if team == sim::level::Team::Blue {
+                    CYAN
+                } else {
+                    PINK
+                },
+                opacity,
+            ),
         );
     }
-    for body in world.bodies() {
+    for body in &scene.bodies {
         if body.material == Material::Launcher {
             continue;
         }
@@ -273,17 +341,18 @@ pub fn draw_world(
             }
         }
     }
-    if overlay {
-        for bond in world.bonds() {
-            let p = viewport.screen(v(bond.position));
-            draw_circle(p.x, p.y, 2.0, load_color(bond.load));
-        }
-    }
-    for tank in world.bodies().filter(|b| b.material == Material::Launcher) {
+}
+
+fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, aim: Vec2, alpha: f32) {
+    for tank in scene
+        .bodies
+        .iter()
+        .filter(|b| b.material == Material::Launcher)
+    {
         if tank.opacity <= 0.0 {
             continue;
         }
-        let status = world.tanks().find(|t| t.id == tank.id);
+        let status = scene.tanks.iter().copied().find(|t| t.id == tank.id);
         let player = tank.id == world.player_tank_id();
         let tank_color = tint(
             if status.map_or(world.team(), |t| t.team) == sim::level::Team::Red {
@@ -399,15 +468,28 @@ pub fn draw_world(
         if let Some(status) = status {
             let width = (scale * 2.0).max(28.0);
             let at = center + vec2(-width * 0.5, -scale * 1.35 - 6.0);
-            draw_rectangle(at.x, at.y, width, 4.0, MUTED);
+            draw_rectangle(at.x, at.y, width, 4.0, tint(MUTED, tank.opacity));
             draw_rectangle(at.x, at.y, width * status.health / 100.0, 4.0, tank_color);
             if status.protected {
                 draw_circle_lines(center.x, center.y, scale * 1.45, 1.0, tank_color);
             }
         }
     }
+}
 
+fn draw_effects(
+    world: &World,
+    viewport: &Viewport,
+    alpha: f32,
+    sparks: &[Spark],
+    blasts: &[Blast],
+    vision: Option<&sim::Vision>,
+) {
+    let visible = |p| vision.is_none_or(|vision| vision.contains(p));
     for shell in world.shells() {
+        if !visible(shell.position) {
+            continue;
+        }
         let p = viewport.screen(v(shell.previous_position).lerp(v(shell.position), alpha));
         let direction = v(shell.velocity).normalize();
         let side = vec2(-direction.y, direction.x);
@@ -437,13 +519,31 @@ pub fn draw_world(
             true,
         );
     }
-    if let Some(beam) = world.laser_beam() {
+    if let Some(beam) = world.laser_beam()
+        && visible(beam.start)
+    {
         let start = viewport.screen(v(beam.start));
-        let end = viewport.screen(v(beam.end));
+        let mut endpoint = beam.end;
+        if !visible(endpoint) {
+            let mut start = beam.start;
+            for _ in 0..14 {
+                let mid = (start + endpoint) * 0.5;
+                if visible(mid) {
+                    start = mid;
+                } else {
+                    endpoint = mid;
+                }
+            }
+            endpoint = start;
+        }
+        let end = viewport.screen(v(endpoint));
         glow(start, end, 1.5, CYAN);
         draw_circle_lines(end.x, end.y, 4.0, 1.5, INK);
     }
     for blast in blasts {
+        if !visible(sim::Vec2::new(blast.position.x, blast.position.y)) {
+            continue;
+        }
         let t = (1.0 - blast.life / 0.45).clamp(0.0, 1.0);
         let p = viewport.screen(blast.position);
         let r = blast.radius * viewport.scale * (1.0 - (1.0 - t).powi(3));
@@ -464,6 +564,9 @@ pub fn draw_world(
         }
     }
     for spark in sparks {
+        if !visible(sim::Vec2::new(spark.position.x, spark.position.y)) {
+            continue;
+        }
         let a = viewport.screen(spark.position);
         glow(
             a,
@@ -475,6 +578,9 @@ pub fn draw_world(
             ),
         );
     }
+}
+
+pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Vec2) {
     let p = viewport.screen(aim);
     let color = if world.reload_remaining() > 0.0 {
         PINK

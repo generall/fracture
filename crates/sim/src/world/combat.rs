@@ -405,6 +405,7 @@ mod tests {
     fn routes_go_around_solid_and_massive_obstacles_and_allow_light_walls() {
         let mut map = level(EnemyActivity::Driving);
         map.items.push(LevelItem::Solid {
+            cutouts: vec![],
             outline: rectangle(Vector::new(1.0, 5.0)),
             position: [0.0, 0.0],
             angle: 0.0,
@@ -421,6 +422,7 @@ mod tests {
         // A full-height wall closes all detours: light masonry is still a possible ram route.
         map.items.pop();
         map.items.push(LevelItem::Object {
+            cutouts: vec![],
             asset: Box::new(crate::level::wall_asset(Vector::new(0.3, 22.0))),
             position: [0.0, 0.0],
             angle: 0.0,
@@ -456,6 +458,7 @@ mod tests {
     fn conquer_drives_around_cover_and_cannot_shoot_through_it() {
         let mut map = level(EnemyActivity::Conquer);
         map.items.push(LevelItem::Solid {
+            cutouts: vec![],
             outline: rectangle(Vector::new(1.0, 5.0)),
             position: [0.0, 0.0],
             angle: 0.0,
@@ -480,6 +483,58 @@ mod tests {
             Some(Team::Red),
             "enemy stalled at {:?}",
             world.piece_pose(id).translation
+        );
+    }
+
+    #[test]
+    fn enemy_blasts_a_route_through_breakable_cover() {
+        for activity in [EnemyActivity::Attack, EnemyActivity::Conquer] {
+            let mut map = level(activity);
+            map.items.push(LevelItem::Object {
+                cutouts: vec![],
+                asset: Box::new(crate::level::wall_asset(Vector::new(0.3, 22.0))),
+                position: [0.0, 0.0],
+                angle: 0.0,
+            });
+            let mut world = World::from_level(&map, Team::Blue).unwrap();
+            let id = world.enemy.as_ref().unwrap().id;
+            assert!(
+                world
+                    .tank_route(id, Vector::new(10.0, 0.0), Vector::new(-10.0, 0.0))
+                    .is_empty()
+            );
+            let mut fired_at_cover = false;
+            for _ in 0..7200 {
+                let hidden = !world.tank_line_of_sight(id, world.launcher_position());
+                let shots = world.shots;
+                world.step(&[]);
+                fired_at_cover |= hidden && world.shots > shots;
+                if world.piece_pose(id).translation.x < -2.0 {
+                    break;
+                }
+            }
+            assert!(fired_at_cover, "{activity:?} never fired at cover");
+            assert!(
+                world.piece_pose(id).translation.x < -2.0,
+                "{activity:?} stalled at {:?}, shots {}",
+                world.piece_pose(id).translation,
+                world.shots
+            );
+        }
+        let mut map = level(EnemyActivity::Attack);
+        map.items.push(LevelItem::Solid {
+            cutouts: vec![],
+            outline: rectangle(Vector::new(0.15, 11.0)),
+            position: [0.0, 0.0],
+            angle: 0.0,
+        });
+        let mut world = World::from_level(&map, Team::Blue).unwrap();
+        for _ in 0..1200 {
+            world.step(&[]);
+        }
+        assert_eq!(
+            world.shots, 0,
+            "enemy should not shoot an unbreakable barrier"
         );
     }
 
@@ -520,6 +575,7 @@ mod tests {
             angle: 0.0,
         };
         map.items.push(LevelItem::Solid {
+            cutouts: vec![],
             outline: rectangle(Vector::new(0.5, 3.0)),
             position: [0.0, 0.0],
             angle: 0.0,
@@ -557,6 +613,7 @@ mod tests {
                 angle: 0.0,
             };
             map.items.push(LevelItem::Solid {
+                cutouts: vec![],
                 outline: rectangle(Vector::new(0.5, 3.0)),
                 position: [0.0, 0.0],
                 angle: 0.0,

@@ -10,6 +10,8 @@ const DEPTH: f32 = 0.25;
 mod api;
 mod debris;
 mod queries;
+mod vision;
+pub use vision::{NEAR_VISION, VISION_HALF_ANGLE, VISION_RANGE, Vision};
 mod scenes;
 mod setup;
 pub use api::{BodyView, BondView, Command, Event, LaserBeam, Scene, Shape, Shell, Shot, Stats};
@@ -91,6 +93,7 @@ struct Piece {
     refinement: u8,
     refinement_sources: Vec<u64>,
     origin: usize,
+    fracture_parent: Option<usize>,
     grain: Option<usize>,
     object: Option<usize>,
     edges: u8,
@@ -154,6 +157,7 @@ impl Piece {
             refinement: 0,
             refinement_sources: Vec::new(),
             origin: id,
+            fracture_parent: None,
             grain: None,
             object: None,
             edges: 7,

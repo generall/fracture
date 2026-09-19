@@ -63,6 +63,7 @@ impl World {
                     asset,
                     position,
                     angle,
+                    ..
                 } => {
                     let mut mesh = meshes[index].clone().unwrap();
                     if mesh.triangles.is_empty() {
@@ -92,6 +93,7 @@ impl World {
                     outline,
                     position,
                     angle,
+                    ..
                 } => {
                     let mut asset = solid_asset(outline);
                     let mut mesh = meshes[index].clone().unwrap();
@@ -104,11 +106,19 @@ impl World {
                         w.pieces.len(),
                         Vector::from(*position),
                     ));
+                    let object = w.objects.len();
+                    w.objects.push(components::ObjectInstance {
+                        color: None,
+                        components: crate::Components::default(),
+                        ignited: false,
+                        spent: false,
+                    });
                     for triangle in mesh.triangles {
                         let id = w.add_triangle(
                             triangle.map(|i| mesh.vertices[i] + Vector::from(*position)),
                             Material::Anchor,
                         );
+                        w.pieces[id].object = Some(object);
                         w.physics.bodies[w.pieces[id].body]
                             .set_body_type(RigidBodyType::Fixed, false);
                     }

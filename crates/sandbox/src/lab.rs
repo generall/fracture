@@ -15,6 +15,9 @@ pub(crate) struct Lab {
     pub(crate) paused: bool,
     pub(crate) slow: bool,
     pub(crate) overlay: bool,
+    pub(crate) fog_enabled: bool,
+    pub(crate) fog: Option<crate::fog::Fog>,
+    pub(crate) vision: sim::Vision,
     pub(crate) accumulator: f64,
     pub(crate) aim: Vec2,
     pub(crate) pending: Vec<Command>,
@@ -38,6 +41,9 @@ impl Lab {
             paused: false,
             slow: false,
             overlay: false,
+            fog_enabled: true,
+            fog: None,
+            vision: sim::Vision::default(),
             accumulator: 0.0,
             aim: vec2(3.0, 0.0),
             pending: Vec::new(),
@@ -67,6 +73,8 @@ impl Lab {
             World::new(scene)
         };
         self.pending.clear();
+        self.fog = None;
+        self.vision = sim::Vision::default();
         self.firing = false;
         self.sparks.clear();
         self.blasts.clear();
@@ -78,12 +86,12 @@ impl Lab {
         self.aim = vec2(3.0, 0.0);
         if scene == Scene::Level {
             let p = self.world.launcher_position();
-            let direction = if self.world.team() == sim::level::Team::Blue {
-                1.0
-            } else {
-                -1.0
-            };
-            self.aim = vec2(p.x + 5.0 * direction, p.y);
+            let heading = self
+                .world
+                .tanks()
+                .find(|t| t.id == self.world.player_tank_id())
+                .map_or(0.0, |t| t.turret_angle);
+            self.aim = vec2(p.x, p.y) + Vec2::from_angle(heading) * 5.0;
         }
     }
 
@@ -176,8 +184,13 @@ impl Lab {
                         });
                     }
                 }
-                Event::BridgeCollapsed { .. } => {
-                    self.notice = Some(("BRIDGE LOST / CROSSING CLOSED".into(), 5.0))
+                Event::BridgeCollapsed { position } => {
+                    if !self.fog_enabled
+                        || self.world.scene() != Scene::Level
+                        || self.vision.contains(position)
+                    {
+                        self.notice = Some(("BRIDGE LOST / CROSSING CLOSED".into(), 5.0));
+                    }
                 }
                 Event::FlagCaptured { team, .. } => {
                     self.notice = Some((
@@ -185,13 +198,25 @@ impl Lab {
                         10.0,
                     ));
                 }
-                Event::TankDestroyed { team, .. } => {
+                Event::TankDestroyed { team, position } => {
+                    if self.fog_enabled
+                        && team != self.world.team()
+                        && !self.vision.contains(position)
+                    {
+                        continue;
+                    }
                     self.notice = Some((
                         format!("{} TANK DESTROYED / RESPAWN IN 3 S", team.label()),
                         2.0,
                     ));
                 }
-                Event::TankRespawned { team, .. } => {
+                Event::TankRespawned { team, position } => {
+                    if self.fog_enabled
+                        && team != self.world.team()
+                        && !self.vision.contains(position)
+                    {
+                        continue;
+                    }
                     self.notice = Some((format!("{} TANK RESPAWNED", team.label()), 1.0));
                 }
                 Event::TankSunk { .. } => {

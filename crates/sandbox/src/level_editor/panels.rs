@@ -4,13 +4,22 @@ impl LevelEditor {
         draw_rectangle(0.0, 80.0, 282.0, size.y - 160.0, PAPER);
         text("PLACE ON MAP", 24.0, 115.0, 20.0, INK);
         if button(
-            Rect::new(20.0, 133.0, 244.0, 38.0),
+            Rect::new(20.0, 133.0, 148.0, 38.0),
             "SELECT / MOVE",
             mouse,
             matches!(self.tool, Tool::Select),
         ) {
             self.commit_field();
             self.select_tool(Tool::Select);
+        }
+        if button(
+            Rect::new(174.0, 133.0, 90.0, 38.0),
+            "ERASER",
+            mouse,
+            matches!(self.tool, Tool::Erase),
+        ) {
+            self.commit_field();
+            self.select_tool(Tool::Erase);
         }
         for (i, label) in ["OBJECTS", "TERRAIN", "SPECIAL"].iter().enumerate() {
             if button(
@@ -72,6 +81,7 @@ impl LevelEditor {
                     TerrainKind::Road,
                     TerrainKind::Sand,
                     TerrainKind::Water,
+                    TerrainKind::TallGrass,
                 ]
                 .into_iter()
                 .enumerate()
@@ -87,7 +97,7 @@ impl LevelEditor {
                     }
                 }
                 if button(
-                    Rect::new(20.0, 440.0, 244.0, 38.0),
+                    Rect::new(20.0, 488.0, 244.0, 38.0),
                     "BRIDGE + TWO BOOTHS",
                     mouse,
                     matches!(self.tool, Tool::Bridge),
@@ -96,9 +106,9 @@ impl LevelEditor {
                     self.select_tool(Tool::Bridge);
                 }
                 paragraph(
-                    "Click or drag to fill 1 m grid cells. Bridges need at least 3 x 2 cells; the long side sets their direction. Water needs an intact bridge to cross.",
+                    "Drag to fill 1 m cells. Tall grass blocks sight, but allows movement and shots. Water needs an intact bridge to cross.",
                     24.0,
-                    520.0,
+                    560.0,
                     240.0,
                     17.0,
                     MUTED,
@@ -392,6 +402,26 @@ impl LevelEditor {
                     17.0,
                     MUTED,
                 );
+            }
+            if let LevelItem::Object { asset, .. } = &item {
+                let blocks = asset.blocks_vision();
+                if button(
+                    Rect::new(x, 658.0, 256.0, 34.0),
+                    if blocks {
+                        "SIGHT / BLOCKS"
+                    } else {
+                        "SIGHT / SEE THROUGH"
+                    },
+                    mouse,
+                    blocks,
+                ) {
+                    self.commit_field();
+                    let before = self.level.clone();
+                    if let LevelItem::Object { asset, .. } = &mut self.level.items[i] {
+                        asset.components.blocks_vision = Some(!blocks);
+                    }
+                    self.finish_change(before);
+                }
             }
             if button(
                 Rect::new(x, size.y - 171.0, 122.0, 36.0),

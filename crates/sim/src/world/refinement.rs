@@ -149,6 +149,7 @@ impl World {
             piece.restitution = restitution;
             piece.soft_bounce = soft_bounce;
             piece.origin = origin;
+            piece.fracture_parent = Some(id);
             piece.grain = grain;
             piece.object = object;
             piece.reference_area = reference_area * 0.25;

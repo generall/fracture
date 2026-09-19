@@ -1,4 +1,4 @@
-//! Coarse A* with tank clearance. Only light destructible obstacles are traversable.
+//! Coarse A* with tank clearance and an optional costly route through breakable cover.
 use super::*;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap};
@@ -6,9 +6,19 @@ use std::collections::{BTreeMap, BinaryHeap};
 impl World {
     pub(in super::super) fn tank_route(
         &self,
+        id: usize,
+        start: Vector,
+        goal: Vector,
+    ) -> Vec<Vector> {
+        self.plan_tank_route(id, start, goal, false)
+    }
+
+    pub(super) fn plan_tank_route(
+        &self,
         _id: usize,
         start: Vector,
         goal: Vector,
+        breach: bool,
     ) -> Vec<Vector> {
         let cell = (self.arena_size.max_element() / 160.0).max(0.75);
         let width = (self.arena_size.x / cell).ceil() as usize;
@@ -60,12 +70,16 @@ impl World {
             if piece.is_some_and(|i| self.pieces[i].material == Material::Launcher) {
                 continue;
             }
+            let massive = piece.is_some_and(|i| {
+                masses
+                    .get(&self.pieces[i].body.into_raw_parts())
+                    .copied()
+                    .unwrap_or(0.0)
+                    >= 4500.0
+            });
             let hard = water
-                || piece.is_some_and(|i| {
-                    let p = &self.pieces[i];
-                    !p.destructible()
-                        || masses.get(&p.body.into_raw_parts()).copied().unwrap_or(0.0) >= 4500.0
-                });
+                || piece.is_some_and(|i| !self.pieces[i].destructible())
+                || (massive && !breach);
             let clearance = if hard { 1.25 } else { 0.85 };
             let bounds = collider.compute_aabb();
             let lo = index(bounds.mins - Vector::splat(clearance));
@@ -82,7 +96,11 @@ impl World {
                             .shape()
                             .project_point(collider.position(), point, true);
                     if projection.point.distance(point) <= clearance {
-                        costs[at] = if hard { u32::MAX } else { costs[at].max(35) };
+                        costs[at] = if hard {
+                            u32::MAX
+                        } else {
+                            costs[at].max(if massive { 100 } else { 35 })
+                        };
                     }
                 }
             }

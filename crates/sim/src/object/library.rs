@@ -58,6 +58,9 @@ impl Default for Explosive {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Components {
+    /// None uses the material/preset default; independent of physical collision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocks_vision: Option<bool>,
     /// Phenomenological strength/work multipliers; actual impulse is unchanged.
     pub projectile_resistance: f32,
     pub contact_resistance: f32,
@@ -71,6 +74,7 @@ pub struct Components {
 impl Default for Components {
     fn default() -> Self {
         Self {
+            blocks_vision: None,
             projectile_resistance: 1.0,
             contact_resistance: 1.0,
             contact_refinement: true,
@@ -232,6 +236,7 @@ impl LibraryPreset {
                     sites: vec![[0.0, 0.0]],
                 });
                 a.components = Components {
+                    blocks_vision: Some(false),
                     projectile_resistance: 60.0,
                     contact_resistance: 8.0,
                     contact_refinement: false,

@@ -2,6 +2,11 @@
 use super::*;
 
 impl World {
+    /// Immediate parent of a subdivided material cell; chunk changes keep cell IDs.
+    pub fn fracture_parent(&self, id: usize) -> Option<usize> {
+        self.pieces.get(id).and_then(|piece| piece.fracture_parent)
+    }
+
     pub fn scene(&self) -> Scene {
         self.scene
     }
@@ -19,6 +24,7 @@ impl World {
             let pose = *body.position() * piece.local_pose;
             Some(BodyView {
                 id,
+                object: piece.object,
                 chunk: piece.body.into_raw_parts().0,
                 origin: piece.origin,
                 position: pose.translation,

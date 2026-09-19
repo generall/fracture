@@ -18,6 +18,7 @@ pub enum Action {
 #[derive(Clone)]
 enum Tool {
     Select,
+    Erase,
     Object(Box<ObjectAsset>),
     Wall,
     Solid,
@@ -31,7 +32,12 @@ impl Tool {
     fn draws_cells(&self) -> bool {
         matches!(
             self,
-            Self::Wall | Self::SolidWall | Self::Solid | Self::Terrain(_) | Self::Bridge
+            Self::Wall
+                | Self::SolidWall
+                | Self::Solid
+                | Self::Terrain(_)
+                | Self::Bridge
+                | Self::Erase
         )
     }
 }
@@ -59,6 +65,7 @@ enum DragKind {
     Vertex(usize, usize),
     Resize(usize),
     Draw,
+    Erase,
     Marquee,
 }
 struct Drag {
@@ -160,6 +167,21 @@ impl LevelEditor {
             Err(e) => self.status = e,
         }
     }
+    fn save_file(&mut self) {
+        self.commit_field();
+        self.status = self
+            .level
+            .to_json()
+            .and_then(|j| storage::export(&j))
+            .map(str::to_string)
+            .unwrap_or_else(|e| e);
+    }
+    fn open_file(&mut self) {
+        self.commit_field();
+        if let Err(error) = storage::pick_import() {
+            self.status = error;
+        }
+    }
     fn finish_change(&mut self, before: Level) {
         if self.level == before {
             return;
@@ -219,6 +241,7 @@ impl LevelEditor {
                 "Drag to fill 1 m grid cells. Bridges need at least 3 x 2 cells plus room for booths."
                     .into()
             }
+            Tool::Erase => "Click to erase a 1 m cell. Drag to erase a rectangle from objects and walls. Ctrl+Z undoes.".into(),
             Tool::Wall | Tool::SolidWall | Tool::Terrain(_) | Tool::Solid => {
                 "Click to fill a 1 m grid cell. Drag to fill a rectangle of cells.".into()
             }
@@ -272,7 +295,10 @@ impl LevelEditor {
                 self.merge_selection();
             }
             if ctrl && is_key_pressed(KeyCode::S) {
-                self.persist();
+                self.save_file();
+            }
+            if ctrl && is_key_pressed(KeyCode::O) {
+                self.open_file();
             }
             if is_key_pressed(KeyCode::Escape) {
                 self.select_tool(Tool::Select);
@@ -368,10 +394,10 @@ impl LevelEditor {
         draw_rectangle(rect.x, rect.y, rect.w, rect.h, PAPER);
         draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, CYAN);
         for (i, label) in [
+            "SAVE AS... / CTRL S",
+            "OPEN... / CTRL O",
             "SAVE DRAFT",
             "RELOAD DRAFT",
-            "EXPORT LEVEL JSON",
-            "IMPORT LEVEL JSON",
             "NEW EMPTY LEVEL",
             "LOAD DEMO / QUARRY",
         ]
@@ -386,8 +412,10 @@ impl LevelEditor {
             ) {
                 self.file_menu = false;
                 match i {
-                    0 => self.persist(),
-                    1 => match storage::restore()
+                    0 => self.save_file(),
+                    1 => self.open_file(),
+                    2 => self.persist(),
+                    3 => match storage::restore()
                         .and_then(|j| j.ok_or("No saved level.".into()))
                         .and_then(|j| Level::from_json(&j))
                     {
@@ -399,19 +427,6 @@ impl LevelEditor {
                         }
                         Err(e) => self.status = e,
                     },
-                    2 => {
-                        self.status = self
-                            .level
-                            .to_json()
-                            .and_then(|j| storage::export(&j))
-                            .map(str::to_string)
-                            .unwrap_or_else(|e| e)
-                    }
-                    3 => {
-                        if let Err(e) = storage::pick_import() {
-                            self.status = e;
-                        }
-                    }
                     4 => {
                         let before = std::mem::take(&mut self.level);
                         self.finish_change(before);

@@ -15,6 +15,7 @@ pub enum Action {
     Pause,
     Slow,
     Overlay,
+    Fog,
     Step,
     Editor,
     LevelEditor,
@@ -101,6 +102,7 @@ impl Inspector {
         slow: bool,
         overlay: bool,
         tick_ms: f64,
+        fog: bool,
     ) -> Vec<Action> {
         let mut actions = Vec::new();
         draw_rectangle(0.0, 0.0, size.x, 80.0, PAPER);
@@ -218,24 +220,50 @@ impl Inspector {
             actions.push(Action::LevelEditor);
         }
         let stats = world.stats();
-        text(
-            &format!("{:03} FRACTURES", stats.broken),
-            size.x * 0.5 + 30.0,
-            y + 32.0,
-            20.0,
-            VIOLET,
-        );
-        text(
-            &if stats.ablated > 0 {
-                format!("{:03} CLEARED / {:03} CUT", stats.cleared, stats.ablated)
-            } else {
-                format!("{:03} FRAGMENTS CLEARED", stats.cleared)
-            },
-            size.x * 0.5 + 30.0,
-            y + 65.0,
-            16.0,
-            MUTED,
-        );
+        if world.scene() == Scene::Level {
+            text(
+                if fog {
+                    "UNSEEN OBJECTS / LAST SEEN"
+                } else {
+                    "FULL MAP / TEST VIEW"
+                },
+                size.x * 0.5 + 30.0,
+                y + 32.0,
+                16.0,
+                MUTED,
+            );
+            if button(
+                Rect::new(size.x * 0.5 + 30.0, y + 45.0, 230.0, 36.0),
+                if fog {
+                    "V FOG OF WAR / ON"
+                } else {
+                    "V FOG OF WAR / OFF"
+                },
+                mouse,
+                fog,
+            ) {
+                actions.push(Action::Fog);
+            }
+        } else {
+            text(
+                &format!("{:03} FRACTURES", stats.broken),
+                size.x * 0.5 + 30.0,
+                y + 32.0,
+                20.0,
+                VIOLET,
+            );
+            text(
+                &if stats.ablated > 0 {
+                    format!("{:03} CLEARED / {:03} CUT", stats.cleared, stats.ablated)
+                } else {
+                    format!("{:03} FRAGMENTS CLEARED", stats.cleared)
+                },
+                size.x * 0.5 + 30.0,
+                y + 65.0,
+                16.0,
+                MUTED,
+            );
+        }
         let ready = world.tank_alive() && world.reload_remaining() <= 0.0;
         for (i, ammunition) in Ammunition::ALL.into_iter().enumerate() {
             if button(

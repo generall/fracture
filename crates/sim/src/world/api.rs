@@ -123,6 +123,8 @@ pub enum Shape {
 #[derive(Clone, Copy, Debug)]
 pub struct BodyView {
     pub id: usize,
+    /// Authored object shared by its material cells, including fixed polygons.
+    pub object: Option<usize>,
     /// Cells in the same chunk share exactly one physical transform.
     pub chunk: u32,
     pub origin: usize,

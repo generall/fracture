@@ -5,6 +5,9 @@ mod controls;
 mod diagnostics;
 mod editor;
 mod editor_storage;
+#[cfg(not(target_arch = "wasm32"))]
+mod file_dialog;
+mod fog;
 mod lab;
 mod level_editor;
 mod level_storage;
@@ -233,6 +236,9 @@ async fn main() {
         if is_key_pressed(KeyCode::Tab) {
             lab.overlay = !lab.overlay;
         }
+        if is_key_pressed(KeyCode::V) && lab.world.scene() == Scene::Level {
+            lab.fog_enabled = !lab.fog_enabled;
+        }
         if is_key_pressed(KeyCode::R) {
             lab.reset(lab.world.scene());
         }
@@ -301,8 +307,20 @@ async fn main() {
             (lab.accumulator / f64::from(TICK_DT)) as f32
         };
         viewport = Viewport::new(chamber, lab.navigation.center, lab.navigation.zoom);
-        // Scissor clips the world while UI remains in logical screen coordinates.
-        // Camera2D's viewport uses physical framebuffer coordinates.
+        let fog_active = lab.fog_enabled && lab.world.scene() == Scene::Level;
+        if fog_active {
+            let p = lab.world.launcher_position();
+            lab.vision = lab.world.vision(
+                lab.world.player_tank_id(),
+                (lab.aim - vec2(p.x, p.y)).to_angle(),
+            );
+            lab.fog.get_or_insert_with(fog::Fog::default).observe(
+                &lab.world,
+                &lab.vision,
+                get_time(),
+            );
+        }
+        // One renderer and one screen-space scissor, with or without fog.
         let pixel_scale = scale * screen_dpi_scale();
         unsafe {
             get_internal_gl().quad_gl.scissor(Some((
@@ -320,6 +338,11 @@ async fn main() {
             lab.overlay,
             &lab.sparks,
             &lab.blasts,
+            if fog_active {
+                Some((lab.fog.as_ref().unwrap().scene(), &lab.vision))
+            } else {
+                None
+            },
         );
         unsafe {
             get_internal_gl().quad_gl.scissor(None);
@@ -332,6 +355,7 @@ async fn main() {
             lab.slow,
             lab.overlay,
             lab.tick_ms,
+            fog_active,
         );
         for action in actions {
             match action {
@@ -343,6 +367,7 @@ async fn main() {
                 }
                 Action::Slow => lab.slow = !lab.slow,
                 Action::Overlay => lab.overlay = !lab.overlay,
+                Action::Fog => lab.fog_enabled = !lab.fog_enabled,
                 Action::Step => {
                     lab.paused = true;
                     lab.accumulator = 0.0;

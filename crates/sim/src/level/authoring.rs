@@ -56,6 +56,10 @@ impl LevelItem {
     }
 
     pub fn can_join(&self, other: &Self) -> bool {
+        // Joining raw outlines would restore erased material.
+        if !self.cutouts().is_empty() || !other.cutouts().is_empty() {
+            return false;
+        }
         match (self, other) {
             (Self::Solid { .. }, Self::Solid { .. }) => true,
             (Self::Object { asset: a, .. }, Self::Object { asset: b, .. }) => {
@@ -142,6 +146,7 @@ pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
     let outline: Vec<_> = points.iter().map(|p| (*p - center).to_array()).collect();
     let result = match first {
         LevelItem::Solid { .. } => LevelItem::Solid {
+            cutouts: vec![],
             outline,
             position: center.to_array(),
             angle: 0.0,
@@ -163,6 +168,7 @@ pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
             asset.fit_grain_budget();
             asset.level_mesh()?;
             LevelItem::Object {
+                cutouts: vec![],
                 asset,
                 position: center.to_array(),
                 angle: 0.0,
@@ -224,6 +230,7 @@ mod tests {
     use super::*;
     fn object(preset: LibraryPreset, position: [f32; 2]) -> LevelItem {
         LevelItem::Object {
+            cutouts: vec![],
             asset: Box::new(preset.asset()),
             position,
             angle: 0.0,
@@ -301,6 +308,7 @@ mod tests {
     #[test]
     fn unions_preserve_concavity_and_reject_disconnected_shapes_and_holes() {
         let solid = |x, y, w, h| LevelItem::Solid {
+            cutouts: vec![],
             outline: rectangle(Vec2::new(w, h) * 0.5),
             position: [x, y],
             angle: 0.,

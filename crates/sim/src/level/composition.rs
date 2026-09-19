@@ -6,6 +6,40 @@ use std::collections::BTreeMap;
 const EPS: f32 = 1e-5;
 
 impl Level {
+    /// Permanently erase solids under a world-space rectangle. Each cut travels
+    /// with its object; newly placed objects can fill the erased area again.
+    pub fn erase_rectangle(&mut self, min: Vec2, max: Vec2) -> Result<usize, String> {
+        if !min.is_finite() || !max.is_finite() || !max.cmpgt(min).all() {
+            return Err("Eraser rectangle must have positive, finite dimensions.".into());
+        }
+        let corners = [min, Vec2::new(max.x, min.y), max, Vec2::new(min.x, max.y)];
+        let mut changed = 0;
+        let mut remaining = Vec::with_capacity(self.items.len());
+        for item in &self.items {
+            let mut item = item.clone();
+            if matches!(item, LevelItem::Object { .. } | LevelItem::Solid { .. }) {
+                let inverse = Vec2::from_angle(-item.angle());
+                let cutout = corners.map(|p| inverse.rotate(p - item.position()).to_array());
+                let mesh = item.erased_mesh()?;
+                let after = carve(mesh.clone(), &cutout_triangles(&[cutout]))?;
+                if after.area < mesh.area - EPS {
+                    changed += 1;
+                    if after.triangles.is_empty() {
+                        continue;
+                    }
+                    if let LevelItem::Object { cutouts, .. } | LevelItem::Solid { cutouts, .. } =
+                        &mut item
+                    {
+                        cutouts.push(cutout);
+                    }
+                }
+            }
+            remaining.push(item);
+        }
+        self.items = remaining;
+        Ok(changed)
+    }
+
     /// Unbreakable objects win over ordinary objects; later items win ties.
     /// Mesh vertices remain in each item's local coordinates. Non-solids are None.
     pub fn resolved_meshes(&self) -> Result<Vec<Option<ObjectMesh>>, String> {
@@ -14,7 +48,8 @@ impl Level {
             .iter()
             .map(|item| match item {
                 LevelItem::Object { .. } | LevelItem::Solid { .. } => {
-                    solid_asset(&item.local_outline()).level_mesh().map(Some)
+                    let mesh = solid_asset(&item.local_outline()).level_mesh()?;
+                    carve(mesh, &cutout_triangles(item.cutouts())).map(Some)
                 }
                 _ => Ok(None),
             })
@@ -23,8 +58,7 @@ impl Level {
         let mut pieces = 0;
         for (i, item) in self.items.iter().enumerate() {
             let mesh = match item {
-                LevelItem::Object { asset, .. } => asset.level_mesh()?,
-                LevelItem::Solid { outline, .. } => solid_asset(outline).level_mesh()?,
+                LevelItem::Object { .. } | LevelItem::Solid { .. } => item.erased_mesh()?,
                 _ => {
                     result.push(None);
                     continue;
@@ -60,6 +94,27 @@ impl Level {
             result.push(Some(mesh));
         }
         Ok(result)
+    }
+}
+
+fn cutout_triangles(cutouts: &[[[f32; 2]; 4]]) -> Vec<[Vec2; 3]> {
+    cutouts
+        .iter()
+        .flat_map(|p| {
+            let p = p.map(Vec2::from);
+            [[p[0], p[1], p[2]], [p[0], p[2], p[3]]]
+        })
+        .collect()
+}
+
+impl LevelItem {
+    fn erased_mesh(&self) -> Result<ObjectMesh, String> {
+        let mesh = match self {
+            Self::Object { asset, .. } => asset.level_mesh()?,
+            Self::Solid { outline, .. } => solid_asset(outline).level_mesh()?,
+            _ => return Err("Only solid objects have an eraser mesh.".into()),
+        };
+        carve(mesh, &cutout_triangles(self.cutouts()))
     }
 }
 
@@ -274,8 +329,124 @@ fn carve(mesh: ObjectMesh, cutters: &[[Vec2; 3]]) -> Result<ObjectMesh, String> 
 mod tests {
     use super::*;
 
+    #[test]
+    fn eraser_preserves_holes_through_save_transforms_and_overlap() {
+        for solid in [false, true] {
+            let mut item = wall();
+            if solid {
+                item = LevelItem::Solid {
+                    outline: rectangle(Vec2::new(1.0, 3.0)),
+                    position: [0.0, 0.0],
+                    angle: 0.0,
+                    cutouts: vec![],
+                };
+            }
+            let mut level = Level {
+                items: vec![item],
+                ..Level::default()
+            };
+            assert_eq!(
+                level
+                    .erase_rectangle(Vec2::splat(-0.5), Vec2::splat(0.5))
+                    .unwrap(),
+                1
+            );
+            let mesh = level.resolved_meshes().unwrap().remove(0).unwrap();
+            assert!((mesh.area - 11.0).abs() < 0.001);
+            assert!(!mesh.contains_point(Vec2::ZERO));
+            assert!(
+                (mesh
+                    .boundary_segments()
+                    .iter()
+                    .map(|[a, b]| a.distance(*b))
+                    .sum::<f32>()
+                    - 20.0)
+                    .abs()
+                    < 0.001
+            );
+            let before = level.clone();
+            assert_eq!(
+                level
+                    .erase_rectangle(Vec2::splat(-0.5), Vec2::splat(0.5))
+                    .unwrap(),
+                0
+            );
+            assert_eq!(before, level);
+            level = Level::from_json(&level.to_json().unwrap()).unwrap();
+            level.items[0].translate(Vec2::new(5.0, 2.0));
+            if let LevelItem::Object { angle, .. } | LevelItem::Solid { angle, .. } =
+                &mut level.items[0]
+            {
+                *angle = 0.6;
+            }
+            level.items[0].resize(Vec2::new(4.0, 12.0)).unwrap();
+            let mesh = level.resolved_meshes().unwrap().remove(0).unwrap();
+            assert!((mesh.area - 44.0).abs() < 0.001);
+            assert!(!mesh.contains_point(Vec2::ZERO));
+            assert!(!level.items[0].can_join(&level.items[0]));
+        }
+        // Erase both overlapping layers, then allow fresh material in the hole.
+        let mut level = Level {
+            items: vec![wall(), block(0.0)],
+            ..Level::default()
+        };
+        assert_eq!(
+            level
+                .erase_rectangle(Vec2::splat(-0.2), Vec2::splat(0.2))
+                .unwrap(),
+            2
+        );
+        for mesh in level.resolved_meshes().unwrap().into_iter().flatten() {
+            assert!(!mesh.contains_point(Vec2::ZERO));
+        }
+        level.items.push(wall());
+        assert!(
+            level.resolved_meshes().unwrap()[2]
+                .as_ref()
+                .unwrap()
+                .contains_point(Vec2::ZERO)
+        );
+        assert_eq!(
+            level
+                .erase_rectangle(Vec2::splat(-4.0), Vec2::splat(4.0))
+                .unwrap(),
+            3
+        );
+        assert!(level.items.is_empty());
+    }
+
+    #[test]
+    fn erased_opening_is_clear_in_the_simulation() {
+        let mut level = Level {
+            items: vec![
+                LevelItem::Solid {
+                    outline: rectangle(Vec2::splat(4.0)),
+                    position: [0.0, 0.0],
+                    angle: 0.37,
+                    cutouts: vec![],
+                },
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [0.0, 0.0],
+                    angle: 0.0,
+                },
+            ],
+            ..Level::default()
+        };
+        assert!(crate::World::from_level(&level, Team::Blue).is_err());
+        level
+            .erase_rectangle(Vec2::splat(-2.0), Vec2::splat(2.0))
+            .unwrap();
+        let mut world = crate::World::from_level(&level, Team::Blue).unwrap();
+        for _ in 0..120 {
+            world.step(&[]);
+        }
+        assert!(world.launcher_position().length() < 0.01);
+    }
+
     fn wall() -> LevelItem {
         LevelItem::Object {
+            cutouts: vec![],
             asset: Box::new(wall_asset(Vec2::new(2.0, 6.0))),
             position: [0.0, 0.0],
             angle: 0.0,
@@ -283,6 +454,7 @@ mod tests {
     }
     fn block(angle: f32) -> LevelItem {
         LevelItem::Solid {
+            cutouts: vec![],
             outline: rectangle(Vec2::splat(0.3)),
             position: [0.0, 0.0],
             angle,

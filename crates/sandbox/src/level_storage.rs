@@ -15,21 +15,13 @@ pub fn persist(json: &str) -> Result<(), String> {
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub fn export(json: &str) -> Result<&'static str, String> {
-    std::fs::create_dir_all("levels").map_err(|e| e.to_string())?;
-    std::fs::write("levels/level.json", json).map_err(|e| e.to_string())?;
-    Ok("Exported to levels/level.json")
+    crate::file_dialog::save_json("Save level as", "levels", "level.json", json)
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub fn pick_import() -> Result<(), String> {
-    let path = std::path::Path::new("levels/level.json");
-    let size = std::fs::metadata(path)
-        .map_err(|e| format!("levels/level.json: {e}"))?
-        .len();
-    if size > 2_097_152 {
-        return Err("Level file exceeds 2 MiB.".into());
+    if let Some(json) = crate::file_dialog::open_json("Open level", "levels", 2097152)? {
+        INCOMING.with(|p| *p.borrow_mut() = Some(Ok(json)));
     }
-    let json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    INCOMING.with(|p| *p.borrow_mut() = Some(Ok(json)));
     Ok(())
 }
 

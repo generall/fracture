@@ -7,3 +7,5 @@ edition.workspace = true
 sim = { path = "../sim" }
 macroquad.workspace = true
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tinyfiledialogs = "=3.9.1"

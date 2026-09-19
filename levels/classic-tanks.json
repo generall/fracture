@@ -1,0 +1,1472 @@
+{
+  "version": 1,
+  "name": "Classic Tanks / First Battlefield",
+  "size": [
+    55.0,
+    34.0
+  ],
+  "items": [
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -27.0,
+          -0.75
+        ],
+        [
+          27.0,
+          -0.75
+        ],
+        [
+          27.0,
+          0.75
+        ],
+        [
+          -27.0,
+          0.75
+        ]
+      ],
+      "position": [
+        0.0,
+        -15.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -27.0,
+          -0.75
+        ],
+        [
+          27.0,
+          -0.75
+        ],
+        [
+          27.0,
+          0.75
+        ],
+        [
+          -27.0,
+          0.75
+        ]
+      ],
+      "position": [
+        0.0,
+        15.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -0.75,
+          -15.0
+        ],
+        [
+          0.75,
+          -15.0
+        ],
+        [
+          0.75,
+          15.0
+        ],
+        [
+          -0.75,
+          15.0
+        ]
+      ],
+      "position": [
+        -26.25,
+        0.0
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -0.75,
+          -15.0
+        ],
+        [
+          0.75,
+          -15.0
+        ],
+        [
+          0.75,
+          15.0
+        ],
+        [
+          -0.75,
+          15.0
+        ]
+      ],
+      "position": [
+        26.25,
+        0.0
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -21.0,
+        -8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -15.0,
+        -8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -9.0,
+        -8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -5.25
+          ],
+          [
+            1.5,
+            -5.25
+          ],
+          [
+            1.5,
+            5.25
+          ],
+          [
+            -1.5,
+            5.25
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -3.0,
+        -6.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -5.25
+          ],
+          [
+            1.5,
+            -5.25
+          ],
+          [
+            1.5,
+            5.25
+          ],
+          [
+            -1.5,
+            5.25
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        3.0,
+        -6.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        9.0,
+        -8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        15.0,
+        -8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Upper brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        21.0,
+        -8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.5,
+          -1.5
+        ],
+        [
+          1.5,
+          -1.5
+        ],
+        [
+          1.5,
+          1.5
+        ],
+        [
+          -1.5,
+          1.5
+        ]
+      ],
+      "position": [
+        0.0,
+        -7.5
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Left cross wall",
+        "outline": [
+          [
+            -6.0,
+            -1.5
+          ],
+          [
+            6.0,
+            -1.5
+          ],
+          [
+            6.0,
+            1.5
+          ],
+          [
+            -6.0,
+            1.5
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -13.5,
+        0.0
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Right cross wall",
+        "outline": [
+          [
+            -6.0,
+            -1.5
+          ],
+          [
+            6.0,
+            -1.5
+          ],
+          [
+            6.0,
+            1.5
+          ],
+          [
+            -6.0,
+            1.5
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        13.5,
+        0.0
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.5,
+          -0.75
+        ],
+        [
+          1.5,
+          -0.75
+        ],
+        [
+          1.5,
+          0.75
+        ],
+        [
+          -1.5,
+          0.75
+        ]
+      ],
+      "position": [
+        -24.0,
+        0.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.5,
+          -0.75
+        ],
+        [
+          1.5,
+          -0.75
+        ],
+        [
+          1.5,
+          0.75
+        ],
+        [
+          -1.5,
+          0.75
+        ]
+      ],
+      "position": [
+        24.0,
+        0.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Right steel cap",
+        "outline": [
+          [
+            -1.5,
+            -0.375
+          ],
+          [
+            1.5,
+            -0.375
+          ],
+          [
+            1.5,
+            0.375
+          ],
+          [
+            -1.5,
+            0.375
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        24.0,
+        -0.375
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Central H wall",
+        "outline": [
+          [
+            -4.5,
+            -3.0
+          ],
+          [
+            -1.5,
+            -3.0
+          ],
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            -3.0
+          ],
+          [
+            4.5,
+            -3.0
+          ],
+          [
+            4.5,
+            3.0
+          ],
+          [
+            1.5,
+            3.0
+          ],
+          [
+            1.5,
+            1.5
+          ],
+          [
+            -1.5,
+            1.5
+          ],
+          [
+            -1.5,
+            3.0
+          ],
+          [
+            -4.5,
+            3.0
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        0.0,
+        4.5
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Lower brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -21.0,
+        8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Lower brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -15.0,
+        8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Lower brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -9.0,
+        8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Lower brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        9.0,
+        8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Lower brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        15.0,
+        8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Lower brick column",
+        "outline": [
+          [
+            -1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            -3.75
+          ],
+          [
+            1.5,
+            3.75
+          ],
+          [
+            -1.5,
+            3.75
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        21.0,
+        8.25
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Eagle base enclosure",
+        "outline": [
+          [
+            -3.0,
+            -2.25
+          ],
+          [
+            3.0,
+            -2.25
+          ],
+          [
+            3.0,
+            2.25
+          ],
+          [
+            1.5,
+            2.25
+          ],
+          [
+            1.5,
+            -0.75
+          ],
+          [
+            -1.5,
+            -0.75
+          ],
+          [
+            -1.5,
+            2.25
+          ],
+          [
+            -3.0,
+            2.25
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.1,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            1.5,
+            0.75
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          183,
+          87,
+          18
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        0.0,
+        12.75
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "spawn",
+      "team": "blue",
+      "position": [
+        -6.0,
+        13.5
+      ],
+      "angle": -1.5707964
+    },
+    {
+      "kind": "spawn",
+      "team": "red",
+      "position": [
+        -21.0,
+        -13.5
+      ],
+      "angle": 1.5707964
+    },
+    {
+      "kind": "flag",
+      "team": "blue",
+      "position": [
+        0.0,
+        13.5
+      ]
+    },
+    {
+      "kind": "flag",
+      "team": "red",
+      "position": [
+        0.0,
+        -13.5
+      ]
+    }
+  ],
+  "enemy_activity": "conquer"
+}

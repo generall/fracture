@@ -20,6 +20,10 @@ fn colors(kind: Kind) -> (Color, Color) {
             Color::from_rgba(223, 185, 111, 255),
             Color::from_rgba(27, 25, 22, 255),
         ),
+        Kind::TallGrass => (
+            Color::from_rgba(105, 166, 94, 255),
+            Color::from_rgba(24, 45, 30, 255),
+        ),
         Kind::Water => (
             Color::from_rgba(91, 171, 227, 255),
             Color::from_rgba(13, 28, 44, 255),
@@ -117,6 +121,21 @@ pub fn draw(patches: &[TerrainPatch], view: &Viewport) {
             let a = view.screen(vec2(p.min.x, p.min.y));
             let b = view.screen(vec2(p.max.x, p.max.y));
             draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, colors(p.kind).1);
+            if p.kind == Kind::TallGrass {
+                let spacing = 0.75_f32.max(8.0 / view.scale);
+                let mut x = (p.min.x / spacing).ceil() * spacing;
+                while x < p.max.x {
+                    let mut y = (p.min.y / spacing).ceil() * spacing;
+                    while y < p.max.y {
+                        let at = view.screen(vec2(x, y));
+                        let h = (view.scale * 0.15).clamp(1.0, 5.0);
+                        draw_line(at.x - h, at.y + h, at.x, at.y - h, 1.0, colors(p.kind).0);
+                        draw_line(at.x, at.y + h, at.x + h, at.y - h, 1.0, colors(p.kind).0);
+                        y += spacing;
+                    }
+                    x += spacing;
+                }
+            }
         }
         for &(kind, a, b) in &cache.edges {
             let a = view.screen(vec2(a.x, a.y));

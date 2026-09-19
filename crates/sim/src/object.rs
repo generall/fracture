@@ -65,6 +65,15 @@ impl Surface {
     }
 }
 
+impl ObjectAsset {
+    pub fn blocks_vision(&self) -> bool {
+        self.components.blocks_vision.unwrap_or(
+            !self.is_circular()
+                && !(self.surface == Surface::Panel && self.components.plasticity.is_some()),
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ObjectAsset {

@@ -18,6 +18,8 @@ A deterministic A* route uses tank clearance and terrain cost, blocks fixed obst
 
 Attack samples player position every 0.35 seconds, requires 0.7 seconds of uninterrupted visibility, turns the turret at about 60 degrees per second, and fires every 1.6 seconds at most. Aim spread is deterministic, up to 2 degrees stationary or 4 degrees moving. Conquer uses the same shooting limits within 12 metres while heading toward the player flag. Static and Driving never fire. The player retains the existing weapon controls and reload cadence.
 
+Attack and Conquer also shoot breakable cover blocking their route. They prefer a route around heavy cover, but can plan a breach when no such route reaches the goal. A sweep checks the tank's width, including the edges of partial openings. The tank stops to aim, uses HE beyond 3.3 metres (AP closer), and tries to reverse if the obstruction is too close. Acquisition, turret speed and firing cadence still apply. It replans after shots and resumes driving as the opening clears. A visible player takes priority; fixed walls are never demolition targets.
+
 ## Suggested next damage extensions
 
 - Track damage from hits to the track colliders: reduce one track's traction and turning ability, with a repair timer.

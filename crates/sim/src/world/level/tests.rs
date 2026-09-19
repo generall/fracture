@@ -37,11 +37,13 @@ fn level_walls_attach_to_nearby_authored_solids_without_generated_blocks() {
                 asset.pinned_edge = Some(2);
                 asset.support_spacing = Some(4.0);
                 let wall = LevelItem::Object {
+                    cutouts: vec![],
                     asset: Box::new(asset),
                     position: [0.0, 0.0],
                     angle,
                 };
                 let support = LevelItem::Solid {
+                    cutouts: vec![],
                     outline: crate::level::rectangle(Vector::splat(0.6)),
                     position: Vector::from_angle(angle)
                         .rotate(Vector::new(0.0, 3.6 + gap))
@@ -284,6 +286,7 @@ fn saved_editor_map_embedded_blocks_anchor_both_wall_sections() {
 fn map_roundtrip_retains_independent_shapes_and_long_wall_grains() {
     let source = LibraryPreset::Wall.asset();
     let mut item = LevelItem::Object {
+        cutouts: vec![],
         asset: Box::new(source.clone()),
         position: [0.0, 0.0],
         angle: 0.4,
@@ -339,6 +342,7 @@ fn invalid_maps_are_rejected_before_loading() {
     assert!(l.validate().is_err());
     l = fixture();
     l.items.push(LevelItem::Solid {
+        cutouts: vec![],
         outline: vec![[0.0, 0.0], [1.0, 1.0], [0.0, 1.0], [1.0, 0.0]],
         position: [0.0, 0.0],
         angle: 0.0,
@@ -355,6 +359,7 @@ fn spawns_use_team_heading_and_reject_hull_overlap_or_open_water() {
     assert!((w.piece_pose(w.launcher).rotation.angle().abs() - std::f32::consts::PI).abs() < 1e-5);
     for obstacle in [
         LevelItem::Solid {
+            cutouts: vec![],
             outline: crate::level::rectangle(Vector::splat(0.5)),
             position: [-6.0, 0.0],
             angle: 0.0,
@@ -468,6 +473,7 @@ fn tank_can_drive_to_enemy_flag_and_restart_from_unchanged_recipe() {
 fn indestructible_polygon_blocks_tanks_and_survives_all_ammunition() {
     let mut l = fixture();
     l.items.push(LevelItem::Solid {
+        cutouts: vec![],
         outline: crate::level::rectangle(Vector::new(0.5, 3.0)),
         position: [-2.0, 0.0],
         angle: 0.15,
@@ -628,11 +634,13 @@ fn large_bridge_remains_intact_at_rest_and_only_booths_are_targetable() {
 #[test]
 fn merged_rocks_form_one_rigid_body_without_duplicate_material() {
     let mut a = LevelItem::Object {
+        cutouts: vec![],
         asset: Box::new(LibraryPreset::Rock.asset()),
         position: [-1., 0.],
         angle: 0.,
     };
     let b = LevelItem::Object {
+        cutouts: vec![],
         asset: Box::new(LibraryPreset::Rock.asset()),
         position: [1., 0.],
         angle: 0.3,

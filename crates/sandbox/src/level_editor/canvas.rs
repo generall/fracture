@@ -70,7 +70,16 @@ impl LevelEditor {
             if is_mouse_button_released(MouseButton::Left)
                 && let Some(drag) = self.drag.take()
             {
-                if !matches!(drag.kind, DragKind::Marquee)
+                if matches!(drag.kind, DragKind::Erase) {
+                    let (min, max, _) =
+                        grid_rectangle(drag.start, point, self.level.size.into(), false);
+                    if let Err(error) = self.level.erase_rectangle(s(min), s(max)) {
+                        self.level = drag.before.clone();
+                        self.status = error;
+                    }
+                    self.clear_selection();
+                }
+                if !matches!(drag.kind, DragKind::Marquee | DragKind::Erase)
                     && self.level != drag.before
                     && !is_key_down(KeyCode::LeftAlt)
                     && !is_key_down(KeyCode::RightAlt)
@@ -159,7 +168,18 @@ impl LevelEditor {
             draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, Color { a: 0.08, ..CYAN });
             draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 1.5, CYAN);
         }
-        if self.drag.is_none() && rect.contains(mouse) && !matches!(self.tool, Tool::Select) {
+        if matches!(self.tool, Tool::Erase) && (rect.contains(mouse) || self.drag.is_some()) {
+            let start = self.drag.as_ref().map_or(point, |drag| drag.start);
+            let (min, max, _) = grid_rectangle(start, point, self.level.size.into(), false);
+            let a = view.screen(min);
+            let b = view.screen(max);
+            draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, Color { a: 0.22, ..PINK });
+            draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 2.0, PINK);
+        }
+        if self.drag.is_none()
+            && rect.contains(mouse)
+            && !matches!(self.tool, Tool::Select | Tool::Erase)
+        {
             if let Some(mut item) = self.placement(point, point)
                 && item.fit_inside(self.level.size.into()).is_ok()
             {
@@ -198,7 +218,11 @@ impl LevelEditor {
                 self.drag = Some(Drag {
                     before: self.level.clone(),
                     start: point,
-                    kind: DragKind::Draw,
+                    kind: if matches!(self.tool, Tool::Erase) {
+                        DragKind::Erase
+                    } else {
+                        DragKind::Draw
+                    },
                     selection: self.selection.clone(),
                 });
             } else if let Some(item) = self.placement(point, point) {
@@ -334,6 +358,7 @@ impl LevelEditor {
         let (start, kind) = (drag.start, drag.kind);
         self.level = drag.before.clone();
         match kind {
+            DragKind::Erase => {} // Preview only; apply the cut once on release.
             DragKind::Move => {
                 let desired = self.sticky_delta(s(point - start));
                 let delta = sim::level::clamp_translation(
@@ -416,8 +441,9 @@ impl LevelEditor {
         let half = Vec2::from(self.level.size) * 0.5 - Vec2::splat(0.201);
         let point = point.clamp(-half, half);
         match &self.tool {
-            Tool::Select => None,
+            Tool::Select | Tool::Erase => None,
             Tool::Object(asset) => Some(LevelItem::Object {
+                cutouts: vec![],
                 asset: asset.clone(),
                 position: point.to_array(),
                 angle: 0.0,
@@ -425,6 +451,7 @@ impl LevelEditor {
             Tool::Wall | Tool::SolidWall => {
                 if matches!(self.tool, Tool::SolidWall) {
                     return Some(LevelItem::Solid {
+                        cutouts: vec![],
                         outline: sim::level::rectangle(s((max - min) * 0.5)),
                         position: ((min + max) * 0.5).to_array(),
                         angle: 0.0,
@@ -432,12 +459,14 @@ impl LevelEditor {
                 }
                 let asset = sim::level::wall_asset(s(max - min));
                 Some(LevelItem::Object {
+                    cutouts: vec![],
                     asset: Box::new(asset),
                     position: ((min + max) * 0.5).to_array(),
                     angle: 0.0,
                 })
             }
             Tool::Solid => Some(LevelItem::Solid {
+                cutouts: vec![],
                 outline: sim::level::rectangle(s((max - min) * 0.5)),
                 position: ((min + max) * 0.5).to_array(),
                 angle: 0.0,

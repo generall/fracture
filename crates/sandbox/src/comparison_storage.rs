@@ -16,21 +16,13 @@ pub fn persist(json: &str) -> Result<(), String> {
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub fn export(json: &str) -> Result<&'static str, String> {
-    std::fs::create_dir_all("objects").map_err(|e| e.to_string())?;
-    std::fs::write("objects/experiment.json", json).map_err(|e| e.to_string())?;
-    Ok("Exported to objects/experiment.json")
+    crate::file_dialog::save_json("Save experiment as", "objects", "experiment.json", json)
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub fn pick_import() -> Result<(), String> {
-    let path = std::path::Path::new("objects/experiment.json");
-    let size = std::fs::metadata(path)
-        .map_err(|e| format!("objects/experiment.json: {e}"))?
-        .len();
-    if size > 8_388_608 {
-        return Err("Experiment file exceeds 8 MiB.".into());
+    if let Some(json) = crate::file_dialog::open_json("Open experiment", "objects", 8388608)? {
+        INCOMING.with(|p| *p.borrow_mut() = Some(Ok(json)));
     }
-    let json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    INCOMING.with(|p| *p.borrow_mut() = Some(Ok(json)));
     Ok(())
 }
 

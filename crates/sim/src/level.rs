@@ -36,12 +36,17 @@ pub enum LevelItem {
         asset: Box<ObjectAsset>,
         position: [f32; 2],
         angle: f32,
+        /// Permanent erased rectangles in object-local coordinates.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        cutouts: Vec<[[f32; 2]; 4]>,
     },
     /// Fixed polygon: blocks tanks and weapons, never fractures.
     Solid {
         outline: Vec<[f32; 2]>,
         position: [f32; 2],
         angle: f32,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        cutouts: Vec<[[f32; 2]; 4]>,
     },
     Terrain {
         terrain: TerrainKind,
@@ -92,9 +97,9 @@ impl EnemyActivity {
                 "Patrols a route. Avoids heavy obstacles; may ram light walls. Never fires."
             }
             Self::Attack => {
-                "Hunts the player with delayed reactions, limited turret speed and imperfect aim."
+                "Hunts the player with limited reactions and aim. Shoots cover blocking its route."
             }
-            Self::Conquer => "Heads for your flag and fires at you when nearby.",
+            Self::Conquer => "Heads for your flag, shoots blocking cover and engages you nearby.",
         }
     }
 }
@@ -193,6 +198,25 @@ impl Level {
                 if !item.angle().is_finite() {
                     return Err("Rotation must be finite.".into());
                 }
+                if item.cutouts().len() > 256 {
+                    return Err("Use at most 256 eraser rectangles per object.".into());
+                }
+                for cutout in item.cutouts() {
+                    let points = cutout.map(Vec2::from);
+                    if points
+                        .iter()
+                        .any(|p| !p.is_finite() || p.abs().max_element() > 1000.0)
+                    {
+                        return Err("Eraser coordinates must be finite and within 1000 m.".into());
+                    }
+                    let turns = [0, 1, 2, 3].map(|i| {
+                        (points[(i + 1) % 4] - points[i])
+                            .perp_dot(points[(i + 2) % 4] - points[(i + 1) % 4])
+                    });
+                    if !turns.iter().all(|&t| t > 0.0) && !turns.iter().all(|&t| t < 0.0) {
+                        return Err("Eraser cutouts must be convex.".into());
+                    }
+                }
                 let vertices = item.world_outline();
                 if vertices.iter().any(|p| {
                     !p.is_finite()
@@ -263,6 +287,19 @@ fn valid_rect(min: [f32; 2], max: [f32; 2]) -> Result<(), String> {
 }
 
 impl LevelItem {
+    pub fn cutouts(&self) -> &[[[f32; 2]; 4]] {
+        match self {
+            Self::Object { cutouts, .. } | Self::Solid { cutouts, .. } => cutouts,
+            _ => &[],
+        }
+    }
+    fn scale_cutouts(&mut self, ratio: Vec2) {
+        if let Self::Object { cutouts, .. } | Self::Solid { cutouts, .. } = self {
+            for point in cutouts.iter_mut().flatten() {
+                *point = (Vec2::from(*point) * ratio).to_array();
+            }
+        }
+    }
     pub fn label(&self) -> &str {
         match self {
             Self::Object { asset, .. } => &asset.name,
@@ -387,6 +424,7 @@ impl LevelItem {
             if let Self::Object { asset, .. } = self {
                 asset.set_radius(diameter * 0.5);
             }
+            self.scale_cutouts(Vec2::splat(diameter) / old);
             return Ok(());
         }
         match self {
@@ -403,6 +441,7 @@ impl LevelItem {
                         .map(|p| (Vec2::from(*p) * ratio).to_array())
                         .collect(),
                 );
+                self.scale_cutouts(ratio);
             }
             _ => return Err("Spawn and flag footprints have a fixed size.".into()),
         }

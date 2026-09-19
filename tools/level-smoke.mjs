@@ -119,7 +119,7 @@ try {
   const savedObjects=await evaluate('localStorage.getItem("fracture.objects.v1")');await field(1200,310,'3');assert.equal(await evaluate('localStorage.getItem("fracture.objects.v1")'),savedObjects);
   // Export uses the browser download boundary, import remains validated and undoable.
   await evaluate('window.levelDownloads=[];window.levelCreate=URL.createObjectURL;URL.createObjectURL=b=>{window.levelDownloads.push(b);return window.levelCreate(b)}');
-  await click(490,40);await click(550,180);assert.equal(await evaluate('window.levelDownloads.length'),1);
+  await click(490,40);await click(550,96);assert.equal(await evaluate('window.levelDownloads.length'),1);
   const authored=await map();
   await writeFile('/tmp/fracture-level-import.json',JSON.stringify(authored));
   const {root}=await cdp('DOM.getDocument');const {nodeIds}=await cdp('DOM.querySelectorAll',{nodeId:root.nodeId,selector:'input[type=file]'});

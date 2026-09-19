@@ -1,6 +1,7 @@
 //! Deterministic opponent controller: route planning, differential tracks and aiming.
 use super::*;
 use crate::level::EnemyActivity;
+mod clearing;
 mod navigation;
 
 pub(super) struct Enemy {
@@ -18,6 +19,10 @@ pub(super) struct Enemy {
     progress_at: Vector,
     stuck_for: f32,
     reverse_for: f32,
+    scan_in: f32,
+    obstruction: Option<(usize, Vector)>,
+    obstruction_key: Option<usize>,
+    obstruction_for: f32,
 }
 impl Enemy {
     pub fn new(id: usize, activity: EnemyActivity, position: Vector) -> Self {
@@ -36,6 +41,10 @@ impl Enemy {
             progress_at: position,
             stuck_for: 0.0,
             reverse_for: 0.0,
+            scan_in: 0.0,
+            obstruction: None,
+            obstruction_key: None,
+            obstruction_for: 0.0,
         }
     }
     pub fn reset(&mut self, position: Vector) {
@@ -78,6 +87,7 @@ impl World {
                 } else {
                     30.0
                 }
+            && self.sight_clear(id, enemy.observed)
             && self.tank_line_of_sight(id, enemy.observed);
         enemy.visible_for = if visible {
             enemy.visible_for + TICK_DT
@@ -113,6 +123,15 @@ impl World {
                 }
             } else {
                 enemy.route = self.tank_route(id, position, enemy.goal);
+                if hunts
+                    && (enemy.route.is_empty()
+                        || enemy
+                            .route
+                            .last()
+                            .is_some_and(|p| p.distance(enemy.goal) > 2.0))
+                {
+                    enemy.route = self.plan_tank_route(id, position, enemy.goal, true);
+                }
             }
         }
         while enemy
@@ -122,7 +141,41 @@ impl World {
         {
             enemy.route.remove(0);
         }
-        if !stop_to_fire && let Some(target) = enemy.route.first() {
+        enemy.scan_in -= TICK_DT;
+        if hunts && enemy.scan_in <= 0.0 {
+            enemy.scan_in = 0.2;
+            enemy.obstruction = self.route_obstruction(id, &enemy.route);
+        }
+        if enemy
+            .obstruction
+            .is_some_and(|(piece, _)| !self.pieces[piece].active)
+        {
+            enemy.obstruction = None;
+            enemy.scan_in = 0.0;
+            enemy.plan_in = 0.0;
+        }
+        let clearing = if hunts && !visible {
+            enemy.obstruction
+        } else {
+            None
+        };
+        let key = clearing.map(|(piece, _)| {
+            self.pieces[piece]
+                .object
+                .unwrap_or(self.pieces[piece].origin)
+        });
+        enemy.obstruction_for = if key.is_some() && key == enemy.obstruction_key {
+            enemy.obstruction_for + TICK_DT
+        } else {
+            0.0
+        };
+        enemy.obstruction_key = key;
+        let clearance = clearing.map_or(f32::INFINITY, |(_, point)| point.distance(position));
+        let stop_to_clear = clearing.is_some() && clearance < 4.5;
+        if !stop_to_fire
+            && !stop_to_clear
+            && let Some(target) = enemy.route.first()
+        {
             let delta = *target - position;
             let error = angle_difference(delta.to_angle(), pose.rotation.angle());
             // Large heading changes turn in place. Small changes bend the route.
@@ -148,24 +201,57 @@ impl World {
                 tracks = [-0.35, -0.28];
             }
         }
-        // Independently turn the turret; a new target must remain visible for
-        // 0.7 s before firing. Samples are delayed and aim has deterministic error.
+        if stop_to_clear {
+            enemy.stuck_for = 0.0;
+            enemy.reverse_for = 0.0;
+            // Leave room for the barrel and HE blast before firing. Check the
+            // retreat footprint so backing up never deliberately drives into cover.
+            if clearance < 3.3 {
+                let backwards = position - pose.rotation * Vector::X * 0.6;
+                if self.tank_pose_clear(id, Pose::new(backwards, pose.rotation.angle())) {
+                    tracks = [-0.25; 2];
+                }
+            }
+        }
+        let aim = if let Some((_, point)) = clearing {
+            point
+        } else {
+            enemy.observed
+        };
+        let target_distance = aim.distance(position);
         let desired = if hunts {
-            (enemy.observed - position).to_angle()
+            (aim - position).to_angle()
         } else {
             pose.rotation.angle()
         };
         let tank = self.tanks.iter_mut().find(|t| t.id == id).unwrap();
         let error = angle_difference(desired, tank.turret);
         tank.turret += error.clamp(-TICK_DT * 1.05, TICK_DT * 1.05);
-        if visible && enemy.visible_for >= 0.7 && enemy.fire_in <= 0.0 && error.abs() < 0.06 {
+        let acquired = if clearing.is_some() {
+            enemy.obstruction_for >= 0.7
+        } else {
+            visible && enemy.visible_for >= 0.7
+        };
+        if acquired && enemy.fire_in <= 0.0 && error.abs() < 0.06 && target_distance > 1.8 {
             let moving = self.physics.bodies[self.pieces[id].body].linvel().length() > 0.5;
             let spread = if moving { 0.07 } else { 0.035 };
             let offset = ((enemy.shot as f32 + 1.0) * 2.399963).sin() * spread;
-            let target = position + Vector::from_angle(tank.turret + offset) * distance;
-            self.fire_from(id, Shot::new(Ammunition::ArmorPiercing, target), events);
-            enemy.fire_in = 1.6;
-            enemy.shot += 1;
+            let target = position + Vector::from_angle(tank.turret + offset) * target_distance;
+            let ammunition = if clearing.is_some() && target_distance > 3.3 {
+                Ammunition::HighExplosive
+            } else {
+                Ammunition::ArmorPiercing
+            };
+            let before = self.shots;
+            self.fire_from(id, Shot::new(ammunition, target), events);
+            if self.shots > before {
+                enemy.fire_in = 1.6;
+                enemy.shot += 1;
+                enemy.plan_in = enemy.plan_in.min(0.25);
+            } else {
+                enemy.scan_in = 0.0;
+                enemy.fire_in = 0.2;
+            }
         }
         self.enemy = Some(enemy);
         Some((id, tracks))

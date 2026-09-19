@@ -12,7 +12,10 @@ impl World {
         let object_id = self.objects.len();
         self.objects.push(components::ObjectInstance {
             color: object.color,
-            components: object.components,
+            components: crate::Components {
+                blocks_vision: Some(object.blocks_vision()),
+                ..object.components
+            },
             ignited: false,
             spent: false,
         });

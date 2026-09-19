@@ -9,6 +9,7 @@ pub enum TerrainKind {
     Sand,
     Water,
     Bridge,
+    TallGrass,
 }
 
 impl TerrainKind {
@@ -17,6 +18,7 @@ impl TerrainKind {
             Self::Ground => "GROUND",
             Self::Road => "ROAD",
             Self::Sand => "SAND",
+            Self::TallGrass => "TALL GRASS",
             Self::Water => "WATER",
             Self::Bridge => "BRIDGE",
         }
@@ -25,7 +27,7 @@ impl TerrainKind {
     /// Speed, drive force, grip and lateral damping relative to ordinary ground.
     pub(crate) fn traction(self) -> [f32; 4] {
         match self {
-            Self::Ground => [1.0; 4],
+            Self::Ground | Self::TallGrass => [1.0; 4],
             Self::Road | Self::Bridge => [1.45, 1.3, 1.4, 1.35],
             Self::Sand => [0.48, 0.6, 0.65, 0.8],
             Self::Water => [0.0; 4],

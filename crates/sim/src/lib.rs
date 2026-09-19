@@ -19,6 +19,6 @@ pub use object::{
 pub use rapier2d::math::Vector as Vec2;
 pub use terrain::{BridgeView, TerrainKind, TerrainPatch};
 pub use world::{
-    BodyView, BondView, Command, Event, LaserBeam, Scene, Shape, Shell, Shot, Stats, TICK_DT,
-    TankView, World,
+    BodyView, BondView, Command, Event, LaserBeam, NEAR_VISION, Scene, Shape, Shell, Shot, Stats,
+    TICK_DT, TankView, VISION_HALF_ANGLE, VISION_RANGE, Vision, World,
 };
