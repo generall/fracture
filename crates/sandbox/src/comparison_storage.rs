@@ -55,6 +55,7 @@ pub fn startup() -> i32 {
             "--barrel-shot" => Some(3),
             "--barrel-shot-free" => Some(4),
             "--barrel-release" => Some(5),
+            "--fences" => Some(6),
             _ => None,
         })
         .unwrap_or(0)

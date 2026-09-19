@@ -18,6 +18,7 @@ pub use api::{BodyView, BondView, Command, Event, LaserBeam, Scene, Shape, Shell
 
 mod collision;
 use collision::CollisionLayer;
+mod bending;
 mod chunks;
 mod combat;
 mod components;
@@ -195,6 +196,7 @@ pub struct World {
     physics: PhysicsWorld,
     pieces: Vec<Piece>,
     bonds: Vec<Bond>,
+    bending_joints: Vec<ImpulseJointHandle>,
     launcher: usize,
     tanks: Vec<combat::Tank>,
     enemy: Option<enemy::Enemy>,
@@ -299,6 +301,7 @@ impl World {
             let velocities = self.contact_velocities();
             self.physics
                 .step_with_events(&contacts::ReboundHooks(&self.pieces), &());
+            self.update_plastic_bends();
             let ramming = self.collect_contact_loads(&velocities);
             for (id, damage) in ramming {
                 self.damage_tank(id, damage, &mut events);

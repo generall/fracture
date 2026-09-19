@@ -255,6 +255,17 @@ impl Comparison {
                 );
                 let m = &state.frame.metrics;
                 if compact {
+                    let fence_trial = self
+                        .experiment
+                        .variants
+                        .iter()
+                        .any(|v| v.object.components.bending_torque.is_some());
+                    let tank = state
+                        .geometry
+                        .iter()
+                        .find(|g| g.material == 4)
+                        .and_then(|g| state.frame.poses.iter().find(|p| p.0 == g.id))
+                        .filter(|_| fence_trial && v.impact.kind == ImpactKind::Tank);
                     let varied_impact = self
                         .experiment
                         .variants
@@ -273,7 +284,9 @@ impl Comparison {
                             || other.object.restitution
                                 != self.experiment.variants[0].object.restitution
                     });
-                    let parameter = if let Some(soft) = v.object.soft_bounce {
+                    let parameter = if let Some(torque) = v.object.components.bending_torque {
+                        format!("PLASTIC YIELD {torque:.0} Nm")
+                    } else if let Some(soft) = v.object.soft_bounce {
                         format!(
                             "BOUNCE {:.2} > {:.2} / {:.0}m/s",
                             soft.restitution, v.object.restitution, soft.speed
@@ -300,7 +313,12 @@ impl Comparison {
                     };
                     ui::text(&parameter, card.x + 12.0, card.bottom() - 49.0, 14.0, MUTED);
                     ui::text(
-                        &if v.object.components.plasticity.is_some() {
+                        &if let Some(tank) = tank {
+                            let angle = (tank.2.to_degrees() - v.impact.angle_degrees + 180.0)
+                                .rem_euclid(360.0)
+                                - 180.0;
+                            format!("TANK TURN {angle:+.2} DEG")
+                        } else if v.object.components.plasticity.is_some() {
                             format!("{:.0}% PERMANENT STRAIN", m.plastic_strain * 100.0)
                         } else {
                             format!("{} CHUNKS / {:.2}m2 CORE", m.chunks, m.largest_area)
@@ -313,6 +331,11 @@ impl Comparison {
                     ui::text(
                         &if m.unconverged > 0 {
                             "SOLVER LIMIT".into()
+                        } else if let Some(tank) = tank {
+                            let forward = Vec2::from_angle(v.impact.angle_degrees.to_radians());
+                            let drift = forward.perp_dot(Vec2::from(tank.1) - vec2(3.0, 0.0))
+                                - v.impact.aim[1];
+                            format!("SIDE OFFSET {drift:+.3} m")
                         } else if v.object.components.plasticity.is_some() {
                             format!("{:.1}J PLASTIC WORK", m.plastic_work)
                         } else {

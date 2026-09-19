@@ -49,6 +49,7 @@ async fn main() {
         3 => Some(comparison::Comparison::barrel_shot(true)),
         4 => Some(comparison::Comparison::barrel_shot(false)),
         5 => Some(comparison::Comparison::barrel_release()),
+        6 => Some(comparison::Comparison::fences()),
         _ => None,
     };
     let mut editing_comparison = false;
@@ -310,10 +311,9 @@ async fn main() {
         let fog_active = lab.fog_enabled && lab.world.scene() == Scene::Level;
         if fog_active {
             let p = lab.world.launcher_position();
-            lab.vision = lab.world.vision(
-                lab.world.player_tank_id(),
-                (lab.aim - vec2(p.x, p.y)).to_angle(),
-            );
+            lab.vision = lab
+                .world
+                .player_vision((lab.aim - vec2(p.x, p.y)).to_angle());
             lab.fog.get_or_insert_with(fog::Fog::default).observe(
                 &lab.world,
                 &lab.vision,

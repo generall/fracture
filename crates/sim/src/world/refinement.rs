@@ -60,7 +60,7 @@ impl World {
             let components = self.components_for(l.piece);
             // Deformation frames keep their authored connectivity. Fracturing
             // and adaptive subdivision belong to the destructible behavior.
-            if components.plasticity.is_some() {
+            if components.plasticity.is_some() || components.bending_torque.is_some() {
                 continue;
             }
             if !l.apply && !components.contact_refinement {
@@ -123,6 +123,7 @@ impl World {
         let origin = parent.origin;
         let grain = parent.grain;
         let object = parent.object;
+        let flexible = self.components_for(id).bending_torque.is_some();
         let reference_area = parent.reference_area;
         let plastic_strain = parent.plastic_strain;
         let shape_revision = parent.shape_revision;
@@ -168,6 +169,9 @@ impl World {
                 collider.set_mass(piece.mass());
             }
             collider.set_friction(friction);
+            if flexible {
+                collider.set_friction_combine_rule(CoefficientCombineRule::Min);
+            }
             collider.set_collision_groups(piece.collision_layer().groups());
             collider.set_restitution(restitution);
             collider.set_active_hooks(contacts::hooks_for(soft_bounce));

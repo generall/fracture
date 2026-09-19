@@ -21,6 +21,7 @@ impl World {
             physics,
             pieces: Vec::new(),
             bonds: Vec::new(),
+            bending_joints: Vec::new(),
             launcher: 0,
             tanks: vec![],
             enemy: None,
@@ -93,6 +94,7 @@ impl World {
             Scene::Custom | Scene::Level => {}
             Scene::ObjectYard => world.object_yard(),
             Scene::Terrain => world.terrain_range(),
+            Scene::BarrelRubble => world.barrel_rubble(),
         }
         world.rebuild_chunks();
         world

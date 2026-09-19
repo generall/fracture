@@ -47,7 +47,7 @@ Open [localhost:8000](http://127.0.0.1:8000). The loader and bold font are bundl
 | T | Toggle 0.2x slow motion |
 | Tab | Show recent connection stress |
 | R | Rebuild the scene |
-| 1 / 2 / 3 / 4 | Barrier / weak link / rock field / object yard |
+| 1 / 2 / 3 / 4 | Barrier / barrel against rubble / rock field / object yard |
 | 9 | Terrain and destructible bridge range |
 | Wheel / right drag / Home | Zoom / pan / recenter |
 

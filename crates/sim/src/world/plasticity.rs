@@ -343,8 +343,7 @@ impl Mesh {
                     .map(|&(r, w)| correction[r] * w)
                     .sum::<Vector>()
         };
-        // Project the loaded rest-shape proposal onto an inextensible rim.
-        // It can bend and enclose less area, but cannot contract like foam.
+        // Project the proposal onto an inextensible rim.
         // Corrections happen before work, strain and collision acceptance.
         for _ in 0..96 {
             let mut error = 0.0_f32;
@@ -413,8 +412,9 @@ impl Mesh {
         &self,
         world: &World,
         next: &[[Vector; 3]],
-        handle: RigidBodyHandle,
         frame: Pose,
+        obstacles: &[(ColliderHandle, Aabb)],
+        old_shapes: &[SharedShape],
     ) -> bool {
         let mut sorted = Vec::new();
         for (i, &tri) in next.iter().enumerate() {
@@ -436,16 +436,12 @@ impl Mesh {
             let Some(new_shape) = SharedShape::convex_hull(&tri) else {
                 return false;
             };
-            let old_shape = SharedShape::convex_hull(&old).unwrap();
             let bounds = new_shape.compute_aabb(&frame);
-            for (_, collider) in world.physics.colliders.iter() {
-                if collider.parent() == Some(handle) {
-                    continue;
-                }
-                let other = collider.compute_aabb();
+            for &(handle, other) in obstacles {
                 if bounds.mins.cmpgt(other.maxs).any() || bounds.maxs.cmplt(other.mins).any() {
                     continue;
                 }
+                let collider = &world.physics.colliders[handle];
                 use rapier2d::parry::query::contact;
                 let Ok(contact_now) = contact(
                     &frame,
@@ -459,7 +455,7 @@ impl Mesh {
                 if let Some(c) = contact_now {
                     let Ok(previous) = contact(
                         &frame,
-                        &*old_shape,
+                        &*old_shapes[i],
                         collider.position(),
                         collider.shape(),
                         0.0,
@@ -570,6 +566,33 @@ impl World {
         let Some(mesh) = Mesh::new(self, ids, nodes, &projected.displacements, edges, frame) else {
             return false;
         };
+        // A proposal moves each vertex by at most 1.5 cm (checked below).
+        // Gather nearby colliders once for all triangles and backtracking
+        // attempts, preserving their order and the exact contact tests.
+        let mut lo = Vector::splat(f32::INFINITY);
+        let mut hi = Vector::splat(f32::NEG_INFINITY);
+        for &point in mesh.old.iter().flatten() {
+            let point = frame.transform_point(point);
+            lo = lo.min(point);
+            hi = hi.max(point);
+        }
+        let margin = Vector::splat(0.0151);
+        let obstacles: Vec<_> = self
+            .physics
+            .colliders
+            .iter()
+            .filter(|(_, collider)| collider.parent() != Some(handle))
+            .filter_map(|(handle, collider)| {
+                let bounds = collider.compute_aabb();
+                (!(lo - margin).cmpgt(bounds.maxs).any() && !(hi + margin).cmplt(bounds.mins).any())
+                    .then_some((handle, bounds))
+            })
+            .collect();
+        let old_shapes: Vec<_> = mesh
+            .old
+            .iter()
+            .map(|tri| SharedShape::convex_hull(tri).unwrap())
+            .collect();
         let mut scale = 1.0_f32;
         for (i, d) in mesh.delta.iter().enumerate() {
             let max = d.iter().map(|p| p.length()).fold(0.0, f32::max);
@@ -663,7 +686,7 @@ impl World {
             if work <= 1e-10 {
                 return false;
             }
-            if !mesh.valid(self, &next, handle, frame) {
+            if !mesh.valid(self, &next, frame, &obstacles, &old_shapes) {
                 scale *= 0.5;
                 continue;
             }

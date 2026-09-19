@@ -176,6 +176,20 @@ impl Comparison {
             0 if self.experiment.variants[self.selected]
                 .object
                 .components
+                .bending_torque
+                .is_some() =>
+            {
+                &[
+                    (Field::BendingTorque, "BENDING TORQUE Nm"),
+                    (Field::Density, "DENSITY kg/m3"),
+                    (Field::Friction, "FRICTION"),
+                    (Field::Depth, "DEPTH m"),
+                    (Field::Restitution, "BOUNCINESS 0-1"),
+                ]
+            }
+            0 if self.experiment.variants[self.selected]
+                .object
+                .components
                 .plasticity
                 .is_some() =>
             {
@@ -354,6 +368,13 @@ impl Comparison {
                     "Soft bounce below the chosen speed."
                 } else if plastic {
                     "Strain limit caps permanent bend."
+                } else if self.experiment.variants[self.selected]
+                    .object
+                    .components
+                    .bending_torque
+                    .is_some()
+                {
+                    "Holds its shape below the yield torque."
                 } else {
                     "E controls virtual strain/energy."
                 },

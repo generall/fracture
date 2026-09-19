@@ -61,6 +61,7 @@ enum Field {
     PlasticFlow,
     Hardening,
     StrainLimit,
+    BendingTorque,
 }
 struct Input {
     field: Field,
@@ -137,6 +138,16 @@ impl Comparison {
     pub fn barrels() -> Self {
         let mut c = Self::new(sim::LibraryPreset::Barrel.asset());
         c.load(Experiment::barrel_comparison());
+        c.looping = true;
+        c.run();
+        c
+    }
+    pub fn fences() -> Self {
+        let mut c = Self::new(sim::LibraryPreset::MetalFence.asset());
+        c.load(Experiment::fence_comparison());
+        c.center = vec2(3.0, 0.0);
+        c.zoom = 2.0;
+        c.target_zoom = c.zoom;
         c.looping = true;
         c.run();
         c

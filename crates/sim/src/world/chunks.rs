@@ -25,6 +25,9 @@ impl World {
     pub(super) fn rebuild_chunks(&mut self) {
         let mut adjacency = vec![Vec::new(); self.pieces.len()];
         for b in self.bonds.iter().filter(|b| b.active) {
+            if self.bending_torque(b).is_some() {
+                continue;
+            }
             adjacency[b.a].push(b.b);
             adjacency[b.b].push(b.a);
         }
@@ -176,6 +179,7 @@ impl World {
             .bodies
             .propagate_modified_body_positions_to_colliders(&mut self.physics.colliders);
         self.update_visible_edges();
+        self.rebuild_bending_joints();
     }
 
     pub(super) fn update_visible_edges(&mut self) {

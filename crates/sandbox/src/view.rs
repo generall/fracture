@@ -229,6 +229,18 @@ pub fn draw_world(
 fn draw_sight_shading(viewport: &Viewport, vision: &sim::Vision) {
     let color = Color::new(0.0, 0.0, 0.0, 0.25);
     let rect = viewport.rect;
+    if vision.regions().count() > 1 {
+        let a = viewport.world(vec2(rect.x, rect.y));
+        let b = viewport.world(vec2(rect.right(), rect.bottom()));
+        for triangle in vision.shadow_triangles(
+            sim::Vec2::new(a.x.min(b.x), a.y.min(b.y)),
+            sim::Vec2::new(a.x.max(b.x), a.y.max(b.y)),
+        ) {
+            let [a, b, c] = triangle.map(|p| viewport.screen(v(p)));
+            draw_triangle(a, b, c, color);
+        }
+        return;
+    }
     if vision.boundary.is_empty() {
         draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
         return;

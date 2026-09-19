@@ -58,6 +58,9 @@ impl Default for Explosive {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Components {
+    /// Plastic yield moment between material grains, in N m.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bending_torque: Option<f32>,
     /// None uses the material/preset default; independent of physical collision.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub blocks_vision: Option<bool>,
@@ -75,6 +78,7 @@ impl Default for Components {
     fn default() -> Self {
         Self {
             blocks_vision: None,
+            bending_torque: None,
             projectile_resistance: 1.0,
             contact_resistance: 1.0,
             contact_refinement: true,
@@ -89,6 +93,12 @@ impl Components {
         *self == Self::default()
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self
+            .bending_torque
+            .is_some_and(|t| !t.is_finite() || !(0.1..=100000.0).contains(&t))
+        {
+            return Err("Bending torque must be between 0.1 and 100000 N m.".into());
+        }
         if let Some(p) = self.plasticity {
             for (name, value, min, max) in [
                 ("Yield stress", p.yield_stress, 100.0, 1e9),
@@ -179,9 +189,9 @@ impl LibraryPreset {
             Self::MetalFence => {
                 a.outline = vec![[-0.1, -2.5], [0.1, -2.5], [0.1, 2.5], [-0.1, 2.5]];
                 a.surface = Surface::Panel;
-                a.density = 7800.0;
+                a.density = 780.0;
                 a.thickness = 0.02;
-                a.friction = 0.6;
+                a.friction = 0.02;
                 a.tension = 350e6;
                 a.compression = 350e6;
                 a.shear = 200e6;
@@ -190,15 +200,20 @@ impl LibraryPreset {
                 a.cohesion = 4.0;
                 a.refinement = 0;
                 a.pinned_edge = Some(0);
-                a.regenerate_grains(GrainMode::Bricks, [0.2, 0.3], 7);
+                // Accepted fence trial #3: six plastic bend points, with the
+                // same pinned base and free-span layout as the comparison.
+                let spacing = 3.6 / 6.0;
+                a.layout = Some(GrainLayout {
+                    mode: GrainMode::Stones,
+                    size: [0.2, spacing],
+                    seed: 7,
+                    sites: std::iter::once([0.0, -1.1 - spacing * 0.5])
+                        .chain((0..6).map(|j| [0.0, -1.1 + (j as f32 + 0.5) * spacing]))
+                        .collect(),
+                });
                 a.components = Components {
                     contact_refinement: false,
-                    plasticity: Some(Plasticity {
-                        yield_stress: 30_000.0,
-                        flow_rate: 1.0,
-                        hardening: 2.0,
-                        max_strain: 1.0,
-                    }),
+                    bending_torque: Some(8000.0),
                     ..Components::default()
                 };
                 a.color = Some([110, 184, 255]);
@@ -237,6 +252,7 @@ impl LibraryPreset {
                 });
                 a.components = Components {
                     blocks_vision: Some(false),
+                    bending_torque: None,
                     projectile_resistance: 60.0,
                     contact_resistance: 8.0,
                     contact_refinement: false,

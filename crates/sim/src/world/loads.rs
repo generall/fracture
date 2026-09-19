@@ -187,43 +187,53 @@ impl World {
         // to reach a distant neck, and redistributes them after local failure.
         for _ in 0..8 {
             let groups = self.chunk_members();
+            // Index loads and incident bonds once per topology round. A rubble
+            // pile can contain hundreds of chunks; scanning the entire scene
+            // separately for each one makes sustained contact unnecessarily costly.
+            let mut loaded: BTreeMap<_, (Vec<usize>, Vec<usize>)> = BTreeMap::new();
+            for (i, load) in self.loads.iter().enumerate() {
+                if self.components_for(load.piece).bending_torque.is_some() {
+                    continue; // Section joints already resolve these contact loads.
+                }
+                let key = self.pieces[load.piece].body.into_raw_parts();
+                if groups
+                    .get(&key)
+                    .is_some_and(|members| members.binary_search(&load.piece).is_ok())
+                {
+                    loaded.entry(key).or_default().0.push(i);
+                }
+            }
+            for (i, bond) in self.bonds.iter().enumerate().filter(|(_, b)| b.active) {
+                let mut previous = None;
+                for id in [bond.a, bond.b] {
+                    let piece = &self.pieces[id];
+                    let key = piece.body.into_raw_parts();
+                    if piece.active && piece.destructible() && previous != Some(key) {
+                        if let Some((_, edges)) = loaded.get_mut(&key) {
+                            edges.push(i);
+                        }
+                        previous = Some(key);
+                    }
+                }
+            }
             let mut failed = Vec::new();
             let mut shape_changed = false;
-            for members in groups.values() {
-                let mut source: Vec<_> = self
-                    .loads
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, l)| members.binary_search(&l.piece).is_ok())
-                    .map(|(i, _)| i)
-                    .collect();
-                if source.is_empty() {
+            for (key, (source, edge_ids)) in loaded {
+                if edge_ids.is_empty() {
                     continue;
                 }
-                source.sort_unstable();
+                let members = &groups[&key];
                 let resistance = self.fracture_resistance(&source, dt);
                 let handle = self.pieces[members[0]].body;
                 let frame = *self.physics.bodies[handle].position();
                 let mut ids = members.clone();
-                let mut edge_ids = Vec::new();
-                for (i, bond) in self.bonds.iter().enumerate() {
-                    if !bond.active {
-                        continue;
-                    }
-                    let a = members.binary_search(&bond.a).is_ok();
-                    let b = members.binary_search(&bond.b).is_ok();
-                    if a || b {
-                        edge_ids.push(i);
-                        if !a {
-                            ids.push(bond.a);
-                        }
-                        if !b {
-                            ids.push(bond.b);
+                for &i in &edge_ids {
+                    let bond = &self.bonds[i];
+                    for id in [bond.a, bond.b] {
+                        if members.binary_search(&id).is_err() {
+                            ids.push(id);
                         }
                     }
-                }
-                if edge_ids.is_empty() {
-                    continue;
                 }
                 ids.sort_unstable();
                 ids.dedup();

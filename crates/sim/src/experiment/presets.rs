@@ -2,6 +2,62 @@
 use super::*;
 
 impl Experiment {
+    /// Compare spatial resolution at the preferred yield moment; case 4
+    /// preserves the previous trial, including its original crease locations.
+    pub fn fence_comparison() -> Self {
+        let mut e = Self::new(crate::LibraryPreset::MetalFence.asset());
+        e.name = "Fences / case 4 with more bend points".into();
+        e.shared_impact = true;
+        e.duration_ticks = 720;
+        e.variants.clear();
+        for (i, (torque, creases)) in [
+            (8000.0, 3),
+            (8000.0, 4),
+            (8000.0, 6),
+            (8000.0, 2),
+            (8000.0, 8),
+            (8000.0, 12),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut object = crate::LibraryPreset::MetalFence.asset();
+            let sites = if creases == 2 {
+                vec![[0.0, -1.9], [0.0, -0.3], [0.0, 1.7]]
+            } else {
+                // Keep the same fixed base (-2.5 .. -1.1 m). Subdivide only
+                // the deformable span, so resolution doesn't move the support.
+                let spacing = 3.6 / creases as f32;
+                std::iter::once([0.0, -1.1 - spacing * 0.5])
+                    .chain((0..creases).map(|j| [0.0, -1.1 + (j as f32 + 0.5) * spacing]))
+                    .collect()
+            };
+            object.layout = Some(crate::GrainLayout {
+                mode: crate::GrainMode::Stones,
+                size: [0.2, 3.6 / creases as f32],
+                seed: 7,
+                sites,
+            });
+            object.components.plasticity = None;
+            object.components.bending_torque = Some(torque);
+            object.friction = 0.02;
+            object.density = 780.0;
+            let number = i + 1;
+            object.name = format!("Fence case {number}");
+            e.variants.push(Variant {
+                name: format!("{number} / {creases} BENDS / {:.0} KNM", torque / 1000.0),
+                object,
+                impact: Impact {
+                    kind: ImpactKind::Tank,
+                    tank_speed: 3.0,
+                    ..Impact::default()
+                },
+            });
+        }
+        e.favorite = Some(2); // Accepted fence case 3, also the library default.
+        e
+    }
+
     /// A controlled 2 x 5 barrel study: hardening versus plastic yield
     /// resistance. Geometry, mass, impact and backstop are identical in all cases.
     pub fn barrel_comparison() -> Self {

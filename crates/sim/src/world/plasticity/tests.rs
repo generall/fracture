@@ -256,8 +256,19 @@ fn shape_change_preserves_mass_and_momentum_and_cannot_spend_unavailable_work() 
 }
 
 #[test]
-fn fence_bends_under_tank_contact_without_detaching_its_support() {
-    let a = crate::LibraryPreset::MetalFence.asset();
+fn legacy_welded_fence_bends_without_detaching_its_support() {
+    // Saved welded-frame fences retain their original material behavior.
+    let mut a = crate::LibraryPreset::MetalFence.asset();
+    a.density = 7800.0;
+    a.friction = 0.6;
+    a.regenerate_grains(crate::GrainMode::Bricks, [0.2, 0.3], 7);
+    a.components.bending_torque = None;
+    a.components.plasticity = Some(crate::Plasticity {
+        yield_stress: 30_000.0,
+        flow_rate: 1.0,
+        hardening: 2.0,
+        max_strain: 1.0,
+    });
     let mut w = World::from_object(&a).unwrap();
     let before = shapes(&w);
     let bottom = before
@@ -304,4 +315,43 @@ fn fence_bends_under_tank_contact_without_detaching_its_support() {
         w.step(&[]);
     }
     assert_eq!(shapes(&w), after);
+}
+
+#[test]
+#[ignore = "manual simulation timing benchmark"]
+fn barrel_pinned_against_rubble_benchmark() {
+    use std::hash::Hasher;
+    let mut world = World::new(Scene::BarrelRubble);
+    let mut elapsed = std::time::Duration::ZERO;
+    let mut worst = std::time::Duration::ZERO;
+    let mut digest = std::collections::hash_map::DefaultHasher::new();
+    for _ in 0..480 {
+        let start = std::time::Instant::now();
+        let events = world.step(&[Command::Tracks {
+            left: 1.0,
+            right: 1.0,
+        }]);
+        let dt = start.elapsed();
+        elapsed += dt;
+        worst = worst.max(dt);
+        digest.write(
+            format!(
+                "{events:?}{:?}{:?}",
+                world.stats(),
+                world.bodies().collect::<Vec<_>>()
+            )
+            .as_bytes(),
+        );
+    }
+    assert!(
+        world.stats().plastic_work > 0.0,
+        "driving must crush the barrel"
+    );
+    println!(
+        "barrel/rubble: {:.3} ms/tick, worst {:.3} ms, fingerprint {:x}, plastic work {}",
+        elapsed.as_secs_f64() * 1000.0 / 480.0,
+        worst.as_secs_f64() * 1000.0,
+        digest.finish(),
+        world.stats().plastic_work
+    );
 }

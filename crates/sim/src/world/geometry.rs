@@ -68,6 +68,9 @@ impl World {
                 let collider = &mut self.physics.colliders[collider];
                 collider.set_density(object.density * object.thickness);
                 collider.set_friction(object.friction);
+                if object.components.bending_torque.is_some() {
+                    collider.set_friction_combine_rule(CoefficientCombineRule::Min);
+                }
                 collider.set_restitution(object.restitution);
                 collider.set_active_hooks(contacts::hooks_for(object.soft_bounce));
             }

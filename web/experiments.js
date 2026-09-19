@@ -31,7 +31,7 @@
   miniquad_add_plugin({
     name: 'experiment_range', version: 1,
     register_plugin(imports) {
-      imports.env.experiment_start_barrels = () => ({barrels: 1, crush: 2, 'barrel-shot': 3, 'barrel-shot-free': 4, 'barrel-release': 5}[new URLSearchParams(location.search).get('experiment')] || 0);
+      imports.env.experiment_start_barrels = () => ({barrels: 1, crush: 2, 'barrel-shot': 3, 'barrel-shot-free': 4, 'barrel-release': 5, fences: 6}[new URLSearchParams(location.search).get('experiment')] || 0);
       imports.env.experiment_store = (ptr, len) => {
         try { localStorage.setItem(storageKey, read(ptr, len)); return 0; }
         catch { return -1; }

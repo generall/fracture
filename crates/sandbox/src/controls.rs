@@ -15,8 +15,8 @@ pub const SCENES: &[SceneBinding] = &[
     },
     SceneBinding {
         key: KeyCode::Key2,
-        scene: Scene::Cantilever,
-        label: "2 WEAK LINK",
+        scene: Scene::BarrelRubble,
+        label: "2 RUBBLE",
     },
     SceneBinding {
         key: KeyCode::Key3,

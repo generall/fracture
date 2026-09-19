@@ -7,7 +7,7 @@ Open the editor with **O**, then **L** or **FILE → OBJECT LIBRARY**. Choose a 
 | Barrel | Green, `#69E0AE` | 1.3 m diameter, approximately 72 kg; low friction, strong shell resistance. Opposed tank/backstop contacts enable crushing. |
 | Explosive barrel | Red, `#FF6C60` | Same round body and mobility, lower shell resistance. First permanent deformation ignites one 600 kJ, 3 m blast. |
 | Wall | Amber, `#F3C66E` | Heavy masonry with compact bricks and a single breakable support. A standard shell produces rubble; a tank ram separates larger blocks. |
-| Metal fence | Blue, `#6EB8FF` | A 5 m metal strip with a pinned end; bends permanently without breaking. Access through MORE STARTERS. |
+| Metal fence | Blue, `#6EB8FF` | Selected fence case 3: a 5 m strip with a pinned end, six plastic bend points and 8 kN m yield moment; 15.6 kg, friction 0.02. Access through MORE STARTERS. |
 | Rock | Violet, `#ABA1F0` | Irregular stone with a buried central base. Uses the previous wall’s seam strengths; shells chip the perimeter while tanks cannot push the intact rock. |
 
 The wall’s previous 16× seam-strength increase was rejected as too resistant. It now uses ordinary masonry strengths, the earlier brick size and one end support. In the centered trial, the first 6 kg / 220 m/s shell produces **14 chunks**, with the largest retaining **40%** of the original area. A 4500 kg tank approaching at 4.6 m/s produces **four larger chunks**, the largest retaining **47.5%**. Both trials measure one second after the input. Three centered shells produce 20 chunks; these counts characterize the standard setup, not every impact angle.

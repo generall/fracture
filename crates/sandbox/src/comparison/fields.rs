@@ -8,6 +8,7 @@ impl Comparison {
         let i = &v.impact;
         let l = a.layout.as_ref();
         match field {
+            Field::BendingTorque => format!("{}", a.components.bending_torque.unwrap_or(0.0)),
             Field::Name => self.experiment.name.clone(),
             Field::YieldStress => format!(
                 "{}",
@@ -73,6 +74,7 @@ impl Comparison {
                 return false;
             }
             match input.field {
+                Field::BendingTorque => a.components.bending_torque = Some(n),
                 Field::YieldStress => {
                     a.components.plasticity.get_or_insert_default().yield_stress = n * 1000.0
                 }

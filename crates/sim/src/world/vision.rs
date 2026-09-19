@@ -1,5 +1,6 @@
 //! Sight is independent of collision: low/open props transmit it, foliage doesn't.
 use super::*;
+mod shading;
 
 pub const VISION_RANGE: f32 = 24.0;
 pub const NEAR_VISION: f32 = 3.0;
@@ -13,6 +14,7 @@ pub struct Vision {
     // Preserve sorted ray angles instead of recovering them from rounded world
     // positions on every query. Translation can collapse neighboring rays.
     angles: Vec<f32>,
+    additional: Vec<Vision>,
 }
 impl Vision {
     pub fn from_boundary(origin: Vector, mut boundary: Vec<Vector>) -> Self {
@@ -23,9 +25,16 @@ impl Vision {
             origin,
             boundary,
             angles,
+            additional: vec![],
         }
     }
     pub fn contains(&self, point: Vector) -> bool {
+        self.regions().any(|region| region.contains_local(point))
+    }
+    pub fn regions(&self) -> impl Iterator<Item = &Vision> {
+        std::iter::once(self).chain(self.additional.iter())
+    }
+    fn contains_local(&self, point: Vector) -> bool {
         let delta = point - self.origin;
         if delta.length_squared() < 1e-8 {
             return !self.boundary.is_empty();
@@ -55,10 +64,14 @@ impl Vision {
     /// Whole-figure visibility: any overlap with the original sight region is
     /// enough. Revealing a figure never extends sight to figures behind it.
     pub fn intersects_polygon(&self, polygon: &[Vector]) -> bool {
+        self.regions()
+            .any(|region| region.intersects_local(polygon))
+    }
+    fn intersects_local(&self, polygon: &[Vector]) -> bool {
         if self.boundary.is_empty() || polygon.len() < 3 {
             return false;
         }
-        if polygon.iter().any(|&p| self.contains(p)) {
+        if polygon.iter().any(|&p| self.contains_local(p)) {
             return true;
         }
         let lo = polygon
@@ -176,8 +189,7 @@ fn silhouette_vertices(obstacles: &[Occluder]) -> Vec<Vector> {
 }
 
 impl World {
-    fn sight_occluders(&self, tank: usize, range: f32) -> Vec<Occluder> {
-        let origin = self.piece_pose(tank).translation;
+    fn sight_occluders(&self, origin: Vector, ignored: Option<usize>, range: f32) -> Vec<Occluder> {
         let nearby =
             |bounds: Aabb| origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= range;
         let mut out = vec![];
@@ -185,7 +197,7 @@ impl World {
             let Some(id) = self.weapon_target(collider) else {
                 continue;
             };
-            if id == tank {
+            if Some(id) == ignored {
                 continue;
             }
             let piece = &self.pieces[id];
@@ -247,13 +259,15 @@ impl World {
             return true;
         }
         let ray = Ray::new(origin, (target - origin) / distance);
-        self.sight_occluders(tank, distance).iter().all(|o| {
-            if o.tank && o.shape.contains_point(&o.pose, target) {
-                return true;
-            }
-            let hit = o.shape.cast_ray(&o.pose, &ray, distance, true);
-            hit.is_none_or(|t| t >= distance - 0.05 || (o.grass && t == 0.0 && distance <= 1.2))
-        })
+        self.sight_occluders(origin, Some(tank), distance)
+            .iter()
+            .all(|o| {
+                if o.tank && o.shape.contains_point(&o.pose, target) {
+                    return true;
+                }
+                let hit = o.shape.cast_ray(&o.pose, &ray, distance, true);
+                hit.is_none_or(|t| t >= distance - 0.05 || (o.grass && t == 0.0 && distance <= 1.2))
+            })
     }
 
     pub fn vision(&self, tank: usize, angle: f32) -> Vision {
@@ -264,7 +278,31 @@ impl World {
                 ..Vision::default()
             };
         }
-        let mut obstacles = self.sight_occluders(tank, VISION_RANGE);
+        self.vision_from(origin, Some(tank), Some(angle))
+    }
+
+    /// Combined player sight, including the allied flag's short-range lookout.
+    pub fn player_vision(&self, angle: f32) -> Vision {
+        let mut vision = self.vision(self.player_tank_id(), angle);
+        for (team, position) in self.flags() {
+            if team == self.team() {
+                vision.additional.push(self.vision_from(
+                    position,
+                    Some(self.player_tank_id()),
+                    None,
+                ));
+            }
+        }
+        vision
+    }
+
+    fn vision_from(&self, origin: Vector, ignored: Option<usize>, cone: Option<f32>) -> Vision {
+        let range = if cone.is_some() {
+            VISION_RANGE
+        } else {
+            NEAR_VISION
+        };
+        let mut obstacles = self.sight_occluders(origin, ignored, range);
         // Resolve near cover first, then skip every farther shape already
         // behind that cover rather than casting through the whole map.
         let nearest = |o: &Occluder| origin.clamp(o.bounds.mins, o.bounds.maxs).distance(origin);
@@ -277,15 +315,18 @@ impl World {
                 angles.push((a + offset).rem_euclid(tau));
             }
         };
-        add_angle(angle - VISION_HALF_ANGLE);
-        add_angle(angle + VISION_HALF_ANGLE);
-        let forward = Vector::from_angle(angle);
+        if let Some(angle) = cone {
+            add_angle(angle - VISION_HALF_ANGLE);
+            add_angle(angle + VISION_HALF_ANGLE);
+        }
+        let forward = Vector::from_angle(cone.unwrap_or(0.0));
         for p in silhouette_vertices(&obstacles) {
             let delta = p - origin;
             // Distant corners outside the cone cannot affect the nearby circle.
             // Keep a small angular margin for the cone's boundary rays.
             if delta.length() <= NEAR_VISION + 0.025
-                || delta.normalize_or_zero().dot(forward) >= (VISION_HALF_ANGLE + 0.0001).cos()
+                || (cone.is_some()
+                    && delta.normalize_or_zero().dot(forward) >= (VISION_HALF_ANGLE + 0.0001).cos())
             {
                 add_angle(delta.to_angle());
             }
@@ -296,7 +337,7 @@ impl World {
         let mut lengths: Vec<f32> = directions
             .iter()
             .map(|d| {
-                if d.dot(forward) >= VISION_HALF_ANGLE.cos() {
+                if cone.is_some() && d.dot(forward) >= VISION_HALF_ANGLE.cos() {
                     VISION_RANGE
                 } else {
                     NEAR_VISION
@@ -349,6 +390,7 @@ impl World {
         Vision {
             origin,
             angles,
+            additional: vec![],
             boundary: directions
                 .into_iter()
                 .zip(lengths)
@@ -374,6 +416,59 @@ mod tests {
             ..Level::default()
         }
     }
+    #[test]
+    fn allied_flag_reveals_nearby_objects_through_respawn_but_respects_cover() {
+        let mut level = map(None);
+        level.items.extend([
+            LevelItem::Spawn {
+                team: Team::Red,
+                position: [0.0, 5.0],
+                angle: 0.0,
+            },
+            LevelItem::Flag {
+                team: Team::Blue,
+                position: [-12.0, 0.0],
+            },
+            LevelItem::Flag {
+                team: Team::Red,
+                position: [12.0, 0.0],
+            },
+            LevelItem::Solid {
+                outline: rectangle(Vector::new(0.1, 2.0)),
+                position: [-10.8, 0.0],
+                angle: 0.0,
+                cutouts: vec![],
+            },
+        ]);
+        for team in [Team::Blue, Team::Red] {
+            let mut world = World::from_level(&level, team).unwrap();
+            let x = if team == Team::Blue { -12.0 } else { 12.0 };
+            let vision = world.player_vision(std::f32::consts::FRAC_PI_2);
+            assert!(vision.contains(Vector::new(x, 2.0)));
+            assert!(!vision.contains(Vector::new(x, 3.5)));
+            assert!(
+                !vision.contains(Vector::new(-x, 2.0)),
+                "enemy flag grants no sight"
+            );
+            let target = [
+                Vector::new(x - 0.1, 1.9),
+                Vector::new(x + 0.1, 1.9),
+                Vector::new(x, 2.1),
+            ];
+            assert!(vision.intersects_polygon(&target));
+            world.damage_tank(world.player_tank_id(), 1000.0, &mut vec![]);
+            let vision = world.player_vision(0.0);
+            assert!(vision.contains(Vector::new(x, 2.0)));
+            assert!(vision.intersects_polygon(&target));
+            if team == Team::Blue {
+                assert!(
+                    !vision.contains(Vector::new(-10.0, 0.0)),
+                    "wall blocks flag sight"
+                );
+            }
+        }
+    }
+
     #[test]
     fn moving_observer_does_not_reveal_objects_behind_the_near_circle() {
         let obstacle = LevelItem::Solid {

@@ -146,6 +146,63 @@ impl World {
         );
     }
 
+    pub(super) fn barrel_rubble(&mut self) {
+        // Open toward the tank, with a closed back and two retaining sides.
+        for (center, half) in [
+            (Vector::new(4.7, -1.9), Vector::new(1.9, 0.2)),
+            (Vector::new(4.7, 1.9), Vector::new(1.9, 0.2)),
+            (Vector::new(6.4, 0.0), Vector::new(0.2, 1.7)),
+        ] {
+            self.add_box(center, half, Material::Anchor, true);
+        }
+        let asset = crate::LibraryPreset::Barrel.asset();
+        let mesh = asset.mesh().expect("valid built-in barrel");
+        for position in [
+            Vector::new(2.9, 0.0),
+            Vector::new(2.05, -1.5),
+            Vector::new(2.05, 1.5),
+        ] {
+            self.add_object(&asset, &mesh, position);
+        }
+
+        // Seeded scatter makes reset repeatable. Place larger chunks first,
+        // then fill gaps with chips; bounding circles prevent initial overlap.
+        let mut placed: Vec<(Vector, f32)> = Vec::new();
+        for i in 0..1200 {
+            let radius = if i < 100 {
+                0.28 + (noise(i, 719) + 0.5) * 0.25
+            } else {
+                0.07 + (noise(i, 719) + 0.5) * 0.21
+            };
+            let center = Vector::new(
+                3.6 + radius + (noise(i, 173) + 0.5) * (2.6 - 2.0 * radius),
+                (noise(i, 983) * 2.0) * (1.7 - radius),
+            );
+            if placed
+                .iter()
+                .any(|&(p, r)| center.distance(p) < radius + r + 0.01)
+            {
+                continue;
+            }
+            placed.push((center, radius));
+            let sides = 3 + i % 4;
+            let rotation = (noise(i, 37) + 0.5) * std::f32::consts::TAU;
+            let mut vertices = vec![center];
+            for j in 0..sides {
+                let angle = rotation + j as f32 * std::f32::consts::TAU / sides as f32;
+                let extent = radius * (0.8 + (noise(i * 7 + j, 419) + 0.5) * 0.2);
+                vertices.push(center + Vector::from_angle(angle) * extent);
+            }
+            let triangles: Vec<_> = (0..sides)
+                .map(|j| [0, j + 1, (j + 1) % sides + 1])
+                .collect();
+            self.mesh(&vertices, &triangles, Material::Rock, &[]);
+        }
+        self.configure_test_tank(4500.0, Vector::new(0.77, 0.0), self.tank_speed_limit)
+            .expect("valid crushing fixture");
+        self.physics.bodies[self.pieces[self.launcher].body].set_linvel(Vector::ZERO, true);
+    }
+
     pub(super) fn cantilever(&mut self) {
         let anchor = self.add_box(
             Vector::new(3.0, -4.3),

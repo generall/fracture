@@ -11,6 +11,7 @@ pub enum Scene {
     ObjectYard,
     Terrain,
     Level,
+    BarrelRubble,
 }
 
 impl Scene {
@@ -24,6 +25,7 @@ impl Scene {
             Self::Level => "Your level",
             Self::ObjectYard => "Object yard",
             Self::Terrain => "River crossing",
+            Self::BarrelRubble => "Barrel against rubble",
         }
     }
     pub fn description(self) -> &'static str {
@@ -39,6 +41,7 @@ impl Scene {
             }
             Self::Custom => "Custom object test. O to return to the editor. R to rebuild.",
             Self::Level => "Capture the enemy flag. M to edit the map. R to restart.",
+            Self::BarrelRubble => "Hold W to squeeze the barrel into rubble. R to reset.",
         }
     }
 }

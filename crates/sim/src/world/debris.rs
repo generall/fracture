@@ -36,7 +36,16 @@ impl World {
         // does not reattach it. Intact objects are not marked until a fracture.
         if self.topology_changed {
             self.topology_changed = false;
+            let linked: std::collections::BTreeSet<_> = self
+                .bonds
+                .iter()
+                .filter(|b| b.active && self.bending_torque(b).is_some())
+                .flat_map(|b| [b.a, b.b])
+                .collect();
             for members in self.chunk_members().into_values() {
+                if members.iter().any(|id| linked.contains(id)) {
+                    continue;
+                }
                 let body = self.pieces[members[0]].body;
                 if self.physics.bodies[body].is_fixed()
                     && !members
