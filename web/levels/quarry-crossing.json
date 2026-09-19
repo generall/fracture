@@ -1,0 +1,2566 @@
+{
+  "version": 1,
+  "name": "Quarry Crossing",
+  "size": [
+    48.0,
+    30.0
+  ],
+  "items": [
+    {
+      "kind": "terrain",
+      "terrain": "Road",
+      "min": [
+        -22.5,
+        -1.7
+      ],
+      "max": [
+        22.5,
+        1.7
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Sand",
+      "min": [
+        -17.8,
+        -13.5
+      ],
+      "max": [
+        17.8,
+        -9.5
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Sand",
+      "min": [
+        -17.8,
+        -11.5
+      ],
+      "max": [
+        -14.2,
+        -1.7
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Sand",
+      "min": [
+        14.2,
+        -11.5
+      ],
+      "max": [
+        17.8,
+        -1.7
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Road",
+      "min": [
+        -17.8,
+        9.5
+      ],
+      "max": [
+        17.8,
+        13.5
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Road",
+      "min": [
+        -17.8,
+        1.7
+      ],
+      "max": [
+        -14.2,
+        11.5
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Road",
+      "min": [
+        14.2,
+        1.7
+      ],
+      "max": [
+        17.8,
+        11.5
+      ]
+    },
+    {
+      "kind": "terrain",
+      "terrain": "Water",
+      "min": [
+        -2.3,
+        -8.5
+      ],
+      "max": [
+        2.3,
+        8.5
+      ]
+    },
+    {
+      "kind": "bridge",
+      "min": [
+        -3.4,
+        -1.5
+      ],
+      "max": [
+        3.4,
+        1.5
+      ],
+      "vertical": false
+    },
+    {
+      "kind": "spawn",
+      "team": "blue",
+      "position": [
+        -19.0,
+        0.0
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "flag",
+      "team": "blue",
+      "position": [
+        -21.5,
+        0.0
+      ]
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          0.45
+        ],
+        [
+          -1.4,
+          0.45
+        ]
+      ],
+      "position": [
+        -21.0,
+        -4.7
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          0.45
+        ],
+        [
+          -1.4,
+          0.45
+        ]
+      ],
+      "position": [
+        -21.0,
+        4.7
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "wall",
+        "outline": [
+          [
+            -0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            1.6000001
+          ],
+          [
+            -0.4,
+            1.6000001
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 2,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.7,
+            0.6
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          243,
+          198,
+          110
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -11.0,
+        -3.6
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "wall",
+        "outline": [
+          [
+            -0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            1.6000001
+          ],
+          [
+            -0.4,
+            1.6000001
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 2,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.7,
+            0.6
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          243,
+          198,
+          110
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -11.0,
+        3.6
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "wall",
+        "outline": [
+          [
+            -1.6,
+            -0.3
+          ],
+          [
+            1.6,
+            -0.3
+          ],
+          [
+            1.6,
+            0.3
+          ],
+          [
+            -1.6,
+            0.3
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 2,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.7,
+            0.6
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          243,
+          198,
+          110
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -7.5,
+        5.2
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "rock",
+        "outline": [
+          [
+            -1.594096,
+            -0.55668026
+          ],
+          [
+            -1.1217712,
+            -1.1639677
+          ],
+          [
+            -0.35424355,
+            -1.3157896
+          ],
+          [
+            0.5313653,
+            -1.0728745
+          ],
+          [
+            1.298893,
+            -0.6578948
+          ],
+          [
+            1.605904,
+            0.030364376
+          ],
+          [
+            1.1217712,
+            0.89068836
+          ],
+          [
+            0.3896679,
+            1.1842107
+          ],
+          [
+            -0.4723247,
+            1.0323888
+          ],
+          [
+            -1.4405904,
+            0.6578948
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            0.9,
+            0.75
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -0.4595454,
+              -0.96781
+            ],
+            [
+              0.34031653,
+              -0.9694446
+            ],
+            [
+              -0.8660716,
+              -0.39373565
+            ],
+            [
+              0.018063784,
+              -0.32578093
+            ],
+            [
+              0.82300395,
+              -0.39049998
+            ],
+            [
+              -1.200502,
+              0.27853513
+            ],
+            [
+              -0.37391737,
+              0.20563467
+            ],
+            [
+              0.47049543,
+              0.301768
+            ],
+            [
+              1.1594677,
+              0.24335392
+            ],
+            [
+              -0.025067622,
+              0.859512
+            ],
+            [
+              0.7743336,
+              0.8458661
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          171,
+          161,
+          240
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -7.5,
+        -7.0
+      ],
+      "angle": -0.18
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "rock",
+        "outline": [
+          [
+            -1.1457565,
+            -0.44534415
+          ],
+          [
+            -0.80627304,
+            -0.9311741
+          ],
+          [
+            -0.25461254,
+            -1.0526316
+          ],
+          [
+            0.3819188,
+            -0.8582996
+          ],
+          [
+            0.9335793,
+            -0.5263158
+          ],
+          [
+            1.1542435,
+            0.024291499
+          ],
+          [
+            0.80627304,
+            0.71255064
+          ],
+          [
+            0.2800738,
+            0.94736844
+          ],
+          [
+            -0.33948338,
+            0.825911
+          ],
+          [
+            -1.0354244,
+            0.5263158
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            0.9,
+            0.75
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -0.79718786,
+              -0.7684522
+            ],
+            [
+              -0.058478866,
+              -0.68145335
+            ],
+            [
+              -0.38901258,
+              -0.1077383
+            ],
+            [
+              0.3186002,
+              -0.06910749
+            ],
+            [
+              -0.7077024,
+              0.60101056
+            ],
+            [
+              -0.053043578,
+              0.6696794
+            ],
+            [
+              0.764771,
+              0.6479813
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          171,
+          161,
+          240
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -12.2,
+        -7.8
+      ],
+      "angle": 0.25
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "rock",
+        "outline": [
+          [
+            -1.2952029,
+            -0.53441304
+          ],
+          [
+            -0.91143906,
+            -1.117409
+          ],
+          [
+            -0.28782287,
+            -1.263158
+          ],
+          [
+            0.4317343,
+            -1.0299596
+          ],
+          [
+            1.0553505,
+            -0.631579
+          ],
+          [
+            1.3047969,
+            0.0291498
+          ],
+          [
+            0.91143906,
+            0.8550608
+          ],
+          [
+            0.31660515,
+            1.1368421
+          ],
+          [
+            -0.38376382,
+            0.9910932
+          ],
+          [
+            -1.1704797,
+            0.631579
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            0.9,
+            0.75
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -0.90116876,
+              -1.0073966
+            ],
+            [
+              -0.06610649,
+              -0.92909753
+            ],
+            [
+              -0.43975326,
+              -0.41275397
+            ],
+            [
+              0.36015677,
+              -0.37798625
+            ],
+            [
+              -0.8000113,
+              0.22512002
+            ],
+            [
+              -0.05996225,
+              0.28692198
+            ],
+            [
+              0.8645237,
+              0.26739365
+            ],
+            [
+              -0.45000944,
+              0.79740924
+            ],
+            [
+              0.46477103,
+              0.88969725
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          171,
+          161,
+          240
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        -8.0,
+        7.6
+      ],
+      "angle": -0.38
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "soft_bounce": {
+          "restitution": 0.62,
+          "speed": 16.0
+        },
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          105,
+          224,
+          174
+        ],
+        "components": {
+          "projectile_resistance": 60.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": null,
+          "plasticity": {
+            "yield_stress": 500.0,
+            "flow_rate": 2.0,
+            "hardening": 0.0,
+            "max_strain": 3.0
+          }
+        }
+      },
+      "position": [
+        -21.0,
+        3.3
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "soft_bounce": {
+          "restitution": 0.62,
+          "speed": 16.0
+        },
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          105,
+          224,
+          174
+        ],
+        "components": {
+          "projectile_resistance": 60.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": null,
+          "plasticity": {
+            "yield_stress": 500.0,
+            "flow_rate": 2.0,
+            "hardening": 0.0,
+            "max_strain": 3.0
+          }
+        }
+      },
+      "position": [
+        -19.5,
+        6.4
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 600000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        -8.0,
+        3.5
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 600000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        -5.7,
+        -2.7
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "metal fence",
+        "outline": [
+          [
+            -0.1,
+            -2.5
+          ],
+          [
+            0.1,
+            -2.5
+          ],
+          [
+            0.1,
+            2.5
+          ],
+          [
+            -0.1,
+            2.5
+          ]
+        ],
+        "surface": "panel",
+        "density": 7800.0,
+        "thickness": 0.02,
+        "friction": 0.6,
+        "restitution": 0.04,
+        "tension": 350000000.0,
+        "compression": 350000000.0,
+        "shear": 200000000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 0,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.2,
+            0.3
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "young": 200000000000.0,
+        "toughness": 400.0,
+        "color": [
+          110,
+          184,
+          255
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null,
+          "plasticity": {
+            "yield_stress": 30000.0,
+            "flow_rate": 1.0,
+            "hardening": 2.0,
+            "max_strain": 1.0
+          }
+        }
+      },
+      "position": [
+        -7.7,
+        -4.0
+      ],
+      "angle": 1.5707964
+    },
+    {
+      "kind": "spawn",
+      "team": "red",
+      "position": [
+        19.0,
+        0.0
+      ],
+      "angle": 3.1415927
+    },
+    {
+      "kind": "flag",
+      "team": "red",
+      "position": [
+        21.5,
+        0.0
+      ]
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          0.45
+        ],
+        [
+          -1.4,
+          0.45
+        ]
+      ],
+      "position": [
+        21.0,
+        -4.7
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "solid",
+      "outline": [
+        [
+          -1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          -0.45
+        ],
+        [
+          1.4,
+          0.45
+        ],
+        [
+          -1.4,
+          0.45
+        ]
+      ],
+      "position": [
+        21.0,
+        4.7
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "wall",
+        "outline": [
+          [
+            -0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            1.6000001
+          ],
+          [
+            -0.4,
+            1.6000001
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 2,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.7,
+            0.6
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          243,
+          198,
+          110
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        11.0,
+        -3.6
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "wall",
+        "outline": [
+          [
+            -0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            -1.6000001
+          ],
+          [
+            0.4,
+            1.6000001
+          ],
+          [
+            -0.4,
+            1.6000001
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 2,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.7,
+            0.6
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          243,
+          198,
+          110
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        11.0,
+        3.6
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "wall",
+        "outline": [
+          [
+            -1.6,
+            -0.3
+          ],
+          [
+            1.6,
+            -0.3
+          ],
+          [
+            1.6,
+            0.3
+          ],
+          [
+            -1.6,
+            0.3
+          ]
+        ],
+        "surface": "masonry",
+        "density": 2400.0,
+        "thickness": 0.55,
+        "friction": 1.3,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 2,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.7,
+            0.6
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "toughness": 55.0,
+        "color": [
+          243,
+          198,
+          110
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.5,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        7.5,
+        5.2
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "rock",
+        "outline": [
+          [
+            -1.594096,
+            -0.55668026
+          ],
+          [
+            -1.1217712,
+            -1.1639677
+          ],
+          [
+            -0.35424355,
+            -1.3157896
+          ],
+          [
+            0.5313653,
+            -1.0728745
+          ],
+          [
+            1.298893,
+            -0.6578948
+          ],
+          [
+            1.605904,
+            0.030364376
+          ],
+          [
+            1.1217712,
+            0.89068836
+          ],
+          [
+            0.3896679,
+            1.1842107
+          ],
+          [
+            -0.4723247,
+            1.0323888
+          ],
+          [
+            -1.4405904,
+            0.6578948
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            0.9,
+            0.75
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -0.4595454,
+              -0.96781
+            ],
+            [
+              0.34031653,
+              -0.9694446
+            ],
+            [
+              -0.8660716,
+              -0.39373565
+            ],
+            [
+              0.018063784,
+              -0.32578093
+            ],
+            [
+              0.82300395,
+              -0.39049998
+            ],
+            [
+              -1.200502,
+              0.27853513
+            ],
+            [
+              -0.37391737,
+              0.20563467
+            ],
+            [
+              0.47049543,
+              0.301768
+            ],
+            [
+              1.1594677,
+              0.24335392
+            ],
+            [
+              -0.025067622,
+              0.859512
+            ],
+            [
+              0.7743336,
+              0.8458661
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          171,
+          161,
+          240
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        7.5,
+        -7.0
+      ],
+      "angle": 0.18
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "rock",
+        "outline": [
+          [
+            -1.1457565,
+            -0.44534415
+          ],
+          [
+            -0.80627304,
+            -0.9311741
+          ],
+          [
+            -0.25461254,
+            -1.0526316
+          ],
+          [
+            0.3819188,
+            -0.8582996
+          ],
+          [
+            0.9335793,
+            -0.5263158
+          ],
+          [
+            1.1542435,
+            0.024291499
+          ],
+          [
+            0.80627304,
+            0.71255064
+          ],
+          [
+            0.2800738,
+            0.94736844
+          ],
+          [
+            -0.33948338,
+            0.825911
+          ],
+          [
+            -1.0354244,
+            0.5263158
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            0.9,
+            0.75
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -0.79718786,
+              -0.7684522
+            ],
+            [
+              -0.058478866,
+              -0.68145335
+            ],
+            [
+              -0.38901258,
+              -0.1077383
+            ],
+            [
+              0.3186002,
+              -0.06910749
+            ],
+            [
+              -0.7077024,
+              0.60101056
+            ],
+            [
+              -0.053043578,
+              0.6696794
+            ],
+            [
+              0.764771,
+              0.6479813
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          171,
+          161,
+          240
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        12.2,
+        -7.8
+      ],
+      "angle": -0.25
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "rock",
+        "outline": [
+          [
+            -1.2952029,
+            -0.53441304
+          ],
+          [
+            -0.91143906,
+            -1.117409
+          ],
+          [
+            -0.28782287,
+            -1.263158
+          ],
+          [
+            0.4317343,
+            -1.0299596
+          ],
+          [
+            1.0553505,
+            -0.631579
+          ],
+          [
+            1.3047969,
+            0.0291498
+          ],
+          [
+            0.91143906,
+            0.8550608
+          ],
+          [
+            0.31660515,
+            1.1368421
+          ],
+          [
+            -0.38376382,
+            0.9910932
+          ],
+          [
+            -1.1704797,
+            0.631579
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            0.9,
+            0.75
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -0.90116876,
+              -1.0073966
+            ],
+            [
+              -0.06610649,
+              -0.92909753
+            ],
+            [
+              -0.43975326,
+              -0.41275397
+            ],
+            [
+              0.36015677,
+              -0.37798625
+            ],
+            [
+              -0.8000113,
+              0.22512002
+            ],
+            [
+              -0.05996225,
+              0.28692198
+            ],
+            [
+              0.8645237,
+              0.26739365
+            ],
+            [
+              -0.45000944,
+              0.79740924
+            ],
+            [
+              0.46477103,
+              0.88969725
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          171,
+          161,
+          240
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        8.0,
+        7.6
+      ],
+      "angle": 0.38
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "soft_bounce": {
+          "restitution": 0.62,
+          "speed": 16.0
+        },
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          105,
+          224,
+          174
+        ],
+        "components": {
+          "projectile_resistance": 60.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": null,
+          "plasticity": {
+            "yield_stress": 500.0,
+            "flow_rate": 2.0,
+            "hardening": 0.0,
+            "max_strain": 3.0
+          }
+        }
+      },
+      "position": [
+        21.0,
+        3.3
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "soft_bounce": {
+          "restitution": 0.62,
+          "speed": 16.0
+        },
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          105,
+          224,
+          174
+        ],
+        "components": {
+          "projectile_resistance": 60.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": null,
+          "plasticity": {
+            "yield_stress": 500.0,
+            "flow_rate": 2.0,
+            "hardening": 0.0,
+            "max_strain": 3.0
+          }
+        }
+      },
+      "position": [
+        19.5,
+        6.4
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 600000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        8.0,
+        3.5
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-08,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-08
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-09,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 600000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        5.7,
+        -2.7
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "metal fence",
+        "outline": [
+          [
+            -0.1,
+            -2.5
+          ],
+          [
+            0.1,
+            -2.5
+          ],
+          [
+            0.1,
+            2.5
+          ],
+          [
+            -0.1,
+            2.5
+          ]
+        ],
+        "surface": "panel",
+        "density": 7800.0,
+        "thickness": 0.02,
+        "friction": 0.6,
+        "restitution": 0.04,
+        "tension": 350000000.0,
+        "compression": 350000000.0,
+        "shear": 200000000.0,
+        "refinement": 0,
+        "cohesion": 4.0,
+        "pinned_edge": 0,
+        "layout": {
+          "mode": "bricks",
+          "size": [
+            0.2,
+            0.3
+          ],
+          "seed": 7,
+          "sites": []
+        },
+        "young": 200000000000.0,
+        "toughness": 400.0,
+        "color": [
+          110,
+          184,
+          255
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null,
+          "plasticity": {
+            "yield_stress": 30000.0,
+            "flow_rate": 1.0,
+            "hardening": 2.0,
+            "max_strain": 1.0
+          }
+        }
+      },
+      "position": [
+        7.7,
+        -4.0
+      ],
+      "angle": 1.5707964
+    }
+  ]
+}

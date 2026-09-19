@@ -1,0 +1,9 @@
+[package]
+name = "sandbox"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sim = { path = "../sim" }
+macroquad.workspace = true
+

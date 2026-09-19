@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#060813">
+  <title>Fracture — proving ground</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #060813; }
+    canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+    #status { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none;
+      font: bold 18px/1.7 ui-monospace, monospace; color: #e8f5ff; background: #060813; padding: 32px; }
+    #status[hidden] { display: none; }
+    strong { font-size: 28px; letter-spacing: .15em; }
+  </style>
+</head>
+<body>
+  <canvas id="glcanvas" tabindex="0" aria-label="Fracture destruction sandbox. Click to fire, WASD to drive, Q/Z left track, E/C right track, H for controls, Space to pause, N to single-step, T for slow motion, Tab for connection loads, R to reset.">
+    This sandbox requires a browser with WebAssembly and WebGL support.
+  </canvas>
+  <div id="status" role="status"><strong>FRACTURE</strong><span>Preparing the proving ground…</span></div>
+  <script>
+    const statusPanel = document.getElementById('status');
+    let failed = false;
+    function showError(message) {
+      failed = true;
+      statusPanel.hidden = false;
+      statusPanel.textContent = 'The proving ground could not start. ' + message;
+    }
+    window.addEventListener('error', event => showError(event.message));
+    window.addEventListener('unhandledrejection', event => showError(String(event.reason)));
+    const surface = document.getElementById('glcanvas');
+    surface.addEventListener('contextmenu', event => event.preventDefault());
+    surface.addEventListener('keydown', event => {
+      if (['Space', 'Tab', 'Home', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) event.preventDefault();
+    });
+    // Browser wheel deltas may be pixels, lines, or pages. The native game
+    // receives wheel steps; normalize here before the vendored loader sees it.
+    surface.addEventListener('wheel', event => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const units = event.deltaMode === 1 ? 1 / 3 : event.deltaMode === 2 ? 3 : 1 / 100;
+      if (typeof wasm_exports !== 'undefined' && wasm_exports?.mouse_wheel) {
+        wasm_exports.mouse_wheel(-event.deltaX * units, -event.deltaY * units);
+      }
+    }, { passive: false, capture: true });
+    surface.addEventListener('pointerdown', () => surface.focus());
+  </script>
+  <script src="mq_js_bundle.js"></script>
+  <script src="editor.js"></script>
+  <script src="experiments.js"></script>
+  <script src="levels.js"></script>
+  <script>
+    if (!window.WebAssembly) {
+      showError('WebAssembly is unavailable.');
+    } else {
+      load('sandbox.wasm');
+      const ready = setInterval(() => {
+        if (failed) { clearInterval(ready); return; }
+        if (typeof wasm_exports !== 'undefined' && (wasm_exports?.lab_ticks?.() > 0 || wasm_exports?.comparison_active?.() === 1)) {
+          statusPanel.hidden = true;
+          clearInterval(ready);
+          surface.focus();
+        }
+      }, 50);
+    }
+  </script>
+</body>
+</html>

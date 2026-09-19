@@ -1,0 +1,10 @@
+[package]
+name = "sim"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rapier2d.workspace = true
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = { version = "=1.0.145", features = ["float_roundtrip"] }
+i_overlay = "=4.5.2"

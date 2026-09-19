@@ -1,0 +1,17 @@
+/target/
+/web/sandbox.wasm
+/.tools/
+__pycache__/
+/objects/draft.json
+/objects/draft.json.tmp
+/objects/object.json
+
+/objects/experiments.json
+/objects/experiments.json.tmp
+/objects/experiment.json
+/objects/library.json
+/objects/library.json.tmp
+
+/levels/draft.json
+/levels/draft.json.tmp
+/levels/level.json
