@@ -21,6 +21,7 @@ enum Tool {
     Erase,
     Object(Box<ObjectAsset>),
     Wall,
+    Fence,
     Solid,
     SolidWall,
     Terrain(TerrainKind),
@@ -33,6 +34,7 @@ impl Tool {
         matches!(
             self,
             Self::Wall
+                | Self::Fence
                 | Self::SolidWall
                 | Self::Solid
                 | Self::Terrain(_)
@@ -242,7 +244,7 @@ impl LevelEditor {
                     .into()
             }
             Tool::Erase => "Click to erase a 1 m cell. Drag to erase a rectangle from objects and walls. Ctrl+Z undoes.".into(),
-            Tool::Wall | Tool::SolidWall | Tool::Terrain(_) | Tool::Solid => {
+            Tool::Wall | Tool::Fence | Tool::SolidWall | Tool::Terrain(_) | Tool::Solid => {
                 "Click to fill a 1 m grid cell. Drag to fill a rectangle of cells.".into()
             }
             _ => "Click on the map to place. Esc returns to selection.".into(),

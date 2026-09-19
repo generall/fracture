@@ -28,89 +28,91 @@ fn fixture() -> Level {
 }
 
 #[test]
-fn level_walls_attach_to_nearby_authored_solids_without_generated_blocks() {
-    for angle in [0.0, 0.6] {
-        for gap in [-2.0, -0.2, 0.0, 0.2, 0.3] {
-            for support_first in [false, true] {
-                let mut asset = crate::level::wall_asset(Vector::new(1.0, 6.0));
-                // Earlier drafts must lose their automatically generated pads too.
-                asset.pinned_edge = Some(2);
-                asset.support_spacing = Some(4.0);
-                let wall = LevelItem::Object {
-                    cutouts: vec![],
-                    asset: Box::new(asset),
-                    position: [0.0, 0.0],
-                    angle,
-                };
-                let support = LevelItem::Solid {
-                    cutouts: vec![],
-                    outline: crate::level::rectangle(Vector::splat(0.6)),
-                    position: Vector::from_angle(angle)
-                        .rotate(Vector::new(0.0, 3.6 + gap))
-                        .to_array(),
-                    angle,
-                };
-                let mut level = Level {
-                    size: [24.0, 20.0],
-                    items: vec![LevelItem::Spawn {
-                        team: Team::Blue,
-                        position: [-8.0, 0.0],
-                        angle: 0.0,
-                    }],
-                    ..Level::default()
-                };
-                level.items.extend(if support_first {
-                    [support, wall]
-                } else {
-                    [wall, support]
-                });
-                let level = Level::from_json(&level.to_json().unwrap()).unwrap();
-                let mut world = World::from_level(&level, Team::Blue).unwrap();
-                assert_eq!(
-                    world
-                        .pieces
+fn level_walls_and_fences_attach_to_authored_solids_without_generated_blocks() {
+    for make_asset in [crate::level::wall_asset, crate::level::fence_asset] {
+        for angle in [0.0, 0.6] {
+            for gap in [-2.0, -0.2, 0.0, 0.2, 0.3] {
+                for support_first in [false, true] {
+                    let mut asset = make_asset(Vector::new(1.0, 6.0));
+                    // Earlier drafts must lose their automatically generated pads too.
+                    asset.pinned_edge = Some(2);
+                    asset.support_spacing = Some(4.0);
+                    let wall = LevelItem::Object {
+                        cutouts: vec![],
+                        asset: Box::new(asset),
+                        position: [0.0, 0.0],
+                        angle,
+                    };
+                    let support = LevelItem::Solid {
+                        cutouts: vec![],
+                        outline: crate::level::rectangle(Vector::splat(0.6)),
+                        position: Vector::from_angle(angle)
+                            .rotate(Vector::new(0.0, 3.6 + gap))
+                            .to_array(),
+                        angle,
+                    };
+                    let mut level = Level {
+                        size: [24.0, 20.0],
+                        items: vec![LevelItem::Spawn {
+                            team: Team::Blue,
+                            position: [-8.0, 0.0],
+                            angle: 0.0,
+                        }],
+                        ..Level::default()
+                    };
+                    level.items.extend(if support_first {
+                        [support, wall]
+                    } else {
+                        [wall, support]
+                    });
+                    let level = Level::from_json(&level.to_json().unwrap()).unwrap();
+                    let mut world = World::from_level(&level, Team::Blue).unwrap();
+                    assert_eq!(
+                        world
+                            .pieces
+                            .iter()
+                            .filter(|p| p.material == Material::Anchor)
+                            .count(),
+                        2,
+                        "only the two authored solid triangles should be anchor pieces"
+                    );
+                    let joints: Vec<_> = world
+                        .bonds
                         .iter()
-                        .filter(|p| p.material == Material::Anchor)
-                        .count(),
-                    2,
-                    "only the two authored solid triangles should be anchor pieces"
-                );
-                let joints: Vec<_> = world
-                    .bonds
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, b)| {
-                        world.pieces[b.a].material == Material::Anchor
-                            || world.pieces[b.b].material == Material::Anchor
-                    })
-                    .map(|(i, _)| i)
-                    .collect();
-                assert_eq!(!joints.is_empty(), gap <= 0.25, "gap {gap}, angle {angle}");
-                assert!(
-                    world
-                        .bodies()
-                        .filter(|b| b.material == Material::Masonry)
-                        .all(|b| b.fixed == (gap <= 0.25))
-                );
-                for i in joints {
-                    world.bonds[i].active = false;
+                        .enumerate()
+                        .filter(|(_, b)| {
+                            world.pieces[b.a].material == Material::Anchor
+                                || world.pieces[b.b].material == Material::Anchor
+                        })
+                        .map(|(i, _)| i)
+                        .collect();
+                    assert_eq!(!joints.is_empty(), gap <= 0.25, "gap {gap}, angle {angle}");
+                    assert!(
+                        world
+                            .bodies()
+                            .filter(|b| b.material == Material::Masonry)
+                            .all(|b| b.fixed == (gap <= 0.25))
+                    );
+                    for i in joints {
+                        world.bonds[i].active = false;
+                    }
+                    world.rebuild_chunks();
+                    assert!(
+                        world
+                            .bodies()
+                            .filter(|b| b.material == Material::Masonry)
+                            .all(|b| !b.fixed),
+                        "breaking the connection must release the wall"
+                    );
+                    world.step(&[]);
+                    assert!(
+                        world
+                            .bodies()
+                            .filter(|b| b.material == Material::Masonry)
+                            .all(|b| !b.fixed),
+                        "broken connections must not regenerate during play"
+                    );
                 }
-                world.rebuild_chunks();
-                assert!(
-                    world
-                        .bodies()
-                        .filter(|b| b.material == Material::Masonry)
-                        .all(|b| !b.fixed),
-                    "breaking the connection must release the wall"
-                );
-                world.step(&[]);
-                assert!(
-                    world
-                        .bodies()
-                        .filter(|b| b.material == Material::Masonry)
-                        .all(|b| !b.fixed),
-                    "broken connections must not regenerate during play"
-                );
             }
         }
     }
@@ -704,4 +706,46 @@ fn playable_top_speed_is_higher_and_braking_still_stops_the_tank() {
                 < 0.05
         );
     }
+}
+
+#[test]
+fn brittle_fence_breaks_under_a_lighter_load_than_wall() {
+    let mut thresholds = Vec::new();
+    for preset in [LibraryPreset::Wall, LibraryPreset::Fence] {
+        let mut threshold = None;
+        for force in [100.0, 300.0, 1000.0, 3000.0, 10000.0, 30000.0] {
+            let mut world = World::from_object(&preset.asset()).unwrap();
+            let loaded: Vec<_> = world
+                .pieces
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| p.object == Some(0) && p.previous_position.y < -1.0)
+                .map(|(i, _)| i)
+                .collect();
+            let event = world.next_impact();
+            for &id in &loaded {
+                world.loads.push(loads::Load {
+                    piece: id,
+                    point: world.piece_pose(id).translation,
+                    impulse: Vector::new(force * TICK_DT / loaded.len() as f32, 0.0),
+                    energy: 100.0 / loaded.len() as f32,
+                    apply: true,
+                    event,
+                });
+            }
+            world.process_loads(TICK_DT, &mut Vec::new());
+            assert_eq!(world.stats().plastic_work, 0.0);
+            assert!(world.bending_joints.is_empty());
+            if world.broken > 0 {
+                threshold = Some(force);
+                break;
+            }
+        }
+        thresholds.push(threshold.unwrap_or(f32::INFINITY));
+    }
+    println!("first fracture load, wall / fence: {thresholds:?} N");
+    assert!(
+        thresholds[1] < thresholds[0],
+        "fence must fracture under a lighter load"
+    );
 }

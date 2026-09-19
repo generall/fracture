@@ -528,6 +528,7 @@ mod tests {
                 crate::LibraryPreset::Barrel
                     | crate::LibraryPreset::ExplosiveBarrel
                     | crate::LibraryPreset::MetalFence
+                    | crate::LibraryPreset::Fence
             );
             assert_eq!(
                 world

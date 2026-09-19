@@ -1,6 +1,6 @@
 **Object library — first playable profiles**
 
-Open the editor with **O**, then **L** or **FILE → OBJECT LIBRARY**. Choose a starter, edit its shape/material/components, and use **TEST** or **COMPARE**. The five starters are permanent recipes. **SAVE CURRENT** stores an editable copy under the draft's name; the same name updates that copy. Rename in **SHAPE** to keep another variant. **SAVED COPIES** loads or removes copies.
+Open the editor with **O**, then **L** or **FILE → OBJECT LIBRARY**. Choose a starter, edit its shape/material/components, and use **TEST** or **COMPARE**. The six starters are permanent recipes. **SAVE CURRENT** stores an editable copy under the draft's name; the same name updates that copy. Rename in **SHAPE** to keep another variant. **SAVED COPIES** loads or removes copies.
 
 | Starter | Color | Initial behavior |
 | --- | --- | --- |
@@ -8,6 +8,7 @@ Open the editor with **O**, then **L** or **FILE → OBJECT LIBRARY**. Choose a 
 | Explosive barrel | Red, `#FF6C60` | Same round body and mobility, lower shell resistance. First permanent deformation ignites one 600 kJ, 3 m blast. |
 | Wall | Amber, `#F3C66E` | Heavy masonry with compact bricks and a single breakable support. A standard shell produces rubble; a tank ram separates larger blocks. |
 | Metal fence | Blue, `#6EB8FF` | Selected fence case 3: a 5 m strip with a pinned end, six plastic bend points and 8 kN m yield moment; 15.6 kg, friction 0.02. Access through MORE STARTERS. |
+| Fence | Brown, `#B58B5C` | Lightweight brittle barrier: stays rigid until its seams break; see-through. Draw Fence in the level editor fills grid cells and connects to authored anchors like a wall. |
 | Rock | Violet, `#ABA1F0` | Irregular stone with a buried central base. Uses the previous wall’s seam strengths; shells chip the perimeter while tanks cannot push the intact rock. |
 
 The wall’s previous 16× seam-strength increase was rejected as too resistant. It now uses ordinary masonry strengths, the earlier brick size and one end support. In the centered trial, the first 6 kg / 220 m/s shell produces **14 chunks**, with the largest retaining **40%** of the original area. A 4500 kg tank approaching at 4.6 m/s produces **four larger chunks**, the largest retaining **47.5%**. Both trials measure one second after the input. Three centered shells produce 20 chunks; these counts characterize the standard setup, not every impact angle.
@@ -78,3 +79,5 @@ The selected contact references are case 6 with the close backstop and case 2 wi
 
 
 **Soft-impact bounce:** the ordinary barrel uses the selected wall-release case 2: `soft_bounce: {restitution: 0.62, speed: 16}` to base restitution 0.04 and friction 0.09. In **MATERIAL → BOUNCE >**, enable/disable the curve and edit both values. Gentle contacts use the soft coefficient, contacts faster than twice the soft speed use base bounce, with a smooth transition in between. Relative normal contact speed includes rotation. The two material coefficients are averaged before collision solving. No extra separating impulse is applied, and ground friction is independent of this curve. The intent is visible wall separation with dissipative hard collisions. This is a tunable 2D game approximation; it does not model stored elastic strain energy or calibrated metal restitution. Old files without the optional property retain constant bounce. The property is inherited by refined cells and preserved during chunk rebuilds.
+
+**Breakable fence:** this is separate from the bending metal fence. It uses the wall's fracture/attachment model, with density 650 kg/m³, depth 0.25 m, friction 0.7, 40% of the wall's base seam strengths, cohesion 2, fracture work 14.4 J/m² and contact resistance 1. The starter has 0.35 × 0.8 m grains; large drawn regions coarsen them to the editor's grain budget. No plasticity or bending joints are enabled. Nearby or embedded unbreakable shapes provide breakable attachments under the same rules as masonry walls.

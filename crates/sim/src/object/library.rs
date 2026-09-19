@@ -151,14 +151,16 @@ pub enum LibraryPreset {
     Wall,
     Rock,
     MetalFence,
+    Fence,
 }
 impl LibraryPreset {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Barrel,
         Self::ExplosiveBarrel,
         Self::Wall,
         Self::Rock,
         Self::MetalFence,
+        Self::Fence,
     ];
     pub fn label(self) -> &'static str {
         match self {
@@ -167,6 +169,7 @@ impl LibraryPreset {
             Self::Wall => "WALL",
             Self::Rock => "ROCK",
             Self::MetalFence => "METAL FENCE",
+            Self::Fence => "FENCE",
         }
     }
     pub fn description(self) -> &'static str {
@@ -176,11 +179,12 @@ impl LibraryPreset {
             Self::Wall => "Anchored masonry. Heavy chunks; finer shell-impact detail.",
             Self::Rock => "Ground-anchored core. Shells chip stone; tanks cannot push it.",
             Self::MetalFence => "Anchored metal strip. Bends permanently under a tank load.",
+            Self::Fence => "Light, breakable barrier. Stays rigid until it breaks; see through it.",
         }
     }
     pub fn asset(self) -> ObjectAsset {
         let mut a = ObjectAsset::workshop_preset(match self {
-            Self::Wall => ObjectPreset::Wall,
+            Self::Wall | Self::Fence => ObjectPreset::Wall,
             Self::Rock => ObjectPreset::Rock,
             _ => ObjectPreset::Plate,
         });
@@ -277,7 +281,7 @@ impl LibraryPreset {
                     a.color = Some([255, 108, 96]);
                 }
             }
-            Self::Wall => {
+            Self::Wall | Self::Fence => {
                 a.density = 2400.0;
                 a.thickness = 0.55;
                 a.friction = 1.3;
@@ -289,6 +293,23 @@ impl LibraryPreset {
                 a.components.contact_refinement = false;
                 a.regenerate_grains(GrainMode::Bricks, [0.7, 0.6], 7);
                 a.color = Some([243, 198, 110]);
+                if matches!(self, Self::Fence) {
+                    // Brittle, lightweight fence: reuse wall fracture and solid
+                    // attachments, with lower strength and fracture work.
+                    a.density = 650.0;
+                    a.thickness = 0.25;
+                    a.friction = 0.7;
+                    a.tension *= 0.4;
+                    a.compression *= 0.4;
+                    a.shear *= 0.4;
+                    a.young = Some(3e9);
+                    a.cohesion = 2.0;
+                    a.toughness = Some(14.4);
+                    a.components.contact_resistance = 1.0;
+                    a.components.blocks_vision = Some(false);
+                    a.regenerate_grains(GrainMode::Bricks, [0.35, 0.8], 7);
+                    a.color = Some([181, 139, 92]);
+                }
             }
             Self::Rock => {
                 a.outline = vec![

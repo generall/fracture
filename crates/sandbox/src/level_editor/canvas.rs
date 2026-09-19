@@ -448,7 +448,7 @@ impl LevelEditor {
                 position: point.to_array(),
                 angle: 0.0,
             }),
-            Tool::Wall | Tool::SolidWall => {
+            Tool::Wall | Tool::Fence | Tool::SolidWall => {
                 if matches!(self.tool, Tool::SolidWall) {
                     return Some(LevelItem::Solid {
                         cutouts: vec![],
@@ -457,7 +457,11 @@ impl LevelEditor {
                         angle: 0.0,
                     });
                 }
-                let asset = sim::level::wall_asset(s(max - min));
+                let asset = if matches!(self.tool, Tool::Fence) {
+                    sim::level::fence_asset(s(max - min))
+                } else {
+                    sim::level::wall_asset(s(max - min))
+                };
                 Some(LevelItem::Object {
                     cutouts: vec![],
                     asset: Box::new(asset),
@@ -693,6 +697,7 @@ mod tests {
     fn drawing_fills_whole_cells_in_both_directions_with_or_without_move_snap() {
         for tool in [
             Tool::Wall,
+            Tool::Fence,
             Tool::SolidWall,
             Tool::Solid,
             Tool::Terrain(TerrainKind::Ground),
@@ -723,6 +728,7 @@ mod tests {
         for size in [[48.0, 30.0], [13.5, 17.3]] {
             for tool in [
                 Tool::Wall,
+                Tool::Fence,
                 Tool::SolidWall,
                 Tool::Solid,
                 Tool::Terrain(TerrainKind::Water),

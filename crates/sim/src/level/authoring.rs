@@ -255,7 +255,11 @@ mod tests {
     }
     #[test]
     fn large_rocks_and_walls_coarsen_automatically() {
-        for preset in [LibraryPreset::Rock, LibraryPreset::Wall] {
+        for preset in [
+            LibraryPreset::Rock,
+            LibraryPreset::Wall,
+            LibraryPreset::Fence,
+        ] {
             let mut item = object(preset, [0., 0.]);
             item.resize(Vec2::new(180., 60.)).unwrap();
             let LevelItem::Object { asset, .. } = item else {

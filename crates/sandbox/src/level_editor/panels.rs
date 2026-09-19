@@ -35,13 +35,22 @@ impl LevelEditor {
         match self.category {
             0 => {
                 if button(
-                    Rect::new(20.0, 234.0, 244.0, 38.0),
+                    Rect::new(20.0, 234.0, 118.0, 38.0),
                     "DRAW WALL",
                     mouse,
                     matches!(self.tool, Tool::Wall),
                 ) {
                     self.commit_field();
                     self.select_tool(Tool::Wall);
+                }
+                if button(
+                    Rect::new(146.0, 234.0, 118.0, 38.0),
+                    "DRAW FENCE",
+                    mouse,
+                    matches!(self.tool, Tool::Fence),
+                ) {
+                    self.commit_field();
+                    self.select_tool(Tool::Fence);
                 }
                 if button(
                     Rect::new(20.0, 280.0, 244.0, 38.0),

@@ -470,6 +470,18 @@ pub fn wall_asset(dimensions: Vec2) -> ObjectAsset {
     asset
 }
 
+/// Grid-drawn brittle fence; uses the same authored-solid attachments as walls.
+pub fn fence_asset(dimensions: Vec2) -> ObjectAsset {
+    let mut asset = LibraryPreset::Fence.asset();
+    asset.outline = rectangle(dimensions * 0.5);
+    asset.pinned_edge = None;
+    asset.additional_pinned_edges.clear();
+    asset.support_spacing = None;
+    asset.regenerate_grains(crate::GrainMode::Bricks, [0.35, 0.8], 7);
+    asset.fit_grain_budget();
+    asset
+}
+
 pub(crate) fn solid_asset(outline: &[[f32; 2]]) -> ObjectAsset {
     let mut asset = LibraryPreset::Wall.asset();
     asset.outline = outline.to_vec();
