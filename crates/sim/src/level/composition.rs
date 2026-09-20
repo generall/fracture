@@ -47,7 +47,7 @@ impl Level {
             .items
             .iter()
             .map(|item| match item {
-                LevelItem::Object { .. } | LevelItem::Solid { .. } => {
+                LevelItem::Object { .. } | LevelItem::Solid { .. } | LevelItem::Station { .. } => {
                     let mesh = solid_asset(&item.local_outline()).level_mesh()?;
                     carve(mesh, &cutout_triangles(item.cutouts())).map(Some)
                 }
@@ -58,14 +58,23 @@ impl Level {
         let mut pieces = 0;
         for (i, item) in self.items.iter().enumerate() {
             let mesh = match item {
-                LevelItem::Object { .. } | LevelItem::Solid { .. } => item.erased_mesh()?,
+                LevelItem::Object { .. } | LevelItem::Solid { .. } | LevelItem::Station { .. } => {
+                    item.erased_mesh()?
+                }
                 _ => {
                     result.push(None);
                     continue;
                 }
             };
-            let priority =
-                |index: usize| (matches!(self.items[index], LevelItem::Solid { .. }), index);
+            let priority = |index: usize| {
+                (
+                    matches!(
+                        self.items[index],
+                        LevelItem::Solid { .. } | LevelItem::Station { .. }
+                    ),
+                    index,
+                )
+            };
             let inverse = Vec2::from_angle(-item.angle());
             let mut cutters = Vec::new();
             for (j, footprint) in footprints.iter().enumerate() {
@@ -87,6 +96,9 @@ impl Level {
                 }
             }
             let mesh = carve(mesh, &cutters)?;
+            if matches!(item, LevelItem::Station { .. }) && mesh.area < 4.0 - EPS {
+                return Err("Station buildings need a clear footprint: move the overlapping unbreakable object.".into());
+            }
             pieces += mesh.triangles.len();
             if pieces > 8192 {
                 return Err("Overlapping objects exceed the 8192-piece budget; simplify their outlines or grains.".into());
@@ -112,6 +124,7 @@ impl LevelItem {
         let mesh = match self {
             Self::Object { asset, .. } => asset.level_mesh()?,
             Self::Solid { outline, .. } => solid_asset(outline).level_mesh()?,
+            Self::Station { .. } => solid_asset(&self.local_outline()).level_mesh()?,
             _ => return Err("Only solid objects have an eraser mesh.".into()),
         };
         carve(mesh, &cutout_triangles(self.cutouts()))

@@ -19,6 +19,11 @@ impl Fog {
             .tanks
             .extend(world.tanks().filter(|t| t.id == world.player_tank_id()));
     }
+    pub fn observe_tank_wreck(&mut self, world: &sim::World, id: usize, now: f64) {
+        self.figures.observe_tank_wreck(world, id, now);
+        self.scene.bodies.retain(|b| b.id != id);
+        self.scene.tanks.retain(|t| t.id != id);
+    }
     pub fn scene(&self) -> &Scene {
         &self.scene
     }

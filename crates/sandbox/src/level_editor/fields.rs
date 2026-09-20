@@ -31,6 +31,25 @@ impl LevelEditor {
                     .map_or(0.0, |l| l.size[usize::from(field == Field::GrainHeight)]),
                 _ => 0.0,
             },
+            Field::CaptureTime | Field::CaptureRadius | Field::RepairRate | Field::RadarRadius => {
+                if let Some(LevelItem::Station { settings, .. }) = item {
+                    match field {
+                        Field::CaptureTime => settings.capture_time,
+                        Field::CaptureRadius => settings.capture_radius,
+                        Field::RepairRate => settings.repair_rate,
+                        _ => settings.radar_radius,
+                    }
+                } else {
+                    0.0
+                }
+            }
+            Field::PickupRespawn => {
+                if let Some(LevelItem::Pickup { respawn_time, .. }) = item {
+                    *respawn_time
+                } else {
+                    0.0
+                }
+            }
             Field::Name => unreachable!(),
         };
         format!("{value:.2}")
@@ -183,6 +202,24 @@ impl LevelEditor {
                             }
                             _ => {}
                         },
+                        Field::PickupRespawn => {
+                            if let LevelItem::Pickup { respawn_time, .. } = item {
+                                *respawn_time = n;
+                            }
+                        }
+                        Field::CaptureTime
+                        | Field::CaptureRadius
+                        | Field::RepairRate
+                        | Field::RadarRadius => {
+                            if let LevelItem::Station { settings, .. } = item {
+                                match field {
+                                    Field::CaptureTime => settings.capture_time = n,
+                                    Field::CaptureRadius => settings.capture_radius = n,
+                                    Field::RepairRate => settings.repair_rate = n,
+                                    _ => settings.radar_radius = n,
+                                }
+                            }
+                        }
                         Field::GrainWidth | Field::GrainHeight => {
                             if let LevelItem::Object { asset, .. } = item
                                 && let Some(l) = &asset.layout

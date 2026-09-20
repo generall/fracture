@@ -11,9 +11,10 @@ pub(super) struct Tank {
     pub health: f32,
     pub respawn: Option<f32>,
     pub protection: f32,
-    pub turret: f32,
+    pub aim: aiming::AimState,
     pub reload: f32,
     pub track_travel: [f32; 2],
+    pub reveal_until: u64,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -24,6 +25,8 @@ pub struct TankView {
     pub respawn_remaining: Option<f32>,
     pub protected: bool,
     pub turret_angle: f32,
+    pub previous_turret_angle: f32,
+    pub aim_spread: f32,
     pub reload: f32,
     pub track_travel: [f32; 2],
 }
@@ -36,7 +39,9 @@ impl World {
             health: t.health,
             respawn_remaining: t.respawn,
             protected: t.protection > 0.0,
-            turret_angle: t.turret,
+            turret_angle: t.aim.angle,
+            previous_turret_angle: t.aim.previous_angle,
+            aim_spread: t.aim.spread,
             reload: if t.id == self.launcher {
                 self.reload
             } else {
@@ -68,6 +73,9 @@ impl World {
         self.physics.bodies[self.pieces[id].body].set_position(spawn, true);
         self.pieces[id].previous_position = position;
         self.pieces[id].previous_angle = angle;
+        if id == self.launcher {
+            self.player_aim = aiming::AimState::new(angle);
+        }
         self.tanks.push(Tank {
             id,
             team,
@@ -75,9 +83,10 @@ impl World {
             health: 100.0,
             respawn: None,
             protection: 0.0,
-            turret: angle,
+            aim: aiming::AimState::new(angle),
             reload: 0.0,
             track_travel: [0.0; 2],
+            reveal_until: 0,
         });
     }
 
@@ -87,6 +96,7 @@ impl World {
         &mut self,
         id: usize,
         incoming: Vector,
+        point: Vector,
         energy: f32,
         ammunition: Ammunition,
         events: &mut Vec<Event>,
@@ -109,13 +119,44 @@ impl World {
         let penetration = match ammunition {
             Ammunition::ArmorPiercing => 1.0,
             Ammunition::HighExplosive => 0.65,
-            Ammunition::MachineGun => 0.5,
+            Ammunition::Rocket => 0.5,
             Ammunition::Laser => 1.0,
         };
         let damage = ((energy * penetration - armor).max(0.0) / 6000.0).min(85.0);
-        self.damage_tank(id, damage, events);
+        self.damage_tank_from(
+            id,
+            damage,
+            TankImpact {
+                cause: DestructionCause::Shell(ammunition),
+                point,
+                direction: incoming.normalize_or_zero(),
+                impulse: incoming.normalize_or_zero()
+                    * (2.0 * energy / incoming.length().max(0.001)),
+            },
+            events,
+        );
     }
+    #[cfg(test)]
     pub(super) fn damage_tank(&mut self, id: usize, damage: f32, events: &mut Vec<Event>) {
+        self.damage_tank_from(
+            id,
+            damage,
+            TankImpact {
+                cause: DestructionCause::Blast,
+                point: self.piece_pose(id).translation,
+                direction: Vector::X,
+                impulse: Vector::ZERO,
+            },
+            events,
+        );
+    }
+    pub(super) fn damage_tank_from(
+        &mut self,
+        id: usize,
+        damage: f32,
+        impact: TankImpact,
+        events: &mut Vec<Event>,
+    ) {
         let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) else {
             return;
         };
@@ -124,10 +165,22 @@ impl World {
         }
         tank.health = (tank.health - damage).max(0.0);
         if tank.health == 0.0 {
-            self.destroy_tank(id, events);
+            self.destroy_tank_from(id, impact, events);
         }
     }
     pub(super) fn destroy_tank(&mut self, id: usize, events: &mut Vec<Event>) {
+        self.destroy_tank_from(
+            id,
+            TankImpact {
+                cause: DestructionCause::Collapse,
+                point: self.piece_pose(id).translation,
+                direction: Vector::ZERO,
+                impulse: Vector::ZERO,
+            },
+            events,
+        );
+    }
+    fn destroy_tank_from(&mut self, id: usize, impact: TankImpact, events: &mut Vec<Event>) {
         let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) else {
             return;
         };
@@ -135,23 +188,34 @@ impl World {
             return;
         }
         tank.health = 0.0;
+        tank.reveal_until = 0;
         tank.respawn = Some(RESPAWN_SECONDS);
         let body = &mut self.physics.bodies[self.pieces[id].body];
         let position = body.translation();
+        let mass = body.mass();
+        let omega = body.angvel();
+        let team = tank.team;
+        let details = TankDestruction {
+            id,
+            hull_angle: body.rotation().angle(),
+            turret_angle: tank.aim.angle,
+            velocity: body.linvel(),
+            impact,
+        };
         body.set_linvel(Vector::ZERO, false);
         body.set_angvel(0.0, false);
         body.set_enabled(false);
         if id == self.launcher {
             self.laser_beam = None;
+            self.laser_remaining = 0.0;
+            self.special = None;
         }
-        events.push(Event::Exploded {
-            position,
-            radius: 0.9,
-        });
         events.push(Event::TankDestroyed {
             position,
-            team: tank.team,
+            team,
+            details,
         });
+        self.spawn_tank_wreck(position, team, details, mass, omega);
     }
     pub(super) fn update_tanks(&mut self, events: &mut Vec<Event>) {
         if self.tanks.is_empty() {
@@ -189,7 +253,7 @@ impl World {
             tank.respawn = None;
             tank.protection = 1.0;
             tank.reload = 0.5;
-            tank.turret = pose.rotation.angle();
+            tank.aim = aiming::AimState::new(pose.rotation.angle());
             tank.track_travel = [0.0; 2];
             let body = &mut self.physics.bodies[self.pieces[id].body];
             body.set_position(pose, true);
@@ -199,6 +263,7 @@ impl World {
             self.pieces[id].previous_position = pose.translation;
             self.pieces[id].previous_angle = pose.rotation.angle();
             if id == self.launcher {
+                self.player_aim = tank.aim;
                 self.tank_fall = None;
                 self.reload = 0.5;
                 self.track_travel = [0.0; 2];
@@ -262,6 +327,84 @@ impl World {
 mod tests {
     use super::*;
     use crate::level::{EnemyActivity, Level, LevelItem, rectangle};
+    #[test]
+    fn destruction_event_preserves_shell_direction_pose_and_single_death() {
+        for direction in [Vector::X, Vector::Y, -Vector::X, -Vector::Y] {
+            let mut world = World::from_level(&level(EnemyActivity::Static), Team::Blue).unwrap();
+            let id = world.tanks[1].id;
+            world.tanks[1].health = 1.0;
+            world.tanks[1].aim.angle = 0.7;
+            let position = world.piece_pose(id).translation;
+            let point = position - direction * 0.8;
+            let mut events = vec![];
+            world.hit_tank(
+                id,
+                direction * 500.0,
+                point,
+                1_000_000.0,
+                Ammunition::ArmorPiercing,
+                &mut events,
+            );
+            world.hit_tank(
+                id,
+                direction * 500.0,
+                point,
+                1_000_000.0,
+                Ammunition::ArmorPiercing,
+                &mut events,
+            );
+            let deaths: Vec<_> = events
+                .iter()
+                .filter_map(|e| match e {
+                    Event::TankDestroyed { details, .. } => Some(details),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(deaths.len(), 1);
+            assert_eq!(
+                deaths[0].impact.cause,
+                DestructionCause::Shell(Ammunition::ArmorPiercing)
+            );
+            assert_eq!(deaths[0].impact.point, point);
+            assert_eq!(deaths[0].impact.direction, direction);
+            assert_eq!(deaths[0].turret_angle, 0.7);
+            assert!((deaths[0].hull_angle.abs() - std::f32::consts::PI).abs() < 0.001);
+        }
+    }
+    #[test]
+    fn destruction_from_ramming_has_contact_direction_without_explosion() {
+        let mut map = level(EnemyActivity::Static);
+        if let LevelItem::Spawn { position, .. } = &mut map.items[0] {
+            *position = [-1.6, 0.0];
+        }
+        map.items.push(LevelItem::Solid {
+            cutouts: vec![],
+            outline: rectangle(Vector::new(0.5, 3.0)),
+            position: [0.0, 0.0],
+            angle: 0.0,
+        });
+        let mut world = World::from_level(&map, Team::Blue).unwrap();
+        world.tanks[0].health = 0.1;
+        world.physics.bodies[world.pieces[world.launcher].body].set_linvel(Vector::X * 6.5, true);
+        let mut events = vec![];
+        for _ in 0..30 {
+            events.extend(world.step(&[]));
+        }
+        let details = events
+            .iter()
+            .find_map(|e| match e {
+                Event::TankDestroyed { details, .. } => Some(details),
+                _ => None,
+            })
+            .expect("ram destroys weakened tank");
+        assert_eq!(details.impact.cause, DestructionCause::Ram);
+        assert!(
+            details.impact.direction.x < -0.9,
+            "force comes from the wall"
+        );
+        assert!((details.impact.point.x + 0.5).abs() < 0.1);
+        assert!(!events.iter().any(|e| matches!(e, Event::Exploded { .. })));
+    }
     fn level(activity: EnemyActivity) -> Level {
         Level {
             size: [32.0, 24.0],
@@ -343,6 +486,7 @@ mod tests {
             world.hit_tank(
                 enemy,
                 incoming,
+                world.piece_pose(enemy).translation - incoming,
                 490000.0,
                 Ammunition::ArmorPiercing,
                 &mut vec![],
@@ -354,8 +498,9 @@ mod tests {
         world.hit_tank(
             enemy,
             Vector::X,
+            world.piece_pose(enemy).translation - Vector::X,
             8670.0,
-            Ammunition::MachineGun,
+            Ammunition::Rocket,
             &mut vec![],
         );
         assert_eq!(world.tanks[1].health, 100.0);

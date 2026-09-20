@@ -39,12 +39,12 @@ The project has progressed from a destruction sandbox to an editable object libr
 
 | Ammunition | Accepted settings |
 | --- | --- |
-| HE | 6 kg at 220 m/s; 300 kJ blast, radius 1.7 m; 0.45 s reload. |
-| AP | 8 kg at 350 m/s; concentrated 800 kJ blast, radius 0.65 m; 0.45 s reload. Stronger local damage, no penetration continuation yet. |
-| MG | 24 g at 850 m/s; 12 rounds/s; no blast. Dents barrels, bends fences, ignites explosive barrels and breaks thin panels. |
-| Laser | 6 cutting pulses/s; first subdivide, then remove one leaf of area ≤0.0125 m²; no recoil/impulse. Beam aim refreshes between pulses. |
+| HE | 6 kg at 220 m/s; 300 kJ blast, radius 1.7 m; 0.9 s reload. |
+| AP | 8 kg at 350 m/s; concentrated 800 kJ blast, radius 0.65 m; 0.9 s reload. Stronger local damage, no penetration continuation yet. |
+| Rocket | Single-use pickup, right click; 16 kg at 12 m/s, 5.5 m blast and internal material shock. |
+| Laser | Single-use pickup, right click; unstoppable 3 s beam, 0.6 m wide, 10 cutting pulses/s, zero spread. |
 
-All weapons share reload state; switching cannot bypass it. Automatic fire requests occur at fixed simulation ticks. Saved recipes retain authored mass/speed rather than silently adopting new defaults. See [AMMUNITION.md](AMMUNITION.md) and [OBJECT_LIBRARY.md](OBJECT_LIBRARY.md).
+HE/AP share main-gun reload state; switching starts a full 0.9 s reload. Specials use a separate one-item inventory. Saved recipes retain authored mass/speed rather than silently adopting new defaults. See [AMMUNITION.md](AMMUNITION.md) and [OBJECT_LIBRARY.md](OBJECT_LIBRARY.md).
 
 ## Latest accepted terrain and bridge rules
 

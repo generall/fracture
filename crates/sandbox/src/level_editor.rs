@@ -8,7 +8,7 @@ mod selection;
 use crate::ui::PINK;
 use crate::{level_storage as storage, navigation::Navigation, ui::*, view::Viewport};
 use macroquad::prelude::*;
-use sim::level::{Level, LevelItem, Team};
+use sim::level::{Level, LevelItem, StationKind, StationSettings, Team};
 use sim::{LibraryPreset, ObjectAsset, ObjectLibrary, TerrainKind};
 
 pub enum Action {
@@ -28,6 +28,8 @@ enum Tool {
     Bridge,
     Spawn(Team),
     Flag(Team),
+    Station(StationKind),
+    Pickup(sim::SpecialWeapon),
 }
 impl Tool {
     fn draws_cells(&self) -> bool {
@@ -55,6 +57,11 @@ enum Field {
     Angle,
     GrainWidth,
     GrainHeight,
+    CaptureTime,
+    CaptureRadius,
+    RepairRate,
+    RadarRadius,
+    PickupRespawn,
 }
 struct Editing {
     field: Field,

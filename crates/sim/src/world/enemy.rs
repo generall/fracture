@@ -15,7 +15,6 @@ pub(super) struct Enemy {
     observed: Vector,
     visible_for: f32,
     fire_in: f32,
-    shot: usize,
     progress_at: Vector,
     stuck_for: f32,
     reverse_for: f32,
@@ -37,7 +36,6 @@ impl Enemy {
             observed: position,
             visible_for: 0.0,
             fire_in: 0.8,
-            shot: 0,
             progress_at: position,
             stuck_for: 0.0,
             reverse_for: 0.0,
@@ -71,7 +69,11 @@ impl World {
         enemy.observe_in -= TICK_DT;
         enemy.fire_in -= TICK_DT;
         if enemy.observe_in <= 0.0 {
-            enemy.observed = self.launcher_position();
+            let foliage_involved = self.terrain_at(position) == crate::TerrainKind::TallGrass
+                || self.terrain_at(self.launcher_position()) == crate::TerrainKind::TallGrass;
+            if !foliage_involved || self.detects_tank(id, self.launcher) {
+                enemy.observed = self.launcher_position();
+            }
             enemy.observe_in = 0.35;
         }
         let distance = enemy.observed.distance(position);
@@ -85,9 +87,9 @@ impl World {
                 < if enemy.activity == EnemyActivity::Conquer {
                     12.0
                 } else {
-                    30.0
+                    self.vision_range_at(position).max(30.0)
                 }
-            && self.sight_clear(id, enemy.observed)
+            && self.detects_tank(id, self.launcher)
             && self.tank_line_of_sight(id, enemy.observed);
         enemy.visible_for = if visible {
             enemy.visible_for + TICK_DT
@@ -154,12 +156,17 @@ impl World {
             enemy.scan_in = 0.0;
             enemy.plan_in = 0.0;
         }
-        let clearing = if hunts && !visible {
+        // Hold the breach aim until the player is fully acquired. Switching
+        // every tick at a ragged opening can keep a limited-speed turret
+        // forever between the two targets.
+        let clearing = if hunts && !(visible && enemy.visible_for >= 0.7) {
             enemy.obstruction
         } else {
             None
         };
-        let key = clearing.map(|(piece, _)| {
+        // A glimpse of the player through a ragged opening must not reset
+        // preparation to breach the same obstacle that still blocks the hull.
+        let key = enemy.obstruction.map(|(piece, _)| {
             self.pieces[piece]
                 .object
                 .unwrap_or(self.pieces[piece].origin)
@@ -224,19 +231,16 @@ impl World {
         } else {
             pose.rotation.angle()
         };
-        let tank = self.tanks.iter_mut().find(|t| t.id == id).unwrap();
-        let error = angle_difference(desired, tank.turret);
-        tank.turret += error.clamp(-TICK_DT * 1.05, TICK_DT * 1.05);
+        self.advance_enemy_aim(id, desired);
+        let turret = self.tanks.iter().find(|t| t.id == id).unwrap().aim.angle;
+        let error = angle_difference(desired, turret);
         let acquired = if clearing.is_some() {
             enemy.obstruction_for >= 0.7
         } else {
             visible && enemy.visible_for >= 0.7
         };
         if acquired && enemy.fire_in <= 0.0 && error.abs() < 0.06 && target_distance > 1.8 {
-            let moving = self.physics.bodies[self.pieces[id].body].linvel().length() > 0.5;
-            let spread = if moving { 0.07 } else { 0.035 };
-            let offset = ((enemy.shot as f32 + 1.0) * 2.399963).sin() * spread;
-            let target = position + Vector::from_angle(tank.turret + offset) * target_distance;
+            let target = position + Vector::from_angle(turret) * target_distance;
             let ammunition = if clearing.is_some() && target_distance > 3.3 {
                 Ammunition::HighExplosive
             } else {
@@ -246,7 +250,6 @@ impl World {
             self.fire_from(id, Shot::new(ammunition, target), events);
             if self.shots > before {
                 enemy.fire_in = 1.6;
-                enemy.shot += 1;
                 enemy.plan_in = enemy.plan_in.min(0.25);
             } else {
                 enemy.scan_in = 0.0;

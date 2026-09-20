@@ -2,6 +2,58 @@ use super::*;
 
 const TRACK_OFFSET: f32 = 0.65;
 
+#[cfg(test)]
+mod elevation_tests {
+    use super::*;
+    use crate::{
+        TerrainKind,
+        level::{Level, LevelItem, Team},
+    };
+
+    #[test]
+    fn elevation_edges_strongly_slow_both_climbs_and_descents() {
+        let level = Level {
+            items: vec![
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [0.0, 0.0],
+                    angle: 0.0,
+                },
+                LevelItem::Terrain {
+                    terrain: TerrainKind::Elevation,
+                    min: [0.0, -5.0],
+                    max: [10.0, 5.0],
+                },
+            ],
+            ..Level::default()
+        };
+        for direction in [1.0, -1.0] {
+            let mut w = World::from_level(&level, Team::Blue).unwrap();
+            let handle = w.pieces[w.launcher].body;
+            w.physics.bodies[handle].set_linvel(Vector::new(direction * 6.5, 0.0), true);
+            w.drive_tracks([direction; 2], TICK_DT);
+            let speed = w.physics.bodies[handle].linvel().x * direction;
+            assert!(speed < 6.5, "edge crossing: {speed}");
+            for _ in 0..120 {
+                w.drive_tracks([direction; 2], TICK_DT);
+            }
+            let edge_speed = w.physics.bodies[handle].linvel().x.abs();
+            assert!(
+                (edge_speed - 6.5 * 0.25).abs() < 0.01,
+                "edge speed: {edge_speed}"
+            );
+            assert!(w.physics.bodies[handle].angvel().abs() < 0.001);
+            w.physics.bodies[handle].set_translation(Vector::new(5.0, 0.0), true);
+            w.physics.bodies[handle].set_linvel(Vector::new(direction * 6.5, 0.0), true);
+            w.drive_tracks([direction; 2], TICK_DT);
+            assert!(
+                (w.physics.bodies[handle].linvel().x.abs() - 6.5).abs() < 0.001,
+                "plateau has normal speed"
+            );
+        }
+    }
+}
+
 impl World {
     pub(super) fn add_tank(&mut self) -> usize {
         let position = Vector::new(-7.0, 0.0);
@@ -65,6 +117,15 @@ impl World {
             return;
         }
         let pose = *self.physics.bodies[self.pieces[id].body].position();
+        // A short transition band at exposed elevation edges. Sampling the
+        // resolved terrain avoids slopes between touching/overlapping plateaus.
+        let height = |x| {
+            f32::from(
+                self.terrain_at(pose.transform_point(Vector::new(x, 0.0)))
+                    == crate::TerrainKind::Elevation,
+            )
+        };
+        let edge = (height(1.25) - height(-1.25)).abs();
         let surfaces = [-TRACK_OFFSET, TRACK_OFFSET].map(|y| {
             [-0.78, 0.78].map(|x| {
                 self.terrain_at(pose.transform_point(Vector::new(x, y)))
@@ -80,7 +141,11 @@ impl World {
         // Limit the requested track-speed difference, not angular velocity.
         // Collisions and contact forces still determine the actual rotation.
         let requested: [f32; 2] = std::array::from_fn(|i| {
-            throttles[i] * self.tank_speed_limit * (surfaces[i][0][0] + surfaces[i][1][0]) * 0.5
+            throttles[i]
+                * self.tank_speed_limit
+                * (surfaces[i][0][0] + surfaces[i][1][0])
+                * 0.5
+                * (1.0 - 0.75 * edge)
         });
         let difference = (requested[0] - requested[1]).abs();
         let steering_scale = if difference > 1.64 {
@@ -112,7 +177,7 @@ impl World {
                 // Fixed engine force gives about 1.6 m/s² acceleration. Brakes
                 // have a higher force budget, rather than a reversible motor drag.
                 let force_limit = if is_braking {
-                    6_500.0 * grip
+                    6_500.0 * grip * (1.0 + edge)
                 } else {
                     1_800.0 * drive
                 };

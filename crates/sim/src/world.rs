@@ -7,14 +7,24 @@ use crate::{Ammunition, Material};
 pub const TICK_DT: f32 = 1.0 / 120.0;
 const SUBSTEPS: usize = 4;
 const DEPTH: f32 = 0.25;
+mod aiming;
+mod specials;
+pub use specials::PickupView;
 mod api;
+pub use aiming::AimView;
 mod debris;
 mod queries;
+mod stations;
+mod tank_wreck;
 mod vision;
+pub use stations::StationView;
 pub use vision::{NEAR_VISION, VISION_HALF_ANGLE, VISION_RANGE, Vision};
 mod scenes;
 mod setup;
-pub use api::{BodyView, BondView, Command, Event, LaserBeam, Scene, Shape, Shell, Shot, Stats};
+pub use api::{
+    BodyView, BondView, Command, DestructionCause, Event, LaserBeam, Scene, Shape, Shell, Shot,
+    Stats, TankDestruction, TankFragment, TankImpact,
+};
 
 mod collision;
 use collision::CollisionLayer;
@@ -79,6 +89,7 @@ struct Piece {
     previous_angle: f32,
     load: f32,
     debris_remaining: Option<f32>,
+    tank_fragment: Option<TankFragment>,
     floor_friction: f32,
     restitution: f32,
     soft_bounce: Option<crate::SoftBounce>,
@@ -147,6 +158,7 @@ impl Piece {
             previous_angle: 0.0,
             load: 0.0,
             debris_remaining: None,
+            tank_fragment: None,
             floor_friction: 0.32,
             restitution: 0.04,
             soft_bounce: None,
@@ -212,6 +224,12 @@ pub struct World {
     broken: usize,
     topology_changed: bool,
     reload: f32,
+    player_aim: aiming::AimState,
+    primary_ammunition: Ammunition,
+    special: Option<crate::SpecialWeapon>,
+    pickups: Vec<specials::Pickup>,
+    laser_remaining: f32,
+    laser_pulse_in: f32,
     last_ammunition: Ammunition,
     laser_beam: Option<LaserBeam>,
     ablated: usize,
@@ -234,6 +252,7 @@ pub struct World {
     water_colliders: Vec<ColliderHandle>,
     tank_fall: Option<f32>,
     flags: Vec<level::Flag>,
+    stations: Vec<stations::Station>,
     team: crate::level::Team,
     winner: Option<crate::level::Team>,
 }
@@ -265,11 +284,17 @@ impl World {
             bond.load *= 0.965;
         }
         self.update_tanks(&mut events);
+        self.update_player_aim(commands);
         self.reload = (self.reload - TICK_DT).max(0.0);
         if let Some(beam) = &mut self.laser_beam {
             beam.remaining -= TICK_DT;
             if beam.remaining <= 0.0 {
                 self.laser_beam = None;
+            }
+        }
+        for command in commands {
+            if let Command::SelectAmmunition(ammo) = *command {
+                self.select_main_ammunition(ammo);
             }
         }
         for shell in &mut self.shells {
@@ -278,13 +303,26 @@ impl World {
         let mut tracks = [0.0; 2];
         for command in commands {
             match *command {
-                Command::Fire(shot) => self.fire(shot, &mut events),
+                Command::Fire(shot) => {
+                    if !self.player_aim.active {
+                        // Precisely authored material experiments have no player controls.
+                        self.fire(shot, &mut events);
+                    } else if !shot.ammunition.special() && self.laser_remaining <= 0.0 {
+                        if shot.ammunition != self.primary_ammunition {
+                            self.select_main_ammunition(shot.ammunition);
+                        } else {
+                            self.fire(shot, &mut events);
+                        }
+                    }
+                }
+                Command::ActivateSpecial => self.activate_special(&mut events),
                 Command::Tracks { left, right } if left.is_finite() && right.is_finite() => {
                     tracks = [left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0)];
                 }
                 _ => {}
             }
         }
+        self.update_specials(&mut events);
         let enemy_tracks = self.enemy_commands(&mut events);
         for _ in 0..SUBSTEPS {
             let dt = self.physics.integration_parameters.dt;
@@ -303,8 +341,8 @@ impl World {
                 .step_with_events(&contacts::ReboundHooks(&self.pieces), &());
             self.update_plastic_bends();
             let ramming = self.collect_contact_loads(&velocities);
-            for (id, damage) in ramming {
-                self.damage_tank(id, damage, &mut events);
+            for (id, damage, impact) in ramming {
+                self.damage_tank_from(id, damage, impact, &mut events);
             }
             self.process_loads(dt, &mut events);
             self.detonate_objects(&mut events);
@@ -313,6 +351,9 @@ impl World {
             if self.winner.is_some() {
                 break;
             }
+        }
+        if self.winner.is_none() {
+            self.update_stations();
         }
         self.cleanup_debris();
         self.tick += 1;

@@ -11,6 +11,7 @@ pub(super) enum Id {
     Piece(usize),
     Flag(u8),
     Bridge(usize),
+    Pickup(usize),
 }
 #[derive(Clone, Default)]
 pub(super) struct Figure {
@@ -35,6 +36,18 @@ pub(super) struct Frame {
     pub scene: Scene,
 }
 impl Figures {
+    pub(super) fn observe_tank_wreck(&mut self, world: &World, tank: usize, now: f64) {
+        self.remembered
+            .retain(|_, figure| !figure.snapshot.tanks.iter().any(|t| t.id == tank));
+        self.last_seen
+            .retain(|id, _| self.remembered.contains_key(id));
+        for (id, figure) in current(world) {
+            if figure.lineage.contains(&tank) {
+                self.remembered.insert(id, figure);
+                self.last_seen.insert(id, now);
+            }
+        }
+    }
     pub fn update(&mut self, world: &World, vision: &Vision, now: f64) -> Frame {
         let current = current(world);
         if !self.initialized {
@@ -83,7 +96,18 @@ impl Figures {
             scene: Scene::default(),
         };
         for (id, figure) in current {
-            if figure.visible(vision) {
+            let tank_visibility = figure
+                .snapshot
+                .tanks
+                .first()
+                .and_then(|tank| vision.tank_visibility(tank.id));
+            if tank_visibility == Some(false) {
+                // Entering cover and the five-second reveal deadline must not
+                // inherit the ordinary scenery visibility cooldown.
+                self.last_seen.remove(&id);
+                continue;
+            }
+            if tank_visibility.unwrap_or_else(|| figure.visible(vision)) {
                 self.last_seen.insert(id, now);
             }
             // Keep live geometry during brief sight interruptions. Only actual
@@ -164,6 +188,27 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
                 .extend(world.tanks().filter(|t| t.id == body.id));
         }
     }
+    for station in world.stations() {
+        if let Some(figure) = result.get_mut(&Id::Object(station.object, u32::MAX)) {
+            figure.snapshot.stations.push((station, 1.0));
+        }
+    }
+    for (index, pickup) in world.pickups().enumerate() {
+        result.insert(
+            Id::Pickup(index),
+            Figure {
+                polygons: vec![rectangle(
+                    pickup.position - Vec2::splat(0.65),
+                    pickup.position + Vec2::splat(0.65),
+                )],
+                snapshot: Scene {
+                    pickups: vec![(pickup, 1.0)],
+                    ..Scene::default()
+                },
+                ..Figure::default()
+            },
+        );
+    }
     for (team, position) in world.flags() {
         result.insert(
             Id::Flag(team as u8),
@@ -203,6 +248,82 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn grass_conceals_whole_tanks_at_the_edge_without_visibility_cooldown() {
+        use sim::level::{Level, LevelItem, Team};
+        let mut level = Level {
+            items: vec![
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [0.0, 0.0],
+                    angle: 0.0,
+                },
+                LevelItem::Spawn {
+                    team: Team::Red,
+                    position: [4.0, 0.0],
+                    angle: 0.0,
+                },
+            ],
+            ..Level::default()
+        };
+        let open = World::from_level(&level, Team::Blue).unwrap();
+        let enemy = open.tanks().find(|t| t.team == Team::Red).unwrap().id;
+        let mut memory = Figures::default();
+        let seen = memory.update(&open, &open.player_vision(0.0), 0.0);
+        assert!(seen.scene.tanks.iter().any(|t| t.id == enemy));
+        level.items.push(LevelItem::Terrain {
+            terrain: sim::TerrainKind::TallGrass,
+            min: [4.0, -3.0],
+            max: [10.0, 3.0],
+        });
+        let covered = World::from_level(&level, Team::Blue).unwrap();
+        let vision = covered.player_vision(0.0);
+        assert!(
+            vision.contains(Vec2::new(3.0, 0.0)),
+            "tank nose sticks out into geometric sight"
+        );
+        let hidden = memory.update(&covered, &vision, 0.1);
+        assert!(!hidden.visible.contains(&Id::Piece(enemy)));
+        assert!(
+            !hidden
+                .scene
+                .bodies
+                .iter()
+                .any(|b| b.id == enemy && b.opacity > 0.32)
+        );
+        let unseen = Figures::default().update(&covered, &vision, 0.0);
+        assert!(!unseen.scene.tanks.iter().any(|t| t.id == enemy));
+    }
+    #[test]
+    fn stations_share_the_building_figure_and_remember_last_seen_ownership() {
+        use sim::level::{Level, LevelItem, StationKind, StationSettings, Team};
+        let mut level = Level::default();
+        level.items.push(LevelItem::Station {
+            station: StationKind::Repair,
+            position: [0.0, 0.0],
+            settings: StationSettings::default(),
+        });
+        let world = World::from_level(&level, Team::Blue).unwrap();
+        let station = world.stations().next().unwrap();
+        let id = Id::Object(station.object, u32::MAX);
+        let mut memory = Figures::default();
+        assert!(
+            memory
+                .update(&world, &Vision::default(), 0.0)
+                .scene
+                .stations
+                .is_empty()
+        );
+        let seen = memory.update(&world, &vision(), 0.1);
+        assert_eq!(seen.scene.stations.len(), 1);
+        assert_eq!(seen.scene.stations[0].0.owner, None);
+        assert_eq!(memory.remembered[&id].snapshot.bodies.len(), 2);
+        let mut changed = current(&world);
+        changed.get_mut(&id).unwrap().snapshot.stations[0].0.owner = Some(Team::Red);
+        let hidden = memory.observe(changed, &Vision::default(), 1.2);
+        assert_eq!(hidden.scene.stations[0].0.owner, None);
+        assert_eq!(hidden.scene.stations[0].1, 0.32);
+    }
     fn vision() -> Vision {
         Vision::from_boundary(
             Vec2::ZERO,

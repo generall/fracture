@@ -36,9 +36,9 @@ Open [localhost:8000](http://127.0.0.1:8000). The loader and bold font are bundl
 | E / C | Override the right track: forward / reverse |
 | Release movement keys | Apply the track brakes |
 | Mouse / left click / F | Aim turret / fire / fire at the current aim point |
-| 5 / 6 / 7 / 8 | HE / AP / machine gun / laser |
+| 5 / 6 | HE / AP; switching starts a reload |
 | B | Cycle ammunition |
-| Hold left click / F | Continuous machine gun or laser |
+| Right click | Use a collected laser or rocket (single use) |
 | H | Toggle field manual and simulation controls |
 | O | Open the object editor / return from testing |
 | M | Open the level editor / return from level playtesting |
@@ -49,9 +49,9 @@ Open [localhost:8000](http://127.0.0.1:8000). The loader and bold font are bundl
 | R | Rebuild the scene |
 | 1 / 2 / 3 / 4 | Barrier / barrel against rubble / rock field / object yard |
 | 9 | Terrain and destructible bridge range |
-| Wheel / right drag / Home | Zoom / pan / recenter |
+| Wheel / middle drag / Home | Zoom / pan / recenter in play mode |
 
-The default HE shell remains 6 kg at 220 m/s with a 0.45-second reload. AP delivers greater concentrated damage in a smaller blast radius; the stronger MG fires 12 rounds/s and dents barrels or bends fences; the laser subdivides then removes small cells at 6 cutting operations/s. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
+The main gun swaps HE/AP rounds with a 0.9-second reload. Single-use rockets and lasers must be collected from editor-placed pickup pads. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
 
 **River crossing:** press **9**. Road increases tank speed and grip; sand slows it down; water blocks the hull and tracks. Shots pass over the deck; target the booths marked A/B to destroy the crossing. They resist pushing and slow bumps, but remain vulnerable to shooting and forceful direct rams. Losing the connection between its two banks collapses the span, closes the crossing, and sinks a tank standing on it. **R** restores the scene. See [terrain and bridge rules](docs/TERRAIN.md).
 

@@ -1,35 +1,20 @@
-**Ammunition and cutting**
+# Weapons and pickups
 
-Select with **5–8**, click the four ammunition slots, or press **B** to cycle. Aim with the mouse and fire with left click or **F**. Hold for continuous machine-gun fire or laser cutting. HE and AP fire once per press. Reload is shared across weapons; switching cannot bypass it. While paused, a press queues one shot/pulse for the next step or resume.
+The main gun uses **HE** or **AP**. Select with **5 / 6**, the HUD buttons, or **B** to swap. Left-click or **F** fires once per press. Changing round type starts a full **0.9-second reload**, even if the gun was ready. Selecting the already loaded type does not restart it. Machine gun has been removed.
 
-| Key | Weapon | Default projectile | Kinetic energy | Impact blast | Firing |
-| --- | --- | --- | --- | --- | --- |
-| 5 | High explosive / HE | 6 kg, 220 m/s | 145.2 kJ | 300 kJ, 1.7 m radius | 0.45 s reload |
-| 6 | Armor piercing / AP | 8 kg, 350 m/s | 490 kJ | 800 kJ, 0.65 m radius | 0.45 s reload |
-| 7 | Machine gun / MG | 24 g, 850 m/s | 8.67 kJ | None | 12 rounds/s while held |
-| 8 | Laser | Beam, no projectile mass | No mechanical impulse | None | 6 cutting pulses/s while held |
+| Weapon | Availability | Profile |
+| --- | --- | --- |
+| HE | Main gun | 6 kg at 220 m/s; 300 kJ blast, 1.7 m radius; 0.9 s reload. |
+| AP | Main gun | 8 kg at 350 m/s; 800 kJ concentrated blast, 0.65 m radius; 0.9 s reload. |
+| Rocket | Single-use pickup; right-click | 16 kg at 12 m/s; 5.5 m explosion radius, 20 MJ external blast plus a bounded 4 MJ internal shock in the directly struck connected material. Can shatter the default rock into rubble. |
+| Laser | Single-use pickup; right-click | An uninterrupted 3-second, 0.6 m wide beam reaching 40 m. Follows actual turret direction with zero dispersion. Ten cutting pulses per second, up to eight small-cell operations per pulse, and 12 tank damage per pulse. |
 
-HE retains the accepted impact, blast and recoil behavior. AP supplies more kinetic work and a much more concentrated blast at the hit point. Its blast radius remains 0.65 m, but its source energy rises from 40 to 800 kJ so the small footprint delivers stronger local damage. In the standard wall test it creates 16 fractures within 0.65 m of impact versus HE’s 12; on the rock the counts are 3 versus 1, and on the ordinary plate 16 versus 4. Both are consumed at the first impact; this iteration does not model residual projectile penetration. MG uses a 4 mm swept radius versus the shells' 35 mm radius. All projectiles disappear on impact or expire after three seconds in flight. Colored tracers distinguish HE, AP and MG. Their launch momentum has equal/opposite tank recoil, and the existing energy budget limits damage and recipient motion.
+The player starts with an empty special slot. Drive over a pickup to collect it. A full slot leaves further pickups on the ground. Right-click consumes the carried weapon, independently of the main-gun reload. A blocked rocket muzzle retains the pickup. The laser cannot be released or cancelled; movement and turret aiming remain available, while main-gun fire is blocked during its burst. Death ends the beam and discards inventory. Pause and slow motion affect all timers.
 
-Machine-gun resistance comes from thickness, seam strengths, fracture work and the object's component multipliers, without a heavy/light tag or accumulated health. The new MG round has six times the old kinetic energy. In the two-second standard test, 24 bullets dent the ordinary barrel, bend the metal fence, ignite an explosive barrel and break a 2 cm panel. The wall acquires a few cracked seams but remains one chunk; the rock stays uncracked. The bullets themselves never explode; an explosive barrel’s own fuse supplies its blast. Changing the target's material or bullet parameters can change that result.
+In the level editor, choose **Special → Laser / Rocket** to place a non-solid pickup pad. Select it to set **Respawn / Seconds** (0.1–600; default 20). Pads start available and begin their countdown on collection. Fog of war remembers their last observed availability. Pads do not block movement, sight or shots. Camera panning in play mode uses **middle-drag**.
 
-**Laser operation**
+Rockets use the existing fracture/material system. The direct hit transmits a short-range internal shock through the struck connected material, limited by seam strength, fracture work and an energy budget. The external explosion respects solid cover; unbreakable walls remain intact. Rockets expire after eight seconds if they hit nothing.
 
-The beam stops at the first live surface, including uncuttable arena walls and support fixtures. It acts on destructible material and deformable frames. Cutting runs at 6 operations per second instead of 30, a fivefold slowdown. The beam still follows aim at fixed simulation ticks while held, so lowering the cutting rate does not make aiming stutter. Each cutting pulse performs exactly one operation:
+The laser uses a swept 0.3 m radius for collision. Unbreakable cover stops it. Each cutting operation refines a coarse cell or removes a leaf no larger than 0.0125 m²; existing refinement limits still apply. Cutting adds no mechanical impulse. Layered glow, moving filaments, a bright core and impact sparks show the beam. Aim spread from motion and firing does not affect it.
 
-1. If the hit triangle exceeds **0.0125 m²**, subdivide it into four connected children. The new local grid becomes visible; subdivision alone neither detaches nor moves material.
-2. Otherwise remove that one triangle, its collider and incident connections immediately. Rebuild the surviving connected chunks and their mass/inertia.
-
-Holding the beam at the same point advances through the newly exposed surface. This is adaptive triangular detail, not a world-aligned square grid. The area threshold is about an 11 cm square equivalent; triangle shapes and lengths follow the authored mesh. Existing finer cells can be removed immediately. Refinement is bounded by **eight generations** and **8192 total cell records**, including retired parents. At the limit, an oversized cell remains and the HUD reports the detail limit; the laser never erases a whole coarse cell as a fallback.
-
-Cutting applies no recoil, impact impulse, blast or fracture-work load. Survivors inherit their previous rigid velocity field; removed material takes its own mass and momentum out of the simulation. Ground attachments follow only their containing child. A completed cut can detach anchored material or sever a deformable frame. Laser removal itself does not ignite explosive fuses. Refining already-fading debris preserves its cleanup deadline. Detached small debris still follows normal timed cleanup; the **CUT** counter and removed area are separate from that cleanup.
-
-The accepted wall, rock and barrel recipes are unchanged. Cutting changes the running test only; reset restores its initial asset.
-
-**Reproducible tests**
-
-In the six-view **TEST ALL CASES** bar, choose **SHELL**, then cycle **AMMUNITION**. In a focused comparison, **IMPACT → AMMO … >** cycles the selected case; **COPY IMPACT TO ALL CASES** shares it. HE/AP trials fire once at the start; MG/laser trials hold fire for the chosen duration. Mass and speed fields use the selected projectile's ranges and are hidden for laser. Shared controls preserve the different object properties.
-
-Recipes store `impact.ammunition`; missing values in older JSON mean `high_explosive`. Checkpoints retain laser beam endpoints, the cut geometry and `metrics.ablated_area`. Same-build replays reproduce the recorded frames. The engine revision is `experiment-terrain-bridges-13`. Existing checkpoints remain readable; RUN recomputes with the current build. Previously saved MG recipes retain their authored mass/speed: reselect MG to use the stronger default round.
-
-`Shot::new(ammunition, target)` supplies default mass/speed. Explicit `Shot` values can customize them within the ammunition's supported ranges. `cargo run --release -p sim --example ammunition` compares the accepted starters and a thin panel. `node tools/ammunition-smoke.mjs` exercises actual browser selection, held fire, pause/step, cutting and saved comparisons.
+Material experiments can select all four weapon profiles directly without pickups; normal player controls expose only HE/AP and the collected special.

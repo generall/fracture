@@ -1,8 +1,11 @@
 pub(crate) mod scene;
+pub(crate) mod tank_parts;
+mod weapon_effects;
 use crate::ui::{CYAN, INK, MUTED, PAPER, PINK, RULE, VIOLET};
 use macroquad::prelude::*;
 use scene::Scene;
 use sim::{Material, Shape, World};
+pub(crate) use weapon_effects::pickup_marker;
 
 pub struct Viewport {
     pub rect: Rect,
@@ -41,6 +44,104 @@ fn tint(color: Color, alpha: f32) -> Color {
     Color {
         a: color.a * alpha,
         ..color
+    }
+}
+pub(crate) fn station_marker(
+    station: &sim::StationView,
+    view: &Viewport,
+    opacity: f32,
+    show_radius: bool,
+) {
+    use sim::level::{StationKind, Team};
+    let team_color = |team| match team {
+        Some(Team::Blue) => CYAN,
+        Some(Team::Red) => PINK,
+        None => MUTED,
+    };
+    let color = tint(team_color(station.owner), opacity);
+    let p = view.screen(v(station.position));
+    let scale = view.scale;
+    if show_radius {
+        draw_circle_lines(
+            p.x,
+            p.y,
+            station.settings.capture_radius * scale,
+            1.0,
+            tint(color, 0.45),
+        );
+        if station.kind == StationKind::Radar
+            && station.owner.is_none()
+            && station.capturing.is_none()
+        {
+            draw_circle_lines(
+                p.x,
+                p.y,
+                station.settings.radar_radius * scale,
+                1.0,
+                tint(VIOLET, opacity * 0.25),
+            );
+        }
+    }
+    draw_rectangle(p.x - scale, p.y - scale, scale * 2.0, scale * 2.0, PAPER);
+    draw_rectangle_lines(
+        p.x - scale,
+        p.y - scale,
+        scale * 2.0,
+        scale * 2.0,
+        2.0,
+        color,
+    );
+    match station.kind {
+        StationKind::Repair => {
+            line(
+                p - vec2(0.5, 0.0) * scale,
+                p + vec2(0.5, 0.0) * scale,
+                (scale * 0.24).max(2.0),
+                color,
+            );
+            line(
+                p - vec2(0.0, 0.5) * scale,
+                p + vec2(0.0, 0.5) * scale,
+                (scale * 0.24).max(2.0),
+                color,
+            );
+        }
+        StationKind::Radar => {
+            draw_circle_lines(p.x, p.y, scale * 0.58, 1.5, color);
+            draw_circle_lines(p.x, p.y, scale * 0.3, 1.0, tint(color, 0.6));
+            line(p, p + vec2(0.43, -0.4) * scale, 2.0, color);
+            draw_circle(p.x, p.y, 2.5, color);
+        }
+    }
+    let label = if station.contested {
+        "CONTESTED"
+    } else if station.capturing.is_some() && station.owner.is_some() {
+        "NEUTRALIZING"
+    } else if let Some(team) = station.capturing {
+        if team == Team::Blue {
+            "CAPTURING / BLUE"
+        } else {
+            "CAPTURING / RED"
+        }
+    } else {
+        match station.owner {
+            Some(Team::Blue) => "BLUE",
+            Some(Team::Red) => "RED",
+            None => "NEUTRAL",
+        }
+    };
+    let width = measure_text(label, None, 12, 1.0).width;
+    draw_text(label, p.x - width * 0.5, p.y + scale + 17.0, 12.0, color);
+    if station.capturing.is_some() {
+        let y = p.y - scale - 7.0;
+        draw_rectangle(p.x - scale, y, 2.0 * scale, 4.0, tint(RULE, opacity));
+        draw_rectangle(
+            p.x - scale,
+            y,
+            2.0 * scale * station.progress,
+            4.0,
+            tint(team_color(station.capturing), opacity),
+        );
     }
 }
 fn line(a: Vec2, b: Vec2, width: f32, color: Color) {
@@ -201,6 +302,8 @@ pub fn draw_world(
     overlay: bool,
     sparks: &[Spark],
     blasts: &[Blast],
+    wreck_effects: &[crate::wreck_effects::WreckEffect],
+    track_marks: &mut crate::track_marks::TrackMarks,
     observed: Option<(&Scene, &sim::Vision)>,
 ) {
     let live = observed.is_none().then(|| Scene::capture(world));
@@ -209,20 +312,35 @@ pub fn draw_world(
         .unwrap_or_else(|| live.as_ref().unwrap());
     let vision = observed.map(|(_, vision)| vision);
     draw_background(world, viewport);
+    track_marks.draw(viewport, vision);
     if let Some(vision) = vision {
         draw_sight_shading(viewport, vision);
     }
+    for (pickup, opacity) in &scene.pickups {
+        pickup_marker(pickup, viewport, *opacity);
+    }
     draw_bridges(scene, viewport);
     draw_objects(scene, viewport, alpha, overlay);
+    for (station, opacity) in &scene.stations {
+        station_marker(
+            station,
+            viewport,
+            *opacity,
+            station.capturing.is_some() || station.contested,
+        );
+    }
     if overlay && observed.is_none() {
         for bond in world.bonds() {
             let p = viewport.screen(v(bond.position));
             draw_circle(p.x, p.y, 2.0, load_color(bond.load));
         }
     }
-    draw_tanks(world, scene, viewport, aim, alpha);
+    for effect in wreck_effects {
+        effect.draw(viewport, alpha);
+    }
+    draw_tanks(world, scene, viewport, alpha);
     draw_effects(world, viewport, alpha, sparks, blasts, vision);
-    draw_crosshair(world, viewport, aim);
+    draw_crosshair(world, viewport, aim, alpha);
 }
 
 // Ordinary screen-space geometry only; objects never pass through a texture/mask.
@@ -322,6 +440,10 @@ fn draw_objects(scene: &Scene, viewport: &Viewport, alpha: f32, overlay: bool) {
             color
         };
         let color = tint(color, body.opacity);
+        if body.tank_fragment.is_some() {
+            tank_parts::draw_fragment(body, viewport, alpha, color);
+            continue;
+        }
         match body.shape {
             Shape::Triangle { vertices } => {
                 let points = vertices.map(|p| transform(v(p)));
@@ -355,7 +477,7 @@ fn draw_objects(scene: &Scene, viewport: &Viewport, alpha: f32, overlay: bool) {
     }
 }
 
-fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, aim: Vec2, alpha: f32) {
+fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, alpha: f32) {
     for tank in scene
         .bodies
         .iter()
@@ -386,24 +508,17 @@ fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, aim: Vec2, alph
         let center = viewport.screen(position) + vec2(0.0, fall * viewport.scale * 0.4);
         let rotation = Vec2::from_angle(angle);
         let transform = |p: Vec2| center + rotation.rotate(p) * scale;
-        let aim_direction = if player {
-            (aim - position).normalize_or_zero()
+        let (previous_turret, turret) = if player {
+            let aim = world.player_aim();
+            (aim.previous_angle, aim.angle)
         } else {
-            Vec2::from_angle(status.unwrap().turret_angle)
+            let tank = status.unwrap();
+            (tank.previous_turret_angle, tank.turret_angle)
         };
+        let aim_direction = Vec2::from_angle(interpolate_angle(previous_turret, turret, alpha));
         // Tracks, road wheels and moving tread slats are all vector geometry.
         for (i, y) in [-0.65, 0.65].into_iter().enumerate() {
-            let points = [
-                vec2(-1.08, y - 0.12),
-                vec2(-0.94, y - 0.17),
-                vec2(0.94, y - 0.17),
-                vec2(1.08, y - 0.12),
-                vec2(1.08, y + 0.12),
-                vec2(0.94, y + 0.17),
-                vec2(-0.94, y + 0.17),
-                vec2(-1.08, y + 0.12),
-            ]
-            .map(transform);
+            let points = tank_parts::track_outline(y).map(transform);
             masked_polygon(&points, tank_color);
             let offset =
                 status.map_or(world.track_travel(), |t| t.track_travel)[i].rem_euclid(0.18);
@@ -417,17 +532,7 @@ fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, aim: Vec2, alph
                 );
             }
         }
-        let hull = [
-            vec2(-0.95, -0.37),
-            vec2(-0.80, -0.48),
-            vec2(0.65, -0.48),
-            vec2(0.95, -0.25),
-            vec2(0.95, 0.25),
-            vec2(0.65, 0.48),
-            vec2(-0.80, 0.48),
-            vec2(-0.95, 0.37),
-        ]
-        .map(transform);
+        let hull = tank_parts::hull_outline().map(transform);
         masked_polygon(&hull, hull_color);
         for x in [-0.72, -0.60, -0.48] {
             line(
@@ -447,8 +552,9 @@ fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, aim: Vec2, alph
             },
             sim::Ammunition::HighExplosive | sim::Ammunition::ArmorPiercing
         ) {
-            ((status.map_or(world.reload_remaining(), |t| t.reload) - 0.30) / 0.15).clamp(0.0, 1.0)
-                * 0.22
+            let elapsed = sim::Ammunition::ArmorPiercing.interval()
+                - status.map_or(world.reload_remaining(), |t| t.reload);
+            (1.0 - elapsed / 0.15).clamp(0.0, 1.0) * 0.22
         } else {
             0.0
         };
@@ -462,20 +568,7 @@ fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, aim: Vec2, alph
             .map(turret),
             tank_color,
         );
-        masked_polygon(
-            &[
-                vec2(-0.42, -0.23),
-                vec2(-0.20, -0.36),
-                vec2(0.29, -0.32),
-                vec2(0.46, -0.14),
-                vec2(0.46, 0.14),
-                vec2(0.29, 0.32),
-                vec2(-0.20, 0.36),
-                vec2(-0.42, 0.23),
-            ]
-            .map(turret),
-            tank_color,
-        );
+        masked_polygon(&tank_parts::turret_outline().map(turret), tank_color);
         draw_circle_lines(center.x, center.y, scale * 0.13, 1.3, hull_color);
         if let Some(status) = status {
             let width = (scale * 2.0).max(28.0);
@@ -510,16 +603,11 @@ fn draw_effects(
             sim::Ammunition::ArmorPiercing => CYAN,
             _ => Color::from_rgba(255, 220, 120, 255),
         };
-        let bullet = shell.ammunition == sim::Ammunition::MachineGun;
-        glow(
-            p - direction * viewport.scale * if bullet { 0.4 } else { 0.9 },
-            p,
-            if bullet { 1.2 } else { 2.3 },
-            color,
-        );
-        if bullet {
+        if shell.ammunition == sim::Ammunition::Rocket {
+            weapon_effects::rocket(p, direction, viewport.scale);
             continue;
         }
+        glow(p - direction * viewport.scale * 0.9, p, 2.3, color);
         outline(
             &[
                 p + direction * 7.0,
@@ -549,8 +637,7 @@ fn draw_effects(
             endpoint = start;
         }
         let end = viewport.screen(v(endpoint));
-        glow(start, end, 1.5, CYAN);
-        draw_circle_lines(end.x, end.y, 4.0, 1.5, INK);
+        weapon_effects::laser(start, end, viewport.scale, 3.0 - world.laser_remaining());
     }
     for blast in blasts {
         if !visible(sim::Vec2::new(blast.position.x, blast.position.y)) {
@@ -592,20 +679,55 @@ fn draw_effects(
     }
 }
 
-pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Vec2) {
+pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Vec2, alpha: f32) {
     let p = viewport.screen(aim);
     let color = if world.reload_remaining() > 0.0 {
         PINK
     } else {
         CYAN
     };
-    for axis in [Vec2::X, Vec2::Y] {
-        for sign in [-1.0, 1.0] {
-            glow(p + axis * 7.0 * sign, p + axis * 17.0 * sign, 1.5, color);
+    if world.player_respawn_remaining().is_none() && world.tank_fall_progress() == 0.0 {
+        let state = world.player_aim();
+        let angle = interpolate_angle(state.previous_angle, state.angle, alpha);
+        if let Some(tank) = world.bodies().find(|b| b.id == world.player_tank_id()) {
+            let center = v(tank.previous_position).lerp(v(tank.position), alpha);
+            let muzzle = center + Vec2::from_angle(angle) * 1.65;
+            let origin = viewport.screen(muzzle);
+            let radius = 2.5 * viewport.scale;
+            let half_width = 3.5;
+            let band = |from: f32, to: f32, fill: Color| {
+                if to <= from {
+                    return;
+                }
+                let edge = |a: f32, r: f32| origin + Vec2::from_angle(angle + a) * r;
+                for i in 0..32 {
+                    let a = from + (to - from) * i as f32 / 32.0;
+                    let b = from + (to - from) * (i + 1) as f32 / 32.0;
+                    let inner_a = edge(a, radius - half_width);
+                    let outer_a = edge(a, radius + half_width);
+                    let inner_b = edge(b, radius - half_width);
+                    let outer_b = edge(b, radius + half_width);
+                    draw_triangle(inner_a, outer_a, outer_b, fill);
+                    draw_triangle(inner_a, outer_b, inner_b, fill);
+                }
+            };
+            let progress = (1.0 - world.reload_remaining() / world.last_ammunition().interval())
+                .clamp(0.0, 1.0);
+            let split = -state.spread + 2.0 * state.spread * progress;
+            band(-state.spread, split, tint(CYAN, 0.45));
+            band(split, state.spread, tint(PINK, 0.18));
         }
     }
-    draw_circle_lines(p.x, p.y, 10.0, 1.2, tint(color, 0.8));
-    draw_circle(p.x, p.y, 1.5, INK);
+    for axis in [Vec2::X, Vec2::Y] {
+        for sign in [-1.0, 1.0] {
+            line(
+                p + axis * 5.0 * sign,
+                p + axis * 11.0 * sign,
+                1.2,
+                tint(color, 0.65),
+            );
+        }
+    }
 }
 
 /// A marker has no horizontal body or weapon target.

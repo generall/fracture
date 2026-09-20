@@ -15,7 +15,7 @@ fn projectile_profiles_conserve_launch_momentum_and_have_distinct_blasts() {
     for ammo in [
         Ammunition::HighExplosive,
         Ammunition::ArmorPiercing,
-        Ammunition::MachineGun,
+        Ammunition::Rocket,
     ] {
         let mut w = World::from_object(&crate::LibraryPreset::Wall.asset()).unwrap();
         w.fire(Shot::new(ammo, Vector::new(3.0, 0.0)), &mut vec![]);
@@ -36,53 +36,7 @@ fn projectile_profiles_conserve_launch_momentum_and_have_distinct_blasts() {
     }
     assert!(energy[1] > energy[0] * 3.0 && energy[2] < energy[0] * 0.1);
     assert!(radius[0] > radius[1] * 2.0 && radius[1] > 0.0);
-    assert_eq!(radius[2], 0.0);
-}
-
-#[test]
-fn machine_gun_burst_damages_light_starters_but_leaves_heavy_objects_standing() {
-    let mut panel = crate::ObjectAsset::workshop_preset(crate::ObjectPreset::Plate);
-    panel.thickness = 0.02;
-    for (asset, cracks, deforms, explodes) in [
-        (panel, true, false, false),
-        (crate::LibraryPreset::Wall.asset(), true, false, false),
-        (crate::LibraryPreset::Rock.asset(), false, false, false),
-        (crate::LibraryPreset::Barrel.asset(), false, true, false),
-        (crate::LibraryPreset::MetalFence.asset(), false, true, false),
-        (
-            crate::LibraryPreset::ExplosiveBarrel.asset(),
-            false,
-            false,
-            true,
-        ),
-    ] {
-        let mut w = World::from_object(&asset).unwrap();
-        for _ in 0..240 {
-            w.step(&[Command::Fire(Shot::new(
-                Ammunition::MachineGun,
-                Vector::new(3.0, 0.0),
-            ))]);
-        }
-        assert_eq!(
-            w.shots, 24,
-            "12 rounds per second, independent of render frames"
-        );
-        assert_eq!(w.explosions, usize::from(explodes), "{}", asset.name);
-        assert_eq!(w.broken > 0, cracks, "{}", asset.name);
-        assert_eq!(w.stats().plastic_strain > 0.005, deforms, "{}", asset.name);
-        if asset.name == "wall" || asset.name == "rock" {
-            assert_eq!(
-                w.chunk_members().len(),
-                1,
-                "MG must not demolish heavy starters"
-            );
-        }
-        assert_eq!(w.stats().unconverged, 0);
-        for _ in 0..360 {
-            w.step(&[]);
-        }
-        assert!(w.shells.is_empty());
-    }
+    assert!(radius[2] > radius[0] * 2.0);
 }
 
 #[test]
@@ -115,7 +69,7 @@ fn coarse_triangle() -> crate::ObjectAsset {
 }
 
 #[test]
-fn laser_refines_then_removes_one_small_cell_per_pulse_without_forces() {
+fn wide_laser_refines_and_removes_bounded_small_cells_without_forces() {
     for mut asset in [
         coarse_triangle(),
         crate::LibraryPreset::Barrel.asset(),
@@ -129,15 +83,14 @@ fn laser_refines_then_removes_one_small_cell_per_pulse_without_forces() {
             Vector::new(3.0, 0.0),
         ))];
         w.step(&command);
-        assert_eq!(w.refinements, 1);
-        assert_eq!(w.ablated, 0);
-        assert!((material_area(&w) - initial).abs() < 1e-5);
+        assert!(w.refinements > 0);
+        assert!((material_area(&w) + w.ablated_area - initial).abs() < 1e-5);
         for _ in 1..240 {
             let before_count = w.ablated;
             let before_area = w.ablated_area;
             w.step(&command);
-            assert!(w.ablated - before_count <= 1);
-            assert!(w.ablated_area - before_area <= refinement::LASER_TILE_AREA + 1e-6);
+            assert!(w.ablated - before_count <= 8);
+            assert!(w.ablated_area - before_area <= refinement::LASER_TILE_AREA * 8.0 + 1e-6);
         }
         assert!(w.ablated > 0 && w.refinements > 1);
         assert!((material_area(&w) + w.ablated_area - initial).abs() < 1e-4);
@@ -234,7 +187,7 @@ fn ap_breaks_more_material_near_the_hit_than_he_with_a_smaller_blast_radius() {
 }
 
 #[test]
-fn laser_cuts_at_six_pulses_per_second_but_the_beam_tracks_aim_between_pulses() {
+fn laser_cuts_at_ten_pulses_per_second_but_the_beam_tracks_aim_between_pulses() {
     let mut w = World::from_object(&crate::LibraryPreset::Wall.asset()).unwrap();
     let shot = |y| Command::Fire(Shot::new(Ammunition::Laser, Vector::new(3.0, y)));
     w.step(&[shot(0.0)]);
@@ -244,16 +197,15 @@ fn laser_cuts_at_six_pulses_per_second_but_the_beam_tracks_aim_between_pulses() 
     }
     assert!(w.laser_beam().unwrap().end.distance(first) > 0.5);
     assert_eq!(w.shots, 1);
-    assert_eq!(w.refinements, 1);
-    assert_eq!(w.ablated, 0);
+    assert!(w.refinements > 0);
     for _ in 11..240 {
         w.step(&[shot(0.0)]);
     }
-    assert_eq!(w.shots, 12);
-    assert_eq!(w.refinements + w.ablated, 12);
+    assert_eq!(w.shots, 20);
+    assert!(w.refinements + w.ablated <= 160);
     assert!(
-        w.ablated_area < 0.03,
-        "old 30 Hz laser removed 0.11 m² in this test"
+        w.ablated_area > 0.03,
+        "special laser must cut more material"
     );
     let before = w.refinements + w.ablated;
     for _ in 0..24 {

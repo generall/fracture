@@ -11,6 +11,9 @@ static CHUNKS: AtomicU32 = AtomicU32::new(0);
 static REFINED: AtomicU32 = AtomicU32::new(0);
 static UNCONVERGED: AtomicU32 = AtomicU32::new(0);
 static CLEARED_AREA: AtomicU32 = AtomicU32::new(0);
+static SPECIAL: AtomicU32 = AtomicU32::new(0);
+static LASER_TIME: AtomicU32 = AtomicU32::new(0);
+static RELOAD: AtomicU32 = AtomicU32::new(0);
 static AMMUNITION: AtomicU32 = AtomicU32::new(0);
 static ABLATED: AtomicU32 = AtomicU32::new(0);
 static ABLATED_AREA: AtomicU32 = AtomicU32::new(0);
@@ -31,7 +34,28 @@ pub extern "C" fn lab_ablated_area() -> f32 {
     f32::from_bits(ABLATED_AREA.load(Ordering::Relaxed))
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_special() -> u32 {
+    SPECIAL.load(Ordering::Relaxed)
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_laser_remaining() -> f32 {
+    f32::from_bits(LASER_TIME.load(Ordering::Relaxed))
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_reload() -> f32 {
+    f32::from_bits(RELOAD.load(Ordering::Relaxed))
+}
+
 pub fn publish(world: &sim::World) {
+    SPECIAL.store(
+        world
+            .carried_special()
+            .map_or(0, |w| if w == sim::SpecialWeapon::Laser { 1 } else { 2 }),
+        Ordering::Relaxed,
+    );
+    LASER_TIME.store(world.laser_remaining().to_bits(), Ordering::Relaxed);
+    RELOAD.store(world.reload_remaining().to_bits(), Ordering::Relaxed);
     WINNER.store(
         world
             .winner()

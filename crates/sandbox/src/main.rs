@@ -14,8 +14,10 @@ mod level_storage;
 mod navigation;
 mod object_library;
 mod terrain_view;
+mod track_marks;
 mod ui;
 mod view;
+mod wreck_effects;
 
 use lab::Lab;
 use macroquad::prelude::*;
@@ -208,7 +210,7 @@ async fn main() {
         let in_chamber = chamber.contains(mouse) && !lab.inspector.captures(mouse, size);
 
         if in_chamber {
-            if is_mouse_button_down(MouseButton::Right) {
+            if is_mouse_button_down(MouseButton::Middle) {
                 lab.navigation.pan(mouse - lab.last_mouse, chamber);
             }
             let wheel = mouse_wheel().1;
@@ -251,9 +253,9 @@ async fn main() {
                 lab.reset(binding.scene);
             }
         }
-        for (key, ammunition) in [KeyCode::Key5, KeyCode::Key6, KeyCode::Key7, KeyCode::Key8]
+        for (key, ammunition) in [KeyCode::Key5, KeyCode::Key6]
             .into_iter()
-            .zip(sim::Ammunition::ALL)
+            .zip(sim::Ammunition::MAIN)
         {
             if is_key_pressed(key) {
                 lab.select_ammunition(ammunition);
@@ -267,6 +269,11 @@ async fn main() {
         if (in_chamber && is_mouse_button_pressed(MouseButton::Left)) || is_key_pressed(KeyCode::F)
         {
             lab.fire();
+        }
+        if in_chamber && is_mouse_button_pressed(MouseButton::Right) {
+            lab.pending
+                .retain(|c| !matches!(c, sim::Command::ActivateSpecial));
+            lab.pending.push(sim::Command::ActivateSpecial);
         }
         let single_step = is_key_pressed(KeyCode::N);
 
@@ -310,10 +317,7 @@ async fn main() {
         viewport = Viewport::new(chamber, lab.navigation.center, lab.navigation.zoom);
         let fog_active = lab.fog_enabled && lab.world.scene() == Scene::Level;
         if fog_active {
-            let p = lab.world.launcher_position();
-            lab.vision = lab
-                .world
-                .player_vision((lab.aim - vec2(p.x, p.y)).to_angle());
+            lab.vision = lab.world.player_vision(lab.world.player_aim().angle);
             lab.fog.get_or_insert_with(fog::Fog::default).observe(
                 &lab.world,
                 &lab.vision,
@@ -338,6 +342,8 @@ async fn main() {
             lab.overlay,
             &lab.sparks,
             &lab.blasts,
+            &lab.wreck_effects,
+            &mut lab.track_marks,
             if fog_active {
                 Some((lab.fog.as_ref().unwrap().scene(), &lab.vision))
             } else {

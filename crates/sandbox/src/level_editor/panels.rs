@@ -91,6 +91,7 @@ impl LevelEditor {
                     TerrainKind::Sand,
                     TerrainKind::Water,
                     TerrainKind::TallGrass,
+                    TerrainKind::Elevation,
                 ]
                 .into_iter()
                 .enumerate()
@@ -106,7 +107,7 @@ impl LevelEditor {
                     }
                 }
                 if button(
-                    Rect::new(20.0, 488.0, 244.0, 38.0),
+                    Rect::new(20.0, 536.0, 244.0, 38.0),
                     "BRIDGE + TWO BOOTHS",
                     mouse,
                     matches!(self.tool, Tool::Bridge),
@@ -115,9 +116,9 @@ impl LevelEditor {
                     self.select_tool(Tool::Bridge);
                 }
                 paragraph(
-                    "Drag to fill 1 m cells. Tall grass blocks sight, but allows movement and shots. Water needs an intact bridge to cross.",
+                    "Drag to fill 1 m cells. Elevation extends sight; its edges strongly slow both climbs and descents. Water needs a bridge.",
                     24.0,
-                    560.0,
+                    610.0,
                     240.0,
                     17.0,
                     MUTED,
@@ -153,10 +154,38 @@ impl LevelEditor {
                         self.select_tool(Tool::Flag(team));
                     }
                 }
+                for (i, kind) in [StationKind::Repair, StationKind::Radar]
+                    .into_iter()
+                    .enumerate()
+                {
+                    if button(
+                        Rect::new(20.0, 514.0 + i as f32 * 45.0, 244.0, 38.0),
+                        kind.label(),
+                        mouse,
+                        matches!(self.tool, Tool::Station(k) if k == kind),
+                    ) {
+                        self.commit_field();
+                        self.select_tool(Tool::Station(kind));
+                    }
+                }
+                for (i, weapon) in [sim::SpecialWeapon::Laser, sim::SpecialWeapon::Rocket]
+                    .into_iter()
+                    .enumerate()
+                {
+                    if button(
+                        Rect::new(20.0 + i as f32 * 126.0, 604.0, 118.0, 38.0),
+                        weapon.label(),
+                        mouse,
+                        matches!(self.tool, Tool::Pickup(w) if w == weapon),
+                    ) {
+                        self.commit_field();
+                        self.select_tool(Tool::Pickup(weapon));
+                    }
+                }
                 paragraph(
-                    "Enemy tank contact captures a flag and wins. Weapons cannot hit flags. Placing a team marker again moves it.",
+                    "Stations: capture nearby. Pickups: drive over to collect.",
                     24.0,
-                    580.0,
+                    668.0,
                     240.0,
                     17.0,
                     MUTED,
@@ -286,7 +315,13 @@ impl LevelEditor {
                 Rect::new(x + 134.0, 222.0, 122.0, 34.0),
                 mouse,
             );
-            if !matches!(item, LevelItem::Spawn { .. } | LevelItem::Flag { .. }) {
+            if !matches!(
+                item,
+                LevelItem::Spawn { .. }
+                    | LevelItem::Flag { .. }
+                    | LevelItem::Station { .. }
+                    | LevelItem::Pickup { .. }
+            ) {
                 self.field(
                     Field::Width,
                     if item.is_circular() {
@@ -362,6 +397,50 @@ impl LevelEditor {
                         mouse,
                     );
                 }
+            }
+            if let LevelItem::Pickup { .. } = item {
+                self.field(
+                    Field::PickupRespawn,
+                    "RESPAWN / SECONDS",
+                    Rect::new(x, 514.0, 256.0, 34.0),
+                    mouse,
+                );
+                paragraph(
+                    "Drive over to collect. One carried special; right-click to use. Starts available.",
+                    x,
+                    575.0,
+                    256.0,
+                    16.0,
+                    MUTED,
+                );
+            }
+            if let LevelItem::Station { station, .. } = item {
+                self.field(
+                    Field::CaptureTime,
+                    "CAPTURE STAGE / SECONDS",
+                    Rect::new(x, 294.0, 256.0, 34.0),
+                    mouse,
+                );
+                self.field(
+                    Field::CaptureRadius,
+                    "CAPTURE RADIUS / M",
+                    Rect::new(x, 366.0, 256.0, 34.0),
+                    mouse,
+                );
+                let (field, label, help) = match station {
+                    StationKind::Repair => (
+                        Field::RepairRate,
+                        "REPAIR / HP PER SECOND",
+                        "Repairs living friendly tanks within the capture radius. Enemy stations need one stage to neutralize, then one to capture. Leaving resets the current stage.",
+                    ),
+                    StationKind::Radar => (
+                        Field::RadarRadius,
+                        "RADAR RADIUS / M",
+                        "Reveals a circle through cover for its owner. Enemy stations need one stage to neutralize, then one to capture. Leaving resets the current stage.",
+                    ),
+                };
+                self.field(field, label, Rect::new(x, 438.0, 256.0, 34.0), mouse);
+                paragraph(help, x + 4.0, 515.0, 248.0, 17.0, MUTED);
             }
             if item.is_circular() {
                 paragraph(

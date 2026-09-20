@@ -647,11 +647,11 @@ fn repeated_shots_respect_reload_and_never_accumulate_projectile_bodies() {
     for _ in 0..120 {
         world.step(&[command]);
     }
-    assert_eq!(world.stats().shots, 3);
+    assert_eq!(world.stats().shots, 2);
     for _ in 0..480 {
         world.step(&[]);
     }
-    assert_eq!(world.stats().explosions, 3);
+    assert_eq!(world.stats().explosions, 2);
     assert_eq!(world.stats().shells, 0);
     assert!(!world.bodies().any(|b| b.material == Material::Projectile));
 }

@@ -69,11 +69,43 @@ impl Shot {
 #[derive(Clone, Copy, Debug)]
 pub enum Command {
     Fire(Shot),
+    SelectAmmunition(Ammunition),
+    ActivateSpecial,
+    /// Desired player look point; the physical turret turns toward it over time.
+    Aim(Vector),
     /// Left and right track throttles in [-1, 1]. Zero engages the brakes.
     Tracks {
         left: f32,
         right: f32,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DestructionCause {
+    Shell(Ammunition),
+    Blast,
+    Ram,
+    Laser,
+    Collapse,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TankImpact {
+    pub cause: DestructionCause,
+    pub point: Vector,
+    /// Direction of the incoming force, from the impact toward the tank.
+    pub direction: Vector,
+    /// Impulse not yet applied by the solver (ramming is already resolved).
+    pub impulse: Vector,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TankDestruction {
+    pub id: usize,
+    pub hull_angle: f32,
+    pub turret_angle: f32,
+    pub velocity: Vector,
+    pub impact: TankImpact,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -102,6 +134,7 @@ pub enum Event {
     TankDestroyed {
         position: Vector,
         team: crate::level::Team,
+        details: TankDestruction,
     },
     TankRespawned {
         position: Vector,
@@ -123,6 +156,15 @@ pub enum Shape {
     Triangle { vertices: [Vector; 3] },
 }
 
+/// Authored detail retained on an independent tank wreck body.
+#[derive(Clone, Copy, Debug)]
+pub struct TankFragment {
+    /// 0..4 are hull plates; 4..10 are track sections.
+    pub part: u8,
+    pub local_offset: Vector,
+    pub tread_phase: f32,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct BodyView {
     pub id: usize,
@@ -138,6 +180,7 @@ pub struct BodyView {
     pub velocity: Vector,
     pub shape: Shape,
     pub shape_revision: u32,
+    pub tank_fragment: Option<TankFragment>,
     pub plastic_strain: f32,
     /// Visible triangle edges: grain boundaries and exposed fracture surfaces.
     pub edges: u8,

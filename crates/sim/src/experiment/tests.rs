@@ -27,7 +27,7 @@ fn ammunition_bursts_and_laser_cuts_replay_with_saved_effects() {
             .iter()
             .map(|w| w.stats().shots)
             .collect::<Vec<_>>(),
-        vec![1, 1, 24, 12]
+        vec![1, 1, 1, 20]
     );
     assert!(
         first.recordings[3]
@@ -59,10 +59,10 @@ fn ammunition_bursts_and_laser_cuts_replay_with_saved_effects() {
             .all(|v| v.impact.ammunition == Ammunition::HighExplosive)
     );
     let mut invalid = e.clone();
-    invalid.variants[2].impact.shell_mass = 6.0;
+    invalid.variants[2].impact.shell_speed = 350.0;
     assert!(
         invalid.validate().is_err(),
-        "MG mass must stay in bullet range"
+        "Rocket speed must stay in its slow travel range"
     );
     invalid = e;
     invalid.review[3].frame.beam = Some(([f32::NAN, 0.0], [0.0; 2]));

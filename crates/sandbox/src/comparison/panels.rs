@@ -272,7 +272,8 @@ impl Comparison {
                 ) {
                     let impact = &mut self.experiment.variants[self.selected].impact;
                     if kind == ImpactKind::Shell && impact.kind == kind {
-                        impact.select_ammunition(impact.ammunition.next());
+                        let next = (impact.ammunition as usize + 1) % sim::Ammunition::ALL.len();
+                        impact.select_ammunition(sim::Ammunition::ALL[next]);
                     }
                     impact.kind = kind;
                     self.changed();

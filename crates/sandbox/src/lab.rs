@@ -24,6 +24,8 @@ pub(crate) struct Lab {
     pub(crate) firing: bool,
     pub(crate) sparks: Vec<Spark>,
     pub(crate) blasts: Vec<Blast>,
+    pub(crate) wreck_effects: Vec<crate::wreck_effects::WreckEffect>,
+    pub(crate) track_marks: crate::track_marks::TrackMarks,
     pub(crate) navigation: navigation::Navigation,
     pub(crate) last_mouse: Vec2,
     pub(crate) tick_ms: f64,
@@ -50,6 +52,8 @@ impl Lab {
             firing: false,
             sparks: Vec::new(),
             blasts: Vec::new(),
+            wreck_effects: Vec::new(),
+            track_marks: crate::track_marks::TrackMarks::default(),
             navigation: navigation::Navigation::default(),
             last_mouse: Vec2::ZERO,
             tick_ms: 0.0,
@@ -78,6 +82,8 @@ impl Lab {
         self.firing = false;
         self.sparks.clear();
         self.blasts.clear();
+        self.wreck_effects.clear();
+        self.track_marks = crate::track_marks::TrackMarks::default();
         self.accumulator = 0.0;
         self.tick_ms = 0.0;
         self.notice = None;
@@ -128,12 +134,18 @@ impl Lab {
         {
             self.fire();
         }
+        self.pending
+            .push(Command::SelectAmmunition(self.inspector.ammunition));
+        self.pending
+            .push(Command::Aim(sim::Vec2::new(self.aim.x, self.aim.y)));
         self.pending.push(Command::Tracks {
             left: tracks[0],
             right: tracks[1],
         });
         let start = get_time();
+        self.track_marks.seed(&self.world);
         let events = self.world.step(&self.pending);
+        self.track_marks.update(&self.world);
         let elapsed = (get_time() - start) * 1_000.0;
         self.tick_ms = self.tick_ms * 0.9 + elapsed * 0.1;
         self.pending.clear();
@@ -142,6 +154,10 @@ impl Lab {
             spark.life -= TICK_DT;
         }
         self.sparks.retain(|spark| spark.life > 0.0);
+        for effect in &mut self.wreck_effects {
+            effect.advance(TICK_DT);
+        }
+        self.wreck_effects.retain(|effect| effect.alive());
         for blast in &mut self.blasts {
             blast.life -= TICK_DT;
         }
@@ -198,12 +214,38 @@ impl Lab {
                         10.0,
                     ));
                 }
-                Event::TankDestroyed { team, position } => {
+                Event::TankDestroyed {
+                    team,
+                    position,
+                    details,
+                } => {
                     if self.fog_enabled
+                        && self.world.scene() == Scene::Level
                         && team != self.world.team()
-                        && !self.vision.contains(position)
+                        && !self.vision.tank_visibility(details.id).unwrap_or_else(|| {
+                            self.vision.contains(position)
+                                || self.fog.as_ref().is_some_and(|fog| {
+                                    fog.scene()
+                                        .bodies
+                                        .iter()
+                                        .any(|b| b.id == details.id && b.opacity > 0.32)
+                                })
+                        })
                     {
                         continue;
+                    }
+                    if self.wreck_effects.len() >= 24 {
+                        self.wreck_effects.remove(0);
+                    }
+                    self.wreck_effects
+                        .push(crate::wreck_effects::WreckEffect::new(
+                            position,
+                            team,
+                            details,
+                            self.world.stats().ticks as usize + details.id,
+                        ));
+                    if let Some(fog) = &mut self.fog {
+                        fog.observe_tank_wreck(&self.world, details.id, get_time());
                     }
                     self.notice = Some((
                         format!("{} TANK DESTROYED / RESPAWN IN 3 S", team.label()),
@@ -231,7 +273,11 @@ impl Lab {
     }
 
     pub(crate) fn select_ammunition(&mut self, ammunition: sim::Ammunition) {
+        if ammunition.special() || self.inspector.ammunition == ammunition {
+            return;
+        }
         self.inspector.ammunition = ammunition;
+        self.pending.push(Command::SelectAmmunition(ammunition));
         (self.inspector.mass, self.inspector.speed) = ammunition.defaults();
         self.pending.retain(|c| !matches!(c, Command::Fire(_)));
     }

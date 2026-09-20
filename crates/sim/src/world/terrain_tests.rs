@@ -175,7 +175,7 @@ fn all_weapons_pass_over_the_deck_from_both_banks() {
             if ammo == Ammunition::Laser {
                 assert!((w.laser_beam().unwrap().end.x * direction - 8.5).abs() < 0.01);
             } else {
-                for _ in 0..30 {
+                for _ in 0..if ammo == Ammunition::Rocket { 240 } else { 30 } {
                     events.extend(w.step(&[]));
                 }
                 let impact = events

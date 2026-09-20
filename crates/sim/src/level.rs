@@ -3,10 +3,15 @@ use crate::{LibraryPreset, ObjectAsset, ObjectMesh, TerrainKind, Vec2};
 use serde::{Deserialize, Serialize};
 mod authoring;
 mod composition;
+mod stations;
 pub use authoring::{clamp_translation, merge_items};
+pub use stations::{StationKind, StationSettings};
 
 pub const MAX_LEVEL_BYTES: usize = 2 * 1024 * 1024;
 pub const FLAG_RADIUS: f32 = 0.35;
+fn default_pickup_respawn() -> f32 {
+    20.0
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -47,6 +52,18 @@ pub enum LevelItem {
         angle: f32,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         cutouts: Vec<[[f32; 2]; 4]>,
+    },
+    Pickup {
+        weapon: crate::SpecialWeapon,
+        position: [f32; 2],
+        #[serde(default = "default_pickup_respawn")]
+        respawn_time: f32,
+    },
+    Station {
+        station: StationKind,
+        position: [f32; 2],
+        #[serde(default)]
+        settings: StationSettings,
     },
     Terrain {
         terrain: TerrainKind,
@@ -233,6 +250,16 @@ impl Level {
                     LevelItem::Solid { outline, .. } => {
                         Ok(solid_asset(outline).level_mesh()?.triangles.len())
                     }
+                    LevelItem::Pickup { respawn_time, .. } => {
+                        if !respawn_time.is_finite() || !(0.1..=600.0).contains(respawn_time) {
+                            return Err("Pickup respawn time must be 0.1–600 seconds.".into());
+                        }
+                        Ok(0)
+                    }
+                    LevelItem::Station { settings, .. } => {
+                        settings.validate()?;
+                        Ok(2)
+                    }
                     LevelItem::Terrain { terrain, min, max } => {
                         if *terrain == TerrainKind::Bridge {
                             return Err("Use a bridge item for a supported crossing.".into());
@@ -304,6 +331,8 @@ impl LevelItem {
         match self {
             Self::Object { asset, .. } => &asset.name,
             Self::Solid { .. } => "UNBREAKABLE WALL",
+            Self::Station { station, .. } => station.label(),
+            Self::Pickup { weapon, .. } => weapon.label(),
             Self::Terrain { terrain, .. } => terrain.label(),
             Self::Bridge { .. } => "BRIDGE",
             Self::Spawn {
@@ -321,6 +350,8 @@ impl LevelItem {
             Self::Object { position, .. }
             | Self::Solid { position, .. }
             | Self::Spawn { position, .. }
+            | Self::Pickup { position, .. }
+            | Self::Station { position, .. }
             | Self::Flag { position, .. } => Vec2::from(*position),
             Self::Terrain { min, max, .. } | Self::Bridge { min, max, .. } => {
                 (Vec2::from(*min) + Vec2::from(*max)) * 0.5
@@ -340,6 +371,8 @@ impl LevelItem {
             Self::Object { position, .. }
             | Self::Solid { position, .. }
             | Self::Spawn { position, .. }
+            | Self::Pickup { position, .. }
+            | Self::Station { position, .. }
             | Self::Flag { position, .. } => *position = (Vec2::from(*position) + delta).to_array(),
             Self::Terrain { min, max, .. } | Self::Bridge { min, max, .. } => {
                 *min = (Vec2::from(*min) + delta).to_array();
@@ -354,6 +387,8 @@ impl LevelItem {
             Self::Terrain { min, max, .. } | Self::Bridge { min, max, .. } => {
                 rectangle((Vec2::from(*max) - Vec2::from(*min)) * 0.5)
             }
+            Self::Station { .. } => rectangle(Vec2::ONE),
+            Self::Pickup { .. } => rectangle(Vec2::splat(0.65)),
             Self::Spawn { .. } => rectangle(Vec2::new(1.08, 0.82)),
             Self::Flag { .. } => rectangle(Vec2::splat(FLAG_RADIUS)),
         }
@@ -443,7 +478,7 @@ impl LevelItem {
                 );
                 self.scale_cutouts(ratio);
             }
-            _ => return Err("Spawn and flag footprints have a fixed size.".into()),
+            _ => return Err("Station, spawn and flag footprints have a fixed size.".into()),
         }
         Ok(())
     }

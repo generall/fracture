@@ -3,6 +3,9 @@ use super::*;
 mod shading;
 
 pub const VISION_RANGE: f32 = 24.0;
+pub const GRASS_VISION_RANGE: f32 = 8.0;
+pub const ELEVATED_VISION_RANGE: f32 = 36.0;
+const GRASS_REVEAL_SECONDS: f32 = 5.0;
 pub const NEAR_VISION: f32 = 3.0;
 pub const VISION_HALF_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
 
@@ -15,6 +18,8 @@ pub struct Vision {
     // positions on every query. Translation can collapse neighboring rays.
     angles: Vec<f32>,
     additional: Vec<Vision>,
+    // Target visibility overrides foliage geometry without revealing nearby scenery.
+    tank_visibility: Vec<(usize, bool)>,
 }
 impl Vision {
     pub fn from_boundary(origin: Vector, mut boundary: Vec<Vector>) -> Self {
@@ -26,7 +31,14 @@ impl Vision {
             boundary,
             angles,
             additional: vec![],
+            tank_visibility: vec![],
         }
+    }
+    pub fn tank_visibility(&self, id: usize) -> Option<bool> {
+        self.tank_visibility
+            .iter()
+            .find(|(tank, _)| *tank == id)
+            .map(|(_, visible)| *visible)
     }
     pub fn contains(&self, point: Vector) -> bool {
         self.regions().any(|region| region.contains_local(point))
@@ -189,6 +201,13 @@ fn silhouette_vertices(obstacles: &[Occluder]) -> Vec<Vector> {
 }
 
 impl World {
+    pub(super) fn vision_range_at(&self, position: Vector) -> f32 {
+        match self.terrain_at(position) {
+            crate::TerrainKind::TallGrass => GRASS_VISION_RANGE,
+            crate::TerrainKind::Elevation => ELEVATED_VISION_RANGE,
+            _ => VISION_RANGE,
+        }
+    }
     fn sight_occluders(&self, origin: Vector, ignored: Option<usize>, range: f32) -> Vec<Occluder> {
         let nearby =
             |bounds: Aabb| origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= range;
@@ -254,20 +273,81 @@ impl World {
     /// A visibility query for AI and notifications, separate from weapon clearance.
     pub fn sight_clear(&self, tank: usize, target: Vector) -> bool {
         let origin = self.piece_pose(tank).translation;
+        let in_grass = self.terrain_at(origin) == crate::TerrainKind::TallGrass;
+        (!in_grass || origin.distance(target) <= GRASS_VISION_RANGE)
+            && self.sight_path_clear(origin, Some(tank), target, in_grass)
+    }
+
+    fn sight_path_clear(
+        &self,
+        origin: Vector,
+        ignored: Option<usize>,
+        target: Vector,
+        ignore_grass: bool,
+    ) -> bool {
         let distance = origin.distance(target);
         if distance < 0.01 {
             return true;
         }
         let ray = Ray::new(origin, (target - origin) / distance);
-        self.sight_occluders(origin, Some(tank), distance)
+        self.sight_occluders(origin, ignored, distance)
             .iter()
             .all(|o| {
-                if o.tank && o.shape.contains_point(&o.pose, target) {
+                if (ignore_grass && o.grass) || (o.tank && o.shape.contains_point(&o.pose, target))
+                {
                     return true;
                 }
-                let hit = o.shape.cast_ray(&o.pose, &ray, distance, true);
-                hit.is_none_or(|t| t >= distance - 0.05 || (o.grass && t == 0.0 && distance <= 1.2))
+                o.shape
+                    .cast_ray(&o.pose, &ray, distance, true)
+                    .is_none_or(|t| t >= distance - 0.05)
             })
+    }
+
+    pub(super) fn reveal_firing_tank(&mut self, id: usize) {
+        if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) {
+            tank.reveal_until = self.tick + (GRASS_REVEAL_SECONDS / TICK_DT).round() as u64;
+        }
+    }
+    fn firing_reveals(&self, id: usize) -> bool {
+        self.tanks
+            .iter()
+            .any(|t| t.id == id && self.tick < t.reveal_until)
+    }
+    fn concealed_from(&self, observer: usize, target: usize) -> bool {
+        let origin = self.piece_pose(observer).translation;
+        let position = self.piece_pose(target).translation;
+        self.terrain_at(position) == crate::TerrainKind::TallGrass
+            && !self.firing_reveals(target)
+            && (!self.tank_is_alive(observer)
+                || self.terrain_at(origin) != crate::TerrainKind::TallGrass
+                || origin.distance(position) > GRASS_VISION_RANGE)
+    }
+    /// AI detection respects foliage concealment; weapon clearance remains separate.
+    pub(super) fn detects_tank(&self, observer: usize, target: usize) -> bool {
+        if !self.tank_is_alive(observer)
+            || !self.tank_is_alive(target)
+            || self.concealed_from(observer, target)
+        {
+            return false;
+        }
+        let origin = self.piece_pose(observer).translation;
+        let position = self.piece_pose(target).translation;
+        let team = self
+            .tanks
+            .iter()
+            .find(|t| t.id == observer)
+            .map_or(self.team, |t| t.team);
+        if self.radar_covers(team, position) {
+            return true;
+        }
+        let in_grass = self.terrain_at(origin) == crate::TerrainKind::TallGrass;
+        (!in_grass || origin.distance(position) <= GRASS_VISION_RANGE)
+            && self.sight_path_clear(
+                origin,
+                Some(observer),
+                position,
+                in_grass || self.firing_reveals(target),
+            )
     }
 
     pub fn vision(&self, tank: usize, angle: f32) -> Vision {
@@ -293,16 +373,68 @@ impl World {
                 ));
             }
         }
+        for station in self
+            .stations()
+            .filter(|s| s.owner == Some(self.team()) && s.kind == crate::level::StationKind::Radar)
+        {
+            vision.additional.push(Vision::from_boundary(
+                station.position,
+                (0..96)
+                    .map(|i| {
+                        station.position
+                            + Vector::from_angle(i as f32 * std::f32::consts::TAU / 96.0)
+                                * station.settings.radar_radius
+                    })
+                    .collect(),
+            ));
+        }
+        for tank in &self.tanks {
+            let target = self.piece_pose(tank.id).translation;
+            if tank.id == self.launcher || self.terrain_at(target) != crate::TerrainKind::TallGrass
+            {
+                continue;
+            }
+            let origin = self.launcher_position();
+            let in_grass = self.terrain_at(origin) == crate::TerrainKind::TallGrass;
+            let delta = target - origin;
+            let range = self.vision_range_at(origin);
+            let in_cone = delta.length() <= NEAR_VISION
+                || (delta.length() <= range
+                    && delta.normalize_or_zero().dot(Vector::from_angle(angle))
+                        >= VISION_HALF_ANGLE.cos());
+            let player_sees = self.tank_is_alive(self.launcher)
+                && in_cone
+                && self.sight_path_clear(
+                    origin,
+                    Some(self.launcher),
+                    target,
+                    in_grass || self.firing_reveals(tank.id),
+                );
+            let flag_sees = self.firing_reveals(tank.id)
+                && self.flags().any(|(team, p)| {
+                    team == self.team
+                        && p.distance(target) <= NEAR_VISION
+                        && self.sight_path_clear(p, None, target, true)
+                });
+            let visible = self.tank_is_alive(tank.id)
+                && !self.concealed_from(self.launcher, tank.id)
+                && (player_sees || flag_sees || self.radar_covers(self.team, target));
+            vision.tank_visibility.push((tank.id, visible));
+        }
         vision
     }
 
     fn vision_from(&self, origin: Vector, ignored: Option<usize>, cone: Option<f32>) -> Vision {
+        let in_grass = self.terrain_at(origin) == crate::TerrainKind::TallGrass;
         let range = if cone.is_some() {
-            VISION_RANGE
+            self.vision_range_at(origin)
         } else {
             NEAR_VISION
         };
         let mut obstacles = self.sight_occluders(origin, ignored, range);
+        if in_grass && cone.is_some() {
+            obstacles.retain(|o| !o.grass);
+        }
         // Resolve near cover first, then skip every farther shape already
         // behind that cover rather than casting through the whole map.
         let nearest = |o: &Occluder| origin.clamp(o.bounds.mins, o.bounds.maxs).distance(origin);
@@ -338,7 +470,7 @@ impl World {
             .iter()
             .map(|d| {
                 if cone.is_some() && d.dot(forward) >= VISION_HALF_ANGLE.cos() {
-                    VISION_RANGE
+                    range
                 } else {
                     NEAR_VISION
                 }
@@ -391,6 +523,7 @@ impl World {
             origin,
             angles,
             additional: vec![],
+            tank_visibility: vec![],
             boundary: directions
                 .into_iter()
                 .zip(lengths)
@@ -404,6 +537,164 @@ impl World {
 mod tests {
     use super::*;
     use crate::level::{Level, LevelItem, Team, rectangle};
+    #[test]
+    fn elevation_extends_sight_without_blocking_shots() {
+        let level = Level {
+            size: [100.0, 40.0],
+            items: vec![
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [-20.0, 0.0],
+                    angle: 0.0,
+                },
+                LevelItem::Terrain {
+                    terrain: crate::TerrainKind::Elevation,
+                    min: [-25.0, -5.0],
+                    max: [-5.0, 5.0],
+                },
+            ],
+            ..Level::default()
+        };
+        assert_eq!(Level::from_json(&level.to_json().unwrap()).unwrap(), level);
+        let mut world = World::from_level(&level, Team::Blue).unwrap();
+        let vision = world.player_vision(0.0);
+        assert!(vision.contains(Vector::new(10.0, 0.0)));
+        assert!(!vision.contains(Vector::new(17.0, 0.0)));
+        world.step(&[Command::Fire(Shot::new(
+            Ammunition::ArmorPiercing,
+            Vector::new(30.0, 0.0),
+        ))]);
+        for _ in 0..4 {
+            world.step(&[]);
+        }
+        assert!(
+            world.shells().any(|s| s.position.x > -5.0),
+            "shell crosses the elevation edge"
+        );
+        world.terrain.clear();
+        assert!(!world.player_vision(0.0).contains(Vector::new(10.0, 0.0)));
+    }
+    fn grass_tanks(observer_in_grass: bool) -> World {
+        let mut level = map(Some(LevelItem::Terrain {
+            terrain: crate::TerrainKind::TallGrass,
+            min: [if observer_in_grass { -2.0 } else { 3.0 }, -3.0],
+            max: [20.0, 3.0],
+        }));
+        level.items.push(LevelItem::Spawn {
+            team: Team::Red,
+            position: [6.0, 0.0],
+            angle: 0.0,
+        });
+        World::from_level(&level, Team::Blue).unwrap()
+    }
+    #[test]
+    fn grass_keeps_short_vision_and_tanks_inside_can_detect_each_other() {
+        let world = grass_tanks(true);
+        let enemy = world.tanks[1].id;
+        let vision = world.player_vision(0.0);
+        assert!(vision.contains(Vector::new(4.0, 0.0)));
+        assert!(vision.contains(Vector::new(-2.0, 0.0)));
+        assert!(!vision.contains(Vector::new(9.0, 2.0)));
+        assert_eq!(vision.tank_visibility(enemy), Some(true));
+        assert_eq!(
+            world
+                .player_vision(std::f32::consts::PI)
+                .tank_visibility(enemy),
+            Some(false)
+        );
+        assert!(world.detects_tank(world.launcher, enemy));
+        assert!(world.detects_tank(enemy, world.launcher));
+        let mut level = map(Some(LevelItem::Terrain {
+            terrain: crate::TerrainKind::TallGrass,
+            min: [-2.0, -3.0],
+            max: [20.0, 3.0],
+        }));
+        level.items.push(LevelItem::Solid {
+            outline: rectangle(Vector::new(0.2, 3.0)),
+            position: [3.0, 0.0],
+            angle: 0.0,
+            cutouts: vec![],
+        });
+        let blocked = World::from_level(&level, Team::Blue).unwrap();
+        assert!(!blocked.player_vision(0.0).contains(Vector::new(5.0, 0.0)));
+    }
+    #[test]
+    fn grass_reveal_requires_actual_fire_expires_and_refreshes() {
+        let mut world = grass_tanks(false);
+        let enemy = world.tanks[1].id;
+        let visible = |w: &World| w.player_vision(0.0).tank_visibility(enemy).unwrap();
+        assert!(!visible(&world));
+        assert!(!world.detects_tank(world.launcher, enemy));
+        // The tank inside can see the nearby tank outside, without being seen back.
+        assert!(world.detects_tank(enemy, world.launcher));
+        let shot = Shot::new(Ammunition::ArmorPiercing, Vector::new(15.0, 0.0));
+        world.tanks[1].reload = 1.0;
+        world.fire_from(enemy, shot, &mut vec![]);
+        assert!(
+            !visible(&world),
+            "pressing fire while reloading does not reveal"
+        );
+        world.tanks[1].reload = 0.0;
+        world.fire_from(enemy, shot, &mut vec![]);
+        assert!(visible(&world));
+        assert!(world.detects_tank(world.launcher, enemy));
+        assert!(
+            !world.player_vision(0.0).contains(Vector::new(10.0, 2.0)),
+            "a shot reveals the tank, not the whole grass patch"
+        );
+        world.tick = 599;
+        assert!(visible(&world));
+        world.tick = 600;
+        assert!(!visible(&world));
+        world.tanks[1].reload = 0.0;
+        world.fire_from(enemy, shot, &mut vec![]);
+        world.tick = 1199;
+        assert!(visible(&world));
+        world.tick = 1200;
+        assert!(!visible(&world));
+    }
+    #[test]
+    fn grass_shots_do_not_reveal_through_walls_and_death_clears_reveal() {
+        let mut world = grass_tanks(false);
+        let enemy = world.tanks[1].id;
+        world.reveal_firing_tank(enemy);
+        let level = Level {
+            items: vec![
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [0.0, 0.0],
+                    angle: 0.0,
+                },
+                LevelItem::Spawn {
+                    team: Team::Red,
+                    position: [6.0, 0.0],
+                    angle: 0.0,
+                },
+                LevelItem::Terrain {
+                    terrain: crate::TerrainKind::TallGrass,
+                    min: [3.0, -3.0],
+                    max: [20.0, 3.0],
+                },
+                LevelItem::Solid {
+                    outline: rectangle(Vector::new(0.2, 3.0)),
+                    position: [3.0, 0.0],
+                    angle: 0.0,
+                    cutouts: vec![],
+                },
+            ],
+            ..Level::default()
+        };
+        let mut blocked = World::from_level(&level, Team::Blue).unwrap();
+        let blocked_enemy = blocked.tanks[1].id;
+        blocked.reveal_firing_tank(blocked_enemy);
+        assert_eq!(
+            blocked.player_vision(0.0).tank_visibility(blocked_enemy),
+            Some(false)
+        );
+        assert!(!blocked.detects_tank(blocked.launcher, blocked_enemy));
+        world.destroy_tank(enemy, &mut vec![]);
+        assert!(!world.firing_reveals(enemy));
+    }
     fn map(item: Option<LevelItem>) -> Level {
         let mut items = vec![LevelItem::Spawn {
             team: Team::Blue,

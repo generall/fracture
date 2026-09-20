@@ -28,6 +28,8 @@ pub(crate) struct Scene {
     pub tanks: Vec<TankView>,
     pub flags: Vec<(Team, Vec2, f32)>,
     pub bridges: Vec<Bridge>,
+    pub pickups: Vec<(sim::PickupView, f32)>,
+    pub stations: Vec<(sim::StationView, f32)>,
 }
 impl Scene {
     pub fn capture(world: &World) -> Self {
@@ -36,6 +38,8 @@ impl Scene {
             tanks: world.tanks().collect(),
             flags: world.flags().map(|(t, p)| (t, p, 1.0)).collect(),
             bridges: world.bridges().map(Bridge::from).collect(),
+            pickups: world.pickups().map(|p| (p, 1.0)).collect(),
+            stations: world.stations().map(|s| (s, 1.0)).collect(),
         }
     }
     pub fn append(&mut self, snapshot: &Self, remembered: bool) {
@@ -48,7 +52,25 @@ impl Scene {
                 }
                 body
             }));
-        self.tanks.extend(snapshot.tanks.iter().copied());
+        self.tanks
+            .extend(snapshot.tanks.iter().copied().map(|mut tank| {
+                if remembered {
+                    tank.previous_turret_angle = tank.turret_angle;
+                }
+                tank
+            }));
+        self.stations.extend(
+            snapshot
+                .stations
+                .iter()
+                .map(|&(s, opacity)| (s, opacity * if remembered { 0.32 } else { 1.0 })),
+        );
+        self.pickups.extend(
+            snapshot
+                .pickups
+                .iter()
+                .map(|&(p, opacity)| (p, opacity * if remembered { 0.32 } else { 1.0 })),
+        );
         self.flags.extend(
             snapshot
                 .flags

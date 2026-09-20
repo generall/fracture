@@ -89,24 +89,30 @@ impl World {
                     }
                     w.add_object(&asset, &mesh, Vector::from(*position));
                 }
-                LevelItem::Solid {
-                    outline,
-                    position,
-                    angle,
-                    ..
-                } => {
-                    let mut asset = solid_asset(outline);
+                LevelItem::Solid { position, .. } | LevelItem::Station { position, .. } => {
+                    let mut asset = solid_asset(&item.local_outline());
                     let mut mesh = meshes[index].clone().unwrap();
                     if mesh.triangles.is_empty() {
                         continue;
                     }
-                    rotate_asset_mesh(&mut asset, &mut mesh, *angle);
+                    rotate_asset_mesh(&mut asset, &mut mesh, item.angle());
                     solid_edges.extend(supports::boundary_edges(
                         &mesh,
                         w.pieces.len(),
                         Vector::from(*position),
                     ));
                     let object = w.objects.len();
+                    if let LevelItem::Station {
+                        station, settings, ..
+                    } = item
+                    {
+                        w.stations.push(stations::Station::new(
+                            *station,
+                            Vector::from(*position),
+                            *settings,
+                            object,
+                        ));
+                    }
                     w.objects.push(components::ObjectInstance {
                         color: None,
                         components: crate::Components::default(),
@@ -134,6 +140,16 @@ impl World {
                 LevelItem::Flag { team, position } => w.flags.push(Flag {
                     team: *team,
                     position: Vector::from(*position),
+                }),
+                LevelItem::Pickup {
+                    weapon,
+                    position,
+                    respawn_time,
+                } => w.pickups.push(specials::Pickup {
+                    weapon: *weapon,
+                    position: Vector::from(*position),
+                    respawn_time: *respawn_time,
+                    remaining: 0.0,
                 }),
                 LevelItem::Spawn { .. } => {}
             }

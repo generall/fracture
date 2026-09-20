@@ -15,6 +15,22 @@ impl World {
         self.physics.bodies[self.pieces[self.launcher].body].translation()
     }
 
+    /// Live hull poses for cosmetic tank effects, without scanning scenery.
+    pub fn tank_poses(&self) -> impl Iterator<Item = (usize, Vector, f32)> + '_ {
+        std::iter::once(self.launcher)
+            .chain(
+                self.tanks
+                    .iter()
+                    .map(|t| t.id)
+                    .filter(|&id| id != self.launcher),
+            )
+            .filter(|&id| self.tank_is_alive(id) && self.pieces[id].active)
+            .map(|id| {
+                let pose = self.piece_pose(id);
+                (id, pose.translation, pose.rotation.angle())
+            })
+    }
+
     pub fn bodies(&self) -> impl Iterator<Item = BodyView> + '_ {
         self.pieces.iter().enumerate().filter_map(|(id, piece)| {
             if !piece.active {
@@ -34,6 +50,7 @@ impl World {
                 velocity: body.velocity_at_point(pose.translation),
                 shape: piece.shape,
                 shape_revision: piece.shape_revision,
+                tank_fragment: piece.tank_fragment,
                 plastic_strain: piece.plastic_strain,
                 edges: piece.edges,
                 material: piece.material,

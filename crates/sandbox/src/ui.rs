@@ -202,7 +202,7 @@ impl Inspector {
             19.0,
             INK,
         );
-        text("MOUSE AIM / CLICK OR HOLD FIRE", 328.0, y + 32.0, 17.0, INK);
+        text("LMB / MAIN GUN   RMB / SPECIAL", 328.0, y + 32.0, 17.0, INK);
         if button(
             Rect::new(315.0, y + 48.0, 192.0, 36.0),
             "H  FIELD MANUAL",
@@ -264,8 +264,9 @@ impl Inspector {
                 MUTED,
             );
         }
-        let ready = world.tank_alive() && world.reload_remaining() <= 0.0;
-        for (i, ammunition) in Ammunition::ALL.into_iter().enumerate() {
+        let ready =
+            world.tank_alive() && world.reload_remaining() <= 0.0 && world.laser_remaining() <= 0.0;
+        for (i, ammunition) in Ammunition::MAIN.into_iter().enumerate() {
             if button(
                 Rect::new(size.x - 382.0 + i as f32 * 89.0, y + 5.0, 85.0, 36.0),
                 &format!("{} {}", i + 5, ammunition.label()),
@@ -278,12 +279,16 @@ impl Inspector {
         right_text(
             &if !world.tank_alive() {
                 "TANK LOST / R TO REBUILD".into()
-            } else if self.ammunition == Ammunition::Laser {
-                format!("{} / HOLD TO CUT", if ready { "READY" } else { "CUTTING" })
             } else {
                 format!(
                     "{} / {} / {:.0} M/S",
-                    if ready { "READY" } else { "RELOAD" },
+                    if world.laser_remaining() > 0.0 {
+                        "LASER ACTIVE"
+                    } else if ready {
+                        "READY"
+                    } else {
+                        "RELOAD"
+                    },
                     if self.mass < 1.0 {
                         format!("{:.0} G", self.mass * 1000.0)
                     } else {
@@ -297,15 +302,14 @@ impl Inspector {
             17.0,
             if ready { CYAN } else { PINK },
         );
-        draw_rectangle(
-            size.x - 230.0,
-            y + 76.0,
-            198.0
-                * (1.0 - world.reload_remaining() / world.last_ammunition().interval())
-                    .clamp(0.0, 1.0),
-            3.0,
-            CYAN,
-        );
+        let special_label = if world.laser_remaining() > 0.0 {
+            format!("LASER / {:.1}s", world.laser_remaining())
+        } else if let Some(weapon) = world.carried_special() {
+            format!("RMB / {}", weapon.label())
+        } else {
+            "SPECIAL / EMPTY".into()
+        };
+        text(&special_label, size.x - 198.0, y + 29.0, 16.0, VIOLET);
         if paused {
             let label = "SIMULATION PAUSED  /  N TO STEP";
             let width = measure_text(label, None, 20, 1.0).width;
@@ -330,9 +334,9 @@ impl Inspector {
                 "E / C    Right track forward / reverse",
                 "RELEASE  Tracks brake automatically",
                 "MOUSE    Aim turret independently",
-                "CLICK/F  Fire; hold for MG / laser",
-                "WHEEL    Zoom / right-drag to pan",
-                "5–8 / B  Select ammo / cycle; HOME center",
+                "CLICK/F  Main gun; RMB use special",
+                "WHEEL    Zoom / middle-drag to pan",
+                "5–6 / B  Select ammo / cycle; HOME center",
             ]
             .iter()
             .enumerate()

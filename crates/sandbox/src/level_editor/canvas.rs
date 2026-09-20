@@ -281,7 +281,13 @@ impl LevelEditor {
                     }
                     return;
                 }
-            } else if !matches!(item, LevelItem::Spawn { .. } | LevelItem::Flag { .. }) {
+            } else if !matches!(
+                item,
+                LevelItem::Spawn { .. }
+                    | LevelItem::Flag { .. }
+                    | LevelItem::Station { .. }
+                    | LevelItem::Pickup { .. }
+            ) {
                 let corner = resize_corner(item);
                 if view.screen(v(corner)).distance(mouse) < 12.0 {
                     self.drag = Some(Drag {
@@ -494,6 +500,16 @@ impl LevelEditor {
                     std::f32::consts::PI
                 },
             }),
+            Tool::Pickup(weapon) => Some(LevelItem::Pickup {
+                weapon: *weapon,
+                position: point.to_array(),
+                respawn_time: 20.0,
+            }),
+            Tool::Station(station) => Some(LevelItem::Station {
+                station: *station,
+                position: point.to_array(),
+                settings: StationSettings::default(),
+            }),
             Tool::Flag(team) => Some(LevelItem::Flag {
                 team: *team,
                 position: point.to_array(),
@@ -591,6 +607,10 @@ fn draw_item(
             terrain: TerrainKind::Sand,
             ..
         } => Color::from_rgba(223, 185, 111, 255),
+        LevelItem::Terrain {
+            terrain: TerrainKind::Elevation,
+            ..
+        } => Color::from_rgba(190, 161, 120, 255),
         LevelItem::Terrain { .. } => MUTED,
         LevelItem::Flag { team, .. } | LevelItem::Spawn { team, .. } => team_color(*team),
         _ => INK,
@@ -626,6 +646,41 @@ fn draw_item(
     }
     let center = view.screen(v(item.position()));
     match item {
+        LevelItem::Pickup {
+            weapon,
+            respawn_time,
+            ..
+        } => {
+            crate::view::pickup_marker(
+                &sim::PickupView {
+                    position: item.position(),
+                    weapon: *weapon,
+                    respawn_time: *respawn_time,
+                    remaining: 0.0,
+                },
+                view,
+                1.0,
+            );
+        }
+        LevelItem::Station {
+            station, settings, ..
+        } => {
+            crate::view::station_marker(
+                &sim::StationView {
+                    kind: *station,
+                    position: item.position(),
+                    settings: *settings,
+                    object: 0,
+                    owner: None,
+                    capturing: None,
+                    progress: 0.0,
+                    contested: false,
+                },
+                view,
+                1.0,
+                selected || mesh.is_none(),
+            );
+        }
         LevelItem::Spawn { angle, .. } => {
             let end = center + Vec2::from_angle(*angle) * view.scale * 1.8;
             draw_line(center.x, center.y, end.x, end.y, 2.0, color);
@@ -657,7 +712,13 @@ fn draw_item(
                 draw_circle(p.x, p.y, 5.0, PAPER);
                 draw_circle_lines(p.x, p.y, 5.0, 1.5, CYAN);
             }
-        } else if !matches!(item, LevelItem::Spawn { .. } | LevelItem::Flag { .. }) {
+        } else if !matches!(
+            item,
+            LevelItem::Spawn { .. }
+                | LevelItem::Flag { .. }
+                | LevelItem::Station { .. }
+                | LevelItem::Pickup { .. }
+        ) {
             let p = view.screen(v(resize_corner(item)));
             draw_rectangle(p.x - 5.0, p.y - 5.0, 10.0, 10.0, CYAN);
         }
@@ -703,6 +764,7 @@ mod tests {
             Tool::Terrain(TerrainKind::Ground),
             Tool::Terrain(TerrainKind::Road),
             Tool::Terrain(TerrainKind::Sand),
+            Tool::Terrain(TerrainKind::Elevation),
             Tool::Terrain(TerrainKind::Water),
         ] {
             let mut editor = editor(tool, [48.0, 30.0]);

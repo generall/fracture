@@ -49,10 +49,10 @@ impl World {
     pub(super) fn collect_contact_loads(
         &mut self,
         previous: &BTreeMap<(u32, u32), Motion>,
-    ) -> Vec<(usize, f32)> {
+    ) -> Vec<(usize, f32, TankImpact)> {
         let event = self.next_impact();
         let first = self.loads.len();
-        let mut ramming: BTreeMap<usize, (f32, f32)> = BTreeMap::new();
+        let mut ramming: BTreeMap<usize, (f32, f32, Vector, Vector)> = BTreeMap::new();
         for pair in self.physics.contact_pairs() {
             let c1 = &self.physics.colliders[pair.collider1];
             let c2 = &self.physics.colliders[pair.collider2];
@@ -124,6 +124,8 @@ impl World {
                                 let entry = ramming.entry(id).or_default();
                                 entry.0 += work;
                                 entry.1 += work / resistance;
+                                entry.2 += point * work;
+                                entry.3 += incoming * work;
                             }
                         }
                         if self
@@ -164,7 +166,7 @@ impl World {
         }
         // Bound the combined estimate by actual kinetic loss, including when
         // several track colliders or wall triangles share the same impact.
-        let requested: f64 = ramming.values().map(|(work, _)| *work as f64).sum();
+        let requested: f64 = ramming.values().map(|(work, ..)| *work as f64).sum();
         let scale = if requested > available {
             (available / requested) as f32
         } else {
@@ -172,8 +174,19 @@ impl World {
         };
         ramming
             .into_iter()
-            .filter(|(_, (work, _))| work * scale >= 1000.0)
-            .map(|(id, (_, damage))| (id, damage * scale))
+            .filter(|(_, (work, ..))| work * scale >= 1000.0)
+            .map(|(id, (work, damage, point, direction))| {
+                (
+                    id,
+                    damage * scale,
+                    TankImpact {
+                        cause: DestructionCause::Ram,
+                        point: point / work,
+                        direction: direction.normalize_or_zero(),
+                        impulse: Vector::ZERO,
+                    },
+                )
+            })
             .collect()
     }
 

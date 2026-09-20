@@ -10,7 +10,7 @@ mod structure;
 mod terrain;
 mod world;
 
-pub use ammunition::Ammunition;
+pub use ammunition::{Ammunition, SpecialWeapon};
 pub use material::Material;
 pub use object::{
     Components, Crushable, Explosive, GrainLayout, GrainMode, LibraryPreset, MAX_FRAGMENTS,
@@ -19,6 +19,7 @@ pub use object::{
 pub use rapier2d::math::Vector as Vec2;
 pub use terrain::{BridgeView, TerrainKind, TerrainPatch};
 pub use world::{
-    BodyView, BondView, Command, Event, LaserBeam, NEAR_VISION, Scene, Shape, Shell, Shot, Stats,
-    TICK_DT, TankView, VISION_HALF_ANGLE, VISION_RANGE, Vision, World,
+    AimView, BodyView, BondView, Command, DestructionCause, Event, LaserBeam, NEAR_VISION,
+    PickupView, Scene, Shape, Shell, Shot, StationView, Stats, TICK_DT, TankDestruction,
+    TankFragment, TankImpact, TankView, VISION_HALF_ANGLE, VISION_RANGE, Vision, World,
 };
