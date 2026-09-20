@@ -7,102 +7,6 @@
   ],
   "items": [
     {
-      "kind": "terrain",
-      "terrain": "Road",
-      "min": [
-        -22.5,
-        -1.7
-      ],
-      "max": [
-        22.5,
-        1.7
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Sand",
-      "min": [
-        -17.8,
-        -13.5
-      ],
-      "max": [
-        17.8,
-        -9.5
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Sand",
-      "min": [
-        -17.8,
-        -11.5
-      ],
-      "max": [
-        -14.2,
-        -1.7
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Sand",
-      "min": [
-        14.2,
-        -11.5
-      ],
-      "max": [
-        17.8,
-        -1.7
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Road",
-      "min": [
-        -17.8,
-        9.5
-      ],
-      "max": [
-        17.8,
-        13.5
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Road",
-      "min": [
-        -17.8,
-        1.7
-      ],
-      "max": [
-        -14.2,
-        11.5
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Road",
-      "min": [
-        14.2,
-        1.7
-      ],
-      "max": [
-        17.8,
-        11.5
-      ]
-    },
-    {
-      "kind": "terrain",
-      "terrain": "Water",
-      "min": [
-        -2.3,
-        -8.5
-      ],
-      "max": [
-        2.3,
-        8.5
-      ]
-    },
-    {
       "kind": "bridge",
       "min": [
         -3.4,
@@ -112,7 +16,8 @@
         3.4,
         1.5
       ],
-      "vertical": false
+      "vertical": false,
+      "flipped": false
     },
     {
       "kind": "spawn",
@@ -773,7 +678,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -790,7 +695,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -805,7 +710,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -903,7 +808,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -920,7 +825,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -935,7 +840,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -1033,7 +938,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -1050,7 +955,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -1065,7 +970,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -1162,7 +1067,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -1179,7 +1084,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -1194,7 +1099,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -1997,7 +1902,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -2014,7 +1919,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -2029,7 +1934,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -2127,7 +2032,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -2144,7 +2049,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -2159,7 +2064,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -2257,7 +2162,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -2274,7 +2179,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -2289,7 +2194,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -2386,7 +2291,7 @@
             0.6005217
           ],
           [
-            -2.8412401e-08,
+            -2.8412401e-8,
             0.65
           ],
           [
@@ -2403,7 +2308,7 @@
           ],
           [
             -0.65,
-            -5.6824803e-08
+            -5.6824803e-8
           ],
           [
             -0.6005217,
@@ -2418,7 +2323,7 @@
             -0.60052174
           ],
           [
-            7.751172e-09,
+            7.751172e-9,
             -0.65
           ],
           [
@@ -2562,5 +2467,280 @@
       ],
       "angle": 1.5707964
     }
-  ]
+  ],
+  "terrain_mask": {
+    "rows": [
+      {
+        "x": -36,
+        "y": -27,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -26,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -25,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -24,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -23,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -22,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -21,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -20,
+        "tiles": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      {
+        "x": -36,
+        "y": -19,
+        "tiles": "ssssssssggggggggggggggggggggggggggggggggggggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -18,
+        "tiles": "ssssssssggggggggggggggggggggggggggggggggggggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -17,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -16,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -15,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -14,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -13,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -12,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -11,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -10,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -9,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -8,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -7,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -6,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -5,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -36,
+        "y": -4,
+        "tiles": "ssssssssgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggssssssss"
+      },
+      {
+        "x": -45,
+        "y": -3,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -45,
+        "y": -2,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -45,
+        "y": -1,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -45,
+        "y": 0,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -45,
+        "y": 1,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -45,
+        "y": 2,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 3,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 4,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 5,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 6,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 7,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 8,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 9,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 10,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 11,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 12,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 13,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 14,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 15,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 16,
+        "tiles": "rrrrrrrrgggggggggggggggggggggggwwwwwwwwwwgggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 17,
+        "tiles": "rrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 18,
+        "tiles": "rrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 19,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 20,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 21,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 22,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 23,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 24,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 25,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      },
+      {
+        "x": -36,
+        "y": 26,
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+      }
+    ]
+  },
+  "enemy_activity": "static"
 }

@@ -6,7 +6,7 @@ Continuing development? Start with the [current development summary](docs/HANDOF
 
 Drive a tracked tank, aim the turret with the mouse, and choose explosive shells, armor-piercing shells, machine-gun bullets or a cutting laser. Projectiles are consumed at impact; the laser progressively removes fine cells without applying force. Structures split along irregular polygon seams; small disconnected fragments fade out while larger sections remain physical.
 
-Build a map with **M / Level Editor**: place library objects, draw long walls, resize rocks, paint seamless terrain, add large bridges and unbreakable walls, and place team spawns and flags. Shift-click or box-select groups, copy/paste with Ctrl C/V, and merge rocks or walls with Ctrl J. Large objects coarsen their mesh automatically; resizing and placement stick to map limits. Playtest as Blue or Red; touching an enemy flag wins. Valid drafts save locally and maps can be exported/imported as JSON. See the [level editor guide](docs/LEVEL_EDITOR.md).
+Build a map with **M / Level Editor**: place library objects, draw long walls, resize rocks, paint seamless terrain, add large bridges and unbreakable walls, and place team spawns and flags. Shift-click or box-select groups, copy/paste with Ctrl C/V, and merge rocks or walls with Ctrl J. Large objects coarsen their mesh automatically; resizing and placement stick to map limits. Playtest as Blue or Red; touching an enemy flag wins. Valid drafts save locally and maps can be exported/imported as JSON. See the [level editor guide](docs/LEVEL_EDITOR.md). **File → Load River Valley** opens the large village-and-river map, with lightweight decorative shrubs, crates and timber that break into visual effects without physical debris.
 
 **Demo map:** open **M → File → Load Demo / Quarry → Play Level**. [Quarry Crossing](docs/DEMO_MAP.md) has a central bridge rush, a sandy northern bypass, a southern road, and editable cover and barrel yards.
 
@@ -38,7 +38,7 @@ Open [localhost:8000](http://127.0.0.1:8000). The loader and bold font are bundl
 | Mouse / left click / F | Aim turret / fire / fire at the current aim point |
 | 5 / 6 | HE / AP; switching starts a reload |
 | B | Cycle ammunition |
-| Right click | Use a collected laser or rocket (single use) |
+| Right click | Spend one collected laser or rocket charge |
 | H | Toggle field manual and simulation controls |
 | O | Open the object editor / return from testing |
 | M | Open the level editor / return from level playtesting |
@@ -52,7 +52,7 @@ Open [localhost:8000](http://127.0.0.1:8000). The loader and bold font are bundl
 | Wheel / Home | Zoom / recenter; level camera follows the tank with mouse look-ahead |
 | Middle drag | Pan in material test scenes |
 
-The main gun swaps HE/AP rounds with a 0.9-second reload. Single-use rockets and lasers must be collected from editor-placed pickup pads. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
+The main gun swaps HE/AP rounds with a 0.9-second reload. Rockets and lasers must be collected from editor-placed pickup pads, with configurable charge counts and cooldowns. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
 
 **River crossing:** press **9**. Road increases tank speed and grip; sand slows it down; water blocks the hull and tracks. Shots pass over the deck; target the booths marked A/B to destroy the crossing. They resist pushing and slow bumps, but remain vulnerable to shooting and forceful direct rams. Losing the connection between its two banks collapses the span, closes the crossing, and sinks a tank standing on it. **R** restores the scene. See [terrain and bridge rules](docs/TERRAIN.md).
 

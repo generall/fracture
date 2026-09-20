@@ -100,13 +100,13 @@ try {
   await mapDrag(point,[point[0],point[1]-0.35]);assert.notDeepEqual((await map()).items[4].asset.outline,wall.asset.outline);
   await screenshot('level-wall-vertices');
   // Terrain and solids have rectangular placement; markers replace their team slot.
-  await click(144,201);await click(110,301);await mapDrag([-22,-1.5],[22,1.5]); // road
-  await click(110,397);await mapDrag([-2.3,-14],[2.3,14]); // water
-  await click(110,458);await mapDrag([-3.4,-1.5],[3.4,1.5]); // bridge
-  assert.equal((await map()).items.filter(i=>i.kind==='bridge').length,1);
+  await click(144,201);await click(205,250);await click(110,404);await mapDrag([-22,-1.5],[22,1.5]); // road
+  await click(110,480);await mapDrag([-2.3,-14],[2.3,14]); // water
+  await click(110,638);await mapDrag([-3.4,-1.5],[3.4,1.5]); // bridge
+  assert.equal((await map()).items.filter(i=>i.kind==='bridge').length,1);assert.ok((await map()).terrain_mask.rows.length>0);assert.equal((await map()).items.filter(i=>i.kind==='terrain').length,0);
   await click(225,201);await click(110,254);await mapDrag([10,5],[14,7]);
   assert.equal((await map()).items.filter(i=>i.kind==='solid').length,1);
-  await click(110,321);await mapClick(-15,0);assert.equal((await map()).items.length,9);
+  await click(110,321);await mapClick(-15,0);assert.equal((await map()).items.length,7);
   await click(110,478);await mapClick(6,0);assert.equal((await map()).items.filter(i=>i.kind==='flag').length,2);
   await screenshot('level-authored');
   const beforeCancel=await map();await click(50,201);await click(100,250);

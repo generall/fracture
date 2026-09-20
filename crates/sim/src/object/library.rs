@@ -58,6 +58,9 @@ impl Default for Explosive {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Components {
+    /// Cosmetic prop: no rigid body, collision response or physical fragments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decoration: Option<crate::DecorationKind>,
     /// Plastic yield moment between material grains, in N m.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bending_torque: Option<f32>,
@@ -77,6 +80,7 @@ pub struct Components {
 impl Default for Components {
     fn default() -> Self {
         Self {
+            decoration: None,
             blocks_vision: None,
             bending_torque: None,
             projectile_resistance: 1.0,
@@ -152,15 +156,21 @@ pub enum LibraryPreset {
     Rock,
     MetalFence,
     Fence,
+    Shrub,
+    Crate,
+    Timber,
 }
 impl LibraryPreset {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 9] = [
         Self::Barrel,
         Self::ExplosiveBarrel,
         Self::Wall,
         Self::Rock,
         Self::MetalFence,
         Self::Fence,
+        Self::Shrub,
+        Self::Crate,
+        Self::Timber,
     ];
     pub fn label(self) -> &'static str {
         match self {
@@ -170,6 +180,9 @@ impl LibraryPreset {
             Self::Rock => "ROCK",
             Self::MetalFence => "METAL FENCE",
             Self::Fence => "FENCE",
+            Self::Shrub => "DECOR / SHRUB",
+            Self::Crate => "DECOR / CRATE",
+            Self::Timber => "DECOR / TIMBER",
         }
     }
     pub fn description(self) -> &'static str {
@@ -177,6 +190,9 @@ impl LibraryPreset {
             Self::Barrel => "Light and mobile. Resists shells; buckles when squeezed.",
             Self::ExplosiveBarrel => "Permanent damage ignites a blast that can hit its neighbors.",
             Self::Wall => "Anchored masonry. Heavy chunks; finer shell-impact detail.",
+            Self::Shrub | Self::Crate | Self::Timber => {
+                "Non-blocking scenery. Hits create a brief visual burst, with no physical debris."
+            }
             Self::Rock => "Ground-anchored core. Shells chip stone; tanks cannot push it.",
             Self::MetalFence => "Anchored metal strip. Bends permanently under a tank load.",
             Self::Fence => "Light, breakable barrier. Stays rigid until it breaks; see through it.",
@@ -190,6 +206,38 @@ impl LibraryPreset {
         });
         a.name = self.label().to_ascii_lowercase();
         match self {
+            Self::Shrub | Self::Crate | Self::Timber => {
+                let (kind, half, color) = match self {
+                    Self::Shrub => (
+                        crate::DecorationKind::Shrub,
+                        Vec2::splat(0.8),
+                        [113, 152, 88],
+                    ),
+                    Self::Crate => (
+                        crate::DecorationKind::Crate,
+                        Vec2::splat(0.55),
+                        [177, 134, 82],
+                    ),
+                    _ => (
+                        crate::DecorationKind::Timber,
+                        Vec2::new(1.4, 0.65),
+                        [160, 122, 79],
+                    ),
+                };
+                a.outline = crate::level::rectangle(half);
+                a.layout = None;
+                a.refinement = 0;
+                a.pinned_edge = None;
+                a.additional_pinned_edges.clear();
+                a.support_spacing = None;
+                a.ground_anchor = false;
+                a.color = Some(color);
+                a.components = Components {
+                    decoration: Some(kind),
+                    blocks_vision: Some(false),
+                    ..Components::default()
+                };
+            }
             Self::MetalFence => {
                 a.outline = vec![[-0.1, -2.5], [0.1, -2.5], [0.1, 2.5], [-0.1, 2.5]];
                 a.surface = Surface::Panel;
@@ -255,6 +303,7 @@ impl LibraryPreset {
                     sites: vec![[0.0, 0.0]],
                 });
                 a.components = Components {
+                    decoration: None,
                     blocks_vision: Some(false),
                     bending_torque: None,
                     projectile_resistance: 60.0,

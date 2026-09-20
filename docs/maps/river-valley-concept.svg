@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="1120" viewBox="0 0 1380 1120">
+<defs>
+ <pattern id="ground" width="38" height="34" patternUnits="userSpaceOnUse"><rect width="38" height="34" fill="#343d32"/><path d="M4 9l4-2m13 17l5 1" stroke="#424a38" stroke-width="1.3"/></pattern>
+ <pattern id="grass" width="12" height="13" patternUnits="userSpaceOnUse"><rect width="12" height="13" fill="#42694a"/><path d="M2 10l1-5m2 6l2-7m2 6l1-3" stroke="#6c8a56" stroke-width="1"/></pattern>
+ <pattern id="hill" width="26" height="22" patternUnits="userSpaceOnUse"><rect width="26" height="22" fill="#686d45"/><path d="M2 18q11-12 22-2M-8 7q11-12 22-2" fill="none" stroke="#84845a" stroke-width="1"/></pattern>
+ <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity=".35"/></filter>
+ <clipPath id="map"><rect x="55" y="142" width="910" height="910" rx="16"/></clipPath>
+</defs>
+<rect width="1380" height="1120" fill="#172323"/>
+<g font-family="DejaVu Sans, sans-serif">
+<text x="55" y="57" fill="#f0ebdb" font-size="31" font-weight="bold">A RIVER VALLEY, WITH THREE WAYS THROUGH</text>
+<text x="55" y="94" fill="#aebdb3" font-size="17">Layout study · roughly 160 × 160 m · original diagonal structure · designed for three tanks per side</text>
+<rect x="55" y="142" width="910" height="910" rx="16" fill="url(#ground)" stroke="#88917c" stroke-width="2"/>
+<g clip-path="url(#map)">
+
+<path d="M100 289 Q190 208 302 273 L420 457 Q375 543 212 570 L110 459Z" fill="#3d4536" />
+<path d="M217 745 Q297 684 389 730 L435 872 Q357 963 248 939Z" fill="#3d4536" />
+<path d="M700 240 Q805 210 902 299 L850 438 Q740 417 674 357Z" fill="#3d4536" />
+<path d="M286 125 C281 226 367 253 334 345 S405 470 476 520 M610 667 C655 702 723 725 725 807 S797 923 891 1069" fill="none" stroke="#62664b" stroke-width="58" stroke-linecap="round"/>
+<path d="M286 125 C281 226 367 253 334 345 S405 470 476 520 M610 667 C655 702 723 725 725 807 S797 923 891 1069" fill="none" stroke="#305365" stroke-width="43" stroke-linecap="round"/>
+<path d="M286 125 C281 226 367 253 334 345 S405 470 476 520 M610 667 C655 702 723 725 725 807 S797 923 891 1069" fill="none" stroke="#3b7080" stroke-width="32" stroke-linecap="round"/>
+<path d="M476 520 C455 557 470 625 517 666 Q559 711 610 667 M476 520 C536 472 603 509 634 561 Q669 620 610 667" fill="none" stroke="#62664b" stroke-width="57" stroke-linecap="round"/>
+<path d="M476 520 C455 557 470 625 517 666 Q559 711 610 667 M476 520 C536 472 603 509 634 561 Q669 620 610 667" fill="none" stroke="#305365" stroke-width="42" stroke-linecap="round"/>
+<path d="M476 520 C455 557 470 625 517 666 Q559 711 610 667 M476 520 C536 472 603 509 634 561 Q669 620 610 667" fill="none" stroke="#3b7080" stroke-width="31" stroke-linecap="round"/>
+<path d="M488 536 Q538 509 588 540 Q630 584 608 646 Q571 681 530 646 Q491 606 488 536Z" fill="#525c40" />
+<path d="M477 820 Q485 780 533 778 Q559 738 605 761 Q640 742 665 782 Q692 800 675 842 Q653 877 612 882 Q583 932 535 901 Q486 893 477 820Z" fill="url(#hill)" stroke="#989163" stroke-width="3" />
+<path d="M764 522 Q737 474 778 440 Q827 417 854 462 Q894 488 868 533 Q895 573 853 615 Q822 651 790 620 Q749 598 764 522Z" fill="url(#hill)" stroke="#989163" stroke-width="3" />
+<path d="M157 945 C171 820 160 724 190 651 S219 535 219 472 Q211 436 235 397 L296 377 Q349 381 383 335 C454 265 563 276 654 239 S809 230 879 234" fill="none" stroke="#5d6349" stroke-width="57" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M157 945 C171 820 160 724 190 651 S219 535 219 472 Q211 436 235 397 L296 377 Q349 381 383 335 C454 265 563 276 654 239 S809 230 879 234" fill="none" stroke="#92856a" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M157 945 C246 894 309 831 358 763 S435 674 505 625 L607 557 Q680 496 717 424 C761 341 817 285 879 234" fill="none" stroke="#5d6349" stroke-width="57" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M157 945 C246 894 309 831 358 763 S435 674 505 625 L607 557 Q680 496 717 424 C761 341 817 285 879 234" fill="none" stroke="#92856a" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M157 945 C288 964 392 957 481 929 S641 884 717 849 Q776 812 815 745 C875 643 909 539 894 432 S896 296 879 234" fill="none" stroke="#5d6349" stroke-width="57" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M157 945 C288 964 392 957 481 929 S641 884 717 849 Q776 812 815 745 C875 643 909 539 894 432 S896 296 879 234" fill="none" stroke="#92856a" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M198 603 Q261 587 305 637 T372 742" fill="none" stroke="#77775a" stroke-width="24" stroke-linecap="round"/>
+<path d="M432 295 Q459 353 507 397 T665 487" fill="none" stroke="#77775a" stroke-width="24" stroke-linecap="round"/>
+<path d="M372 742 Q459 745 508 785 T675 861" fill="none" stroke="#77775a" stroke-width="24" stroke-linecap="round"/>
+<path d="M717 424 Q730 508 773 565 T871 615" fill="none" stroke="#77775a" stroke-width="24" stroke-linecap="round"/>
+<g transform="translate(334 371) rotate(-39)"><rect x="-43" y="-31" width="86" height="62" rx="4" fill="#ad9c7c" stroke="#d1c3a2" stroke-width="3"/><path d="M-40 -26H40M-40 26H40" stroke="#d9c8a5" stroke-width="5"/></g>
+<g transform="translate(503 626) rotate(-38)"><rect x="-43" y="-27" width="86" height="54" fill="#b39466" stroke="#dec08d" stroke-width="3"/>
+<path d="M-36 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M-26 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M-16 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M-6 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M4 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M14 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M24 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M34 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+</g>
+<g transform="translate(617 549) rotate(-39)"><rect x="-43" y="-27" width="86" height="54" fill="#b39466" stroke="#dec08d" stroke-width="3"/>
+<path d="M-36 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M-26 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M-16 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M-6 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M4 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M14 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M24 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+<path d="M34 -23V23" fill="none" stroke="#745e41" stroke-width="2" />
+</g>
+<path d="M690 862 Q721 853 751 826" fill="none" stroke="#a59671" stroke-width="58" stroke-linecap="round"/>
+<ellipse cx="696" cy="879" rx="4" ry="3" fill="#d1c4a0"/>
+<ellipse cx="715" cy="869" rx="4" ry="3" fill="#d1c4a0"/>
+<ellipse cx="743" cy="847" rx="4" ry="3" fill="#d1c4a0"/>
+<path d="M280 682 Q282 652 316 624 L384 544 Q410 525 425 546 Q424 581 394 615 L325 688 Q298 710 280 682Z" fill="#777668" stroke="#a09a80" stroke-width="2" />
+<path d="M519 447 Q526 417 558 395 L620 317 Q646 304 655 329 Q649 368 618 399 L553 460 Q527 477 519 447Z" fill="#777668" stroke="#a09a80" stroke-width="2" />
+<path d="M383.3 704.0 L379.8 721.2 L364.7 723.9 L352.6 714.3 L355.2 690.0 L369.5 680.1 L378.2 689.6Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M457.8 652.0 L453.3 662.0 L433.8 663.6 L418.1 658.0 L421.5 643.9 L439.9 638.1 L451.3 643.6Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M660.2 524.0 L656.5 541.2 L640.5 543.9 L627.7 534.3 L630.5 510.0 L645.6 500.1 L654.8 509.6Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M717.6 460.0 L712.7 470.0 L691.4 471.6 L674.3 466.0 L678.0 451.9 L698.1 446.1 L710.5 451.6Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M803.3 752.0 L799.8 770.7 L784.7 773.5 L772.6 763.1 L775.2 736.9 L789.5 726.1 L798.2 736.4Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M864.6 673.0 L859.7 683.0 L838.4 684.6 L821.3 679.0 L825.0 664.9 L845.1 659.1 L857.5 664.6Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M674.7 893.0 L670.0 902.3 L649.6 903.8 L633.2 898.6 L636.7 885.4 L656.0 880.0 L667.9 885.2Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M771.5 810.0 L768.5 824.3 L755.1 826.6 L744.4 818.5 L746.7 798.4 L759.3 790.1 L767.0 798.0Z" fill="#747365" stroke="#9a9580" stroke-width="1.5" />
+<path d="M747 691 Q771 649 791 642 L811 660 Q790 717 771 746 L748 741Z" fill="url(#grass)" stroke="#628156" stroke-width="2" />
+<path d="M796 876 Q817 858 841 880 L887 938 Q899 966 873 971 L839 938Z" fill="url(#grass)" stroke="#628156" stroke-width="2" />
+<path d="M425 963 Q467 942 498 951 L528 974 Q498 1002 449 1009 L417 990Z" fill="url(#grass)" stroke="#628156" stroke-width="2" />
+<path d="M858 570 Q884 557 908 584 L909 636 Q887 654 864 631Z" fill="url(#grass)" stroke="#628156" stroke-width="2" />
+<path d="M220 472 L142 443 Q125 385 171 354 L235 397" fill="none" stroke="#93876c" stroke-width="22" stroke-linecap="round"/>
+<path d="M235 397 Q240 324 215 288 L156 250" fill="none" stroke="#93876c" stroke-width="22" stroke-linecap="round"/>
+<path d="M383 335 L411 277 Q406 249 380 238 L352 243" fill="none" stroke="#93876c" stroke-width="22" stroke-linecap="round"/>
+<path d="M296 377 L303 430 Q295 475 254 487" fill="none" stroke="#93876c" stroke-width="22" stroke-linecap="round"/>
+<g transform="translate(163 399) rotate(-15)">
+<rect x="-29.5" y="-19.5" width="59" height="39" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-26.5 -16.5H26.5V16.5H-26.5Z" fill="#846747" />
+<path d="M-26.5 0 H26.5" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-26.5 -16.5L-17.5 0L-26.5 16.5M26.5 -16.5L17.5 0L26.5 16.5" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(187 319) rotate(19)">
+<rect x="-26.0" y="-21.0" width="52" height="42" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-23.0 -18.0H23.0V18.0H-23.0Z" fill="#8e684b" />
+<path d="M-23.0 0 H23.0" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-23.0 -18.0L-14.0 0L-23.0 18.0M23.0 -18.0L14.0 0L23.0 18.0" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(265 275) rotate(-12)">
+<rect x="-31.0" y="-21.5" width="62" height="43" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-28.0 -18.5H28.0V18.5H-28.0Z" fill="#775d43" />
+<path d="M-28.0 0 H28.0" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-28.0 -18.5L-19.0 0L-28.0 18.5M28.0 -18.5L19.0 0L28.0 18.5" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(455 238) rotate(9)">
+<rect x="-24.0" y="-22.0" width="48" height="44" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-21.0 -19.0H21.0V19.0H-21.0Z" fill="#98774e" />
+<path d="M-21.0 0 H21.0" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-21.0 -19.0L-12.0 0L-21.0 19.0M21.0 -19.0L12.0 0L21.0 19.0" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(380 219) rotate(12)">
+<rect x="-36.0" y="-23.0" width="72" height="46" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-33.0 -20.0H33.0V20.0H-33.0Z" fill="#80684c" />
+<path d="M-33.0 0 H33.0" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-33.0 -20.0L-24.0 0L-33.0 20.0M33.0 -20.0L24.0 0L33.0 20.0" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(414 399) rotate(-28)">
+<rect x="-32.5" y="-23.0" width="65" height="46" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-29.5 -20.0H29.5V20.0H-29.5Z" fill="#98764f" />
+<path d="M-29.5 0 H29.5" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-29.5 -20.0L-20.5 0L-29.5 20.0M29.5 -20.0L20.5 0L29.5 20.0" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(266 444) rotate(2)">
+<rect x="-24.0" y="-18.0" width="48" height="36" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-21.0 -15.0H21.0V15.0H-21.0Z" fill="#87674b" />
+<path d="M-21.0 0 H21.0" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-21.0 -15.0L-12.0 0L-21.0 15.0M21.0 -15.0L12.0 0L21.0 15.0" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<g transform="translate(170 509) rotate(12)">
+<rect x="-35.0" y="-21.0" width="70" height="42" rx="2" fill="#c4b294" stroke="#332f27" stroke-width="2"/>
+<path d="M-32.0 -18.0H32.0V18.0H-32.0Z" fill="#756248" />
+<path d="M-32.0 0 H32.0" fill="none" stroke="#d0ab7d" stroke-width="2" />
+<path d="M-32.0 -18.0L-23.0 0L-32.0 18.0M32.0 -18.0L23.0 0L32.0 18.0" fill="none" stroke="#5d4b38" stroke-width="1.5" />
+</g>
+<ellipse cx="298" cy="343" rx="27" ry="22" fill="#a3987b"/>
+<path d="M125 477 L122 515 L199 534" fill="none" stroke="#b2925f" stroke-width="4" />
+<path d="M349 203 L352 182 L420 194" fill="none" stroke="#b2925f" stroke-width="4" />
+<path d="M805 906 L827 937" fill="none" stroke="#b2925f" stroke-width="4" />
+<ellipse cx="157" cy="945" rx="56" ry="48" fill="#6f7359"/>
+<circle cx="157" cy="945" r="29" fill="none" stroke="#ec857d" stroke-width="2" opacity=".45"/>
+<path d="M147 959V928L170 934L147 942" fill="none" stroke="#ec857d" stroke-width="4" />
+<ellipse cx="879" cy="234" rx="56" ry="48" fill="#6f7359"/>
+<circle cx="879" cy="234" r="29" fill="none" stroke="#83c9e0" stroke-width="2" opacity=".45"/>
+<path d="M869 248V217L892 223L869 231" fill="none" stroke="#83c9e0" stroke-width="4" />
+<circle cx="298" cy="343" r="17" fill="#22332f" stroke="#f4d895" stroke-width="2.5"/><text x="298" y="349" text-anchor="middle" fill="#f4d895" font-size="19" font-weight="bold">+</text>
+<circle cx="554" cy="594" r="17" fill="#22332f" stroke="#f4d895" stroke-width="2.5"/><text x="554" y="600" text-anchor="middle" fill="#f4d895" font-size="19" font-weight="bold">R</text>
+<circle cx="159" cy="250" r="17" fill="#22332f" stroke="#b0e2e6" stroke-width="2.5"/><text x="159" y="256" text-anchor="middle" fill="#b0e2e6" font-size="19" font-weight="bold">L</text>
+<circle cx="739" cy="785" r="17" fill="#22332f" stroke="#f3be8a" stroke-width="2.5"/><text x="739" y="791" text-anchor="middle" fill="#f3be8a" font-size="19" font-weight="bold">X</text>
+</g>
+<text x="157" y="1016" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">RED BASE</text>
+<text x="873" y="171" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">BLUE BASE</text>
+<text x="227" y="179" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">VILLAGE</text>
+<text x="274" y="317" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">REPAIR YARD</text>
+<text x="554" y="630" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">RADAR ISLAND</text>
+<text x="558" y="838" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">LOWER RIDGE</text>
+<text x="813" y="535" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">UPPER RIDGE</text>
+<text x="725" y="903" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">EAST CROSSING</text>
+<text x="382" y="375" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">STONE CROSSING</text>
+<text x="159" y="220" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">LASER DEPOT</text>
+<text x="733" y="751" fill="#f2ecda" font-size="14" font-weight="bold" text-anchor="middle" stroke="#26332d" stroke-width="4" paint-order="stroke">ROCKET</text>
+<rect x="999" y="142" width="326" height="910" rx="15" fill="#20302d"/>
+<text x="1022" y="186" fill="#c8b179" font-size="22" font-weight="bold">1</text>
+<text x="1051" y="184" fill="#f1e6c8" font-size="17" font-weight="bold">VILLAGE ROUTE</text>
+<text x="1022" y="218" fill="#d4ded2" font-size="14" font-weight="normal">A settlement with a main street,</text>
+<text x="1022" y="241" fill="#d4ded2" font-size="14" font-weight="normal">side lanes, yards and buildings.</text>
+<text x="1022" y="264" fill="#d4ded2" font-size="14" font-weight="normal"></text>
+<text x="1022" y="287" fill="#d4ded2" font-size="14" font-weight="normal">Use buildings to approach repair.</text>
+<text x="1022" y="310" fill="#d4ded2" font-size="14" font-weight="normal">Breach through a house or take</text>
+<text x="1022" y="333" fill="#d4ded2" font-size="14" font-weight="normal">an alley to flank the crossing.</text>
+<text x="1022" y="397" fill="#c8b179" font-size="22" font-weight="bold">2</text>
+<text x="1051" y="395" fill="#f1e6c8" font-size="17" font-weight="bold">CENTRAL ROUTE</text>
+<text x="1022" y="429" fill="#d4ded2" font-size="14" font-weight="normal">The most direct line between bases.</text>
+<text x="1022" y="452" fill="#d4ded2" font-size="14" font-weight="normal">Two wide bridges reach radar.</text>
+<text x="1022" y="475" fill="#d4ded2" font-size="14" font-weight="normal"></text>
+<text x="1022" y="498" fill="#d4ded2" font-size="14" font-weight="normal">Rock shoulders give staging cover.</text>
+<text x="1022" y="521" fill="#d4ded2" font-size="14" font-weight="normal">Holding the island buys information,</text>
+<text x="1022" y="544" fill="#d4ded2" font-size="14" font-weight="normal">but exposes you to both banks.</text>
+<text x="1022" y="608" fill="#c8b179" font-size="22" font-weight="bold">3</text>
+<text x="1051" y="606" fill="#f1e6c8" font-size="17" font-weight="bold">WILDERNESS ROUTE</text>
+<text x="1022" y="640" fill="#d4ded2" font-size="14" font-weight="normal">A wider route around the ridges,</text>
+<text x="1022" y="663" fill="#d4ded2" font-size="14" font-weight="normal">with grass and the rocket pickup.</text>
+<text x="1022" y="686" fill="#d4ded2" font-size="14" font-weight="normal"></text>
+<text x="1022" y="709" fill="#d4ded2" font-size="14" font-weight="normal">Climb for vision or stay low and</text>
+<text x="1022" y="732" fill="#d4ded2" font-size="14" font-weight="normal">concealed. The permanent crossing</text>
+<text x="1022" y="755" fill="#d4ded2" font-size="14" font-weight="normal">keeps a route after bridge loss.</text>
+<path d="M1022 807H1301" stroke="#59705a"/>
+<text x="1022" y="839" fill="#aebeb0" font-size="13" font-weight="normal">Connecting tracks allow rotations</text>
+<text x="1022" y="861" fill="#aebeb0" font-size="13" font-weight="normal">between routes on either bank.</text>
+<text x="1022" y="883" fill="#aebeb0" font-size="13" font-weight="normal"></text>
+<text x="1022" y="905" fill="#aebeb0" font-size="13" font-weight="normal">Cover sits at approaches and bends;</text>
+<text x="1022" y="927" fill="#aebeb0" font-size="13" font-weight="normal">the open areas are fighting space.</text>
+<text x="1022" y="949" fill="#aebeb0" font-size="13" font-weight="normal"></text>
+<text x="1022" y="971" fill="#aebeb0" font-size="13" font-weight="normal">Concept only — not a game screenshot.</text>
+<text x="1022" y="993" fill="#aebeb0" font-size="13" font-weight="normal">Building roofs indicate footprints.</text>
+<text x="55" y="1090" fill="#aebdb3" font-size="15" font-weight="normal">For review: terrain shapes, route structure and village character. Detailed placement comes after this.</text>
+</g></svg>

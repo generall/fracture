@@ -22,6 +22,32 @@ pub fn clamp_translation(items: &[LevelItem], selected: &[usize], size: Vec2, de
 }
 
 impl LevelItem {
+    /// Quarter-turn the deck and booths together, keeping the span and lane width.
+    pub fn rotate_bridge(&mut self, size: Vec2) -> Result<(), String> {
+        let mut rotated = self.clone();
+        let Self::Bridge {
+            min,
+            max,
+            vertical,
+            flipped,
+        } = &mut rotated
+        else {
+            return Err("Select a bridge to rotate.".into());
+        };
+        let center = (Vec2::from(*min) + Vec2::from(*max)) * 0.5;
+        let half = (Vec2::from(*max) - Vec2::from(*min)) * 0.5;
+        let half = Vec2::new(half.y, half.x);
+        *min = (center - half).to_array();
+        *max = (center + half).to_array();
+        if *vertical {
+            *flipped = !*flipped;
+        }
+        *vertical = !*vertical;
+        rotated.fit_inside(size)?;
+        *self = rotated;
+        Ok(())
+    }
+
     pub fn is_circular(&self) -> bool {
         matches!(self, Self::Object { asset, .. } if asset.is_circular())
     }
@@ -56,14 +82,12 @@ impl LevelItem {
     }
 
     pub fn can_join(&self, other: &Self) -> bool {
-        // Joining raw outlines would restore erased material.
-        if !self.cutouts().is_empty() || !other.cutouts().is_empty() {
-            return false;
-        }
         match (self, other) {
             (Self::Solid { .. }, Self::Solid { .. }) => true,
             (Self::Object { asset: a, .. }, Self::Object { asset: b, .. }) => {
-                if a.is_circular()
+                if a.components.decoration.is_some()
+                    || b.components.decoration.is_some()
+                    || a.is_circular()
                     || b.is_circular()
                     || a.components.plasticity.is_some()
                     || b.components.plasticity.is_some()
@@ -87,7 +111,7 @@ impl LevelItem {
 }
 
 /// Union actual occupied material, then generate one shared grain graph.
-/// Holes require a different asset schema; never fill them silently.
+/// Preserve enclosed spaces as convex cutouts in the existing level recipe.
 pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
     let first = items
         .first()
@@ -95,12 +119,8 @@ pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
     if items.len() < 2 || !items.iter().all(|i| first.can_join(i)) {
         return Err("Merge needs rocks or walls with matching material properties.".into());
     }
-    let polygon = |item: &LevelItem| -> Vec<[f64; 2]> {
-        let mut p: Vec<_> = item
-            .world_outline()
-            .iter()
-            .map(|p| [p.x as f64, p.y as f64])
-            .collect();
+    let polygon = |points: Vec<Vec2>| -> Vec<[f64; 2]> {
+        let mut p: Vec<_> = points.iter().map(|p| [p.x as f64, p.y as f64]).collect();
         let area: f64 = (0..p.len())
             .map(|i| p[i][0] * p[(i + 1) % p.len()][1] - p[i][1] * p[(i + 1) % p.len()][0])
             .sum();
@@ -109,18 +129,28 @@ pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
         }
         p
     };
-    let mut shapes = vec![vec![polygon(first)]];
+    let occupied = |item: &LevelItem| {
+        let mut shape = vec![vec![polygon(item.world_outline())]];
+        let rotation = Vec2::from_angle(item.angle());
+        for cut in item.cutouts() {
+            let cut = polygon(
+                cut.iter()
+                    .map(|p| item.position() + rotation.rotate(Vec2::from(*p)))
+                    .collect(),
+            );
+            shape = shape.overlay(&cut, OverlayRule::Difference, FillRule::NonZero);
+        }
+        shape
+    };
+    let mut shapes = occupied(first);
     for item in &items[1..] {
-        shapes = shapes.overlay(&polygon(item), OverlayRule::Union, FillRule::NonZero);
+        shapes = shapes.overlay(&occupied(item), OverlayRule::Union, FillRule::NonZero);
     }
     if shapes.len() != 1 {
         return Err("Move the shapes together so their edges touch or overlap.".into());
     }
-    if shapes[0].len() != 1 {
-        return Err("This merge encloses a hole. Keep an opening or merge smaller groups.".into());
-    }
-    let points: Vec<_> = shapes
-        .remove(0)
+    let mut contours = shapes.remove(0);
+    let points: Vec<_> = contours
         .remove(0)
         .into_iter()
         .map(|p| Vec2::new(p[0] as f32, p[1] as f32))
@@ -144,9 +174,46 @@ pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
     let (lo, hi) = bounds(points.iter().copied());
     let center = (lo + hi) * 0.5;
     let outline: Vec<_> = points.iter().map(|p| (*p - center).to_array()).collect();
+    let mut cutouts = Vec::new();
+    for hole in contours {
+        let hole: Vec<_> = hole
+            .into_iter()
+            .map(|p| (Vec2::new(p[0] as f32, p[1] as f32) - center).to_array())
+            .collect();
+        // Common rectangular rooms remain a single editable cutout.
+        if hole.len() == 4 {
+            let p: Vec<_> = hole.iter().copied().map(Vec2::from).collect();
+            let turns = [0, 1, 2, 3]
+                .map(|i| (p[(i + 1) % 4] - p[i]).perp_dot(p[(i + 2) % 4] - p[(i + 1) % 4]));
+            if turns.iter().all(|t| *t > 0.0) || turns.iter().all(|t| *t < 0.0) {
+                cutouts.push([hole[0], hole[1], hole[2], hole[3]]);
+                continue;
+            }
+        }
+        // Three convex quads exactly cover each triangle of an irregular room.
+        let mesh = solid_asset(&hole).level_mesh()?;
+        for triangle in mesh.triangles {
+            let p = triangle.map(|i| mesh.vertices[i]);
+            let c = (p[0] + p[1] + p[2]) / 3.0;
+            for i in 0..3 {
+                cutouts.push(
+                    [
+                        p[i],
+                        (p[i] + p[(i + 1) % 3]) * 0.5,
+                        c,
+                        (p[i] + p[(i + 2) % 3]) * 0.5,
+                    ]
+                    .map(|p| p.to_array()),
+                );
+            }
+        }
+    }
+    if cutouts.len() > 256 {
+        return Err("Merged shape has too many cutouts; merge smaller groups.".into());
+    }
     let result = match first {
         LevelItem::Solid { .. } => LevelItem::Solid {
-            cutouts: vec![],
+            cutouts: cutouts.clone(),
             outline,
             position: center.to_array(),
             angle: 0.0,
@@ -168,7 +235,7 @@ pub fn merge_items(items: &[LevelItem]) -> Result<LevelItem, String> {
             asset.fit_grain_budget();
             asset.level_mesh()?;
             LevelItem::Object {
-                cutouts: vec![],
+                cutouts: cutouts.clone(),
                 asset,
                 position: center.to_array(),
                 angle: 0.0,
@@ -310,7 +377,7 @@ mod tests {
         assert_eq!(asset.outline.len(), 4);
     }
     #[test]
-    fn unions_preserve_concavity_and_reject_disconnected_shapes_and_holes() {
+    fn unions_preserve_concavity_and_enclosed_spaces() {
         let solid = |x, y, w, h| LevelItem::Solid {
             cutouts: vec![],
             outline: rectangle(Vec2::new(w, h) * 0.5),
@@ -322,17 +389,49 @@ mod tests {
         let merged = merge_items(&[a.clone(), b]).unwrap();
         assert_eq!(merged.local_outline().len(), 6);
         assert!(merge_items(&[a, solid(10., 0., 2., 2.)]).is_err());
-        assert!(
-            merge_items(&[
-                solid(0., -2., 6., 2.),
-                solid(0., 2., 6., 2.),
-                solid(-2., 0., 2., 6.),
-                solid(2., 0., 2., 6.)
-            ])
-            .unwrap_err()
-            .contains("hole")
-        );
+        let room = merge_items(&[
+            solid(0., -2., 6., 2.),
+            solid(0., 2., 6., 2.),
+            solid(-2., 0., 2., 6.),
+            solid(2., 0., 2., 6.),
+        ])
+        .unwrap();
+        let level = Level {
+            items: vec![room],
+            ..Level::default()
+        };
+        let mesh = level.resolved_meshes().unwrap().remove(0).unwrap();
+        assert!((mesh.area - 32.0).abs() < 0.001);
+        assert!(!mesh.contains_point(Vec2::ZERO));
+        assert_eq!(level, Level::from_json(&level.to_json().unwrap()).unwrap());
     }
+    #[test]
+    fn merging_into_a_room_preserves_an_irregular_hole() {
+        let solid = |x, y, w, h| LevelItem::Solid {
+            cutouts: vec![],
+            outline: rectangle(Vec2::new(w, h) * 0.5),
+            position: [x, y],
+            angle: 0.,
+        };
+        let room = merge_items(&[
+            solid(0., -3., 8., 2.),
+            solid(0., 3., 8., 2.),
+            solid(-3., 0., 2., 8.),
+            solid(3., 0., 2., 8.),
+        ])
+        .unwrap();
+        let result = merge_items(&[room, solid(1., 1., 2., 2.)]).unwrap();
+        let level = Level {
+            items: vec![result],
+            ..Level::default()
+        };
+        let mesh = level.resolved_meshes().unwrap().remove(0).unwrap();
+        assert!((mesh.area - 52.0).abs() < 0.01);
+        assert!(!mesh.contains_point(Vec2::new(-1., 1.)));
+        assert!(mesh.contains_point(Vec2::new(1., 1.)));
+        assert_eq!(level, Level::from_json(&level.to_json().unwrap()).unwrap());
+    }
+
     #[test]
     fn merge_preserves_a_support_on_only_part_of_a_straight_edge() {
         let mut a = object(LibraryPreset::Wall, [-3., 0.]);
@@ -365,7 +464,7 @@ mod tests {
                 } else {
                     size
                 };
-                let mesh = bridge_mesh(size, vertical).unwrap();
+                let mesh = bridge_mesh(size, vertical, false).unwrap();
                 let area: f32 = mesh
                     .triangles
                     .iter()
@@ -396,6 +495,7 @@ mod tests {
             min: [-95., -90.],
             max: [95., 90.],
             vertical: true,
+            flipped: false,
         };
         bridge.fit_inside(Vec2::new(48., 30.)).unwrap();
         for p in bridge.world_outline() {

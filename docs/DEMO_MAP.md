@@ -1,6 +1,6 @@
 # Quarry Crossing
 
-A 48 × 30 m demo map with 39 authored items. Open **M → File → Load Demo / Quarry**, choose Blue or Red, then **Play Level**. Loading the demo is undoable. All placed objects and terrain remain editable.
+A 48 × 30 m demo map with 31 authored objects plus a half-metre terrain mask. Open **M → File → Load Demo / Quarry**, choose Blue or Red, then **Play Level**. Loading the demo is undoable. All placed objects and terrain remain editable.
 
 The same map is available as [portable level JSON](../web/levels/quarry-crossing.json), served in the browser at `/levels/quarry-crossing.json`. The bundled editor action and downloadable file use this single source; object recipes are embedded so future library tuning does not silently change the map.
 

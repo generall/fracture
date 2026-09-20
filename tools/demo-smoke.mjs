@@ -71,8 +71,8 @@ try {
   const draft={version:1,name:'Existing map',size:[48,30],items:[{kind:'spawn',team:'blue',position:[-18,0],angle:0}]};
   await evaluate(`localStorage.setItem('fracture.level.v1',${JSON.stringify(JSON.stringify(draft))})`);await cdp('Page.reload');await until('wasm_exports?.lab_ticks?.()>5','reload');
   await key('KeyM','m',77);await until('wasm_exports.level_editor_active()===1','editor');
-  await click(490,40);await click(560,326);await until('wasm_exports.level_editor_items()===39','demo menu');
-  const demo=await map();assert.equal(demo.name,'Quarry Crossing');assert.equal(demo.items.length,39);
+  await click(490,40);await click(560,326);await until('wasm_exports.level_editor_items()===31','demo menu');
+  const demo=await map();assert.equal(demo.name,'Quarry Crossing');assert.equal(demo.items.length,31);
   const download=await fetch(`${url}/levels/quarry-crossing.json`).then(r=>r.json());assert.deepEqual(download,demo,'download and built-in map agree');
   await screenshot('demo-quarry-editor');
   await click(580,40);assert.deepEqual(await map(),draft,'loading a demo can be undone');

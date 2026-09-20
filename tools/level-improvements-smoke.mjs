@@ -131,7 +131,7 @@ try {
   await mapDrag([2,-5.5],[-2.15,-5.5]);assert.equal((await map()).items.length,1,'wall edge magnet and automatic join');assert.ok(Math.abs(dimensions((await map()).items[0])[0]-8)<0.12);
   // Large bridge sizes use a cheap dedicated mesh, and booth footprint clamps too.
   await importMap({...base,size:[200,120]});await key('Home','Home',36);await delay(100);
-  await click(144,201);await click(120,458);await mapDrag([-60,-10],[60,10]);
+  await click(144,201);await click(120,638);await mapDrag([-60,-10],[60,10]);
   assert.equal((await map()).items.length,1);let bridge=(await map()).items[0];assert.equal(bridge.kind,'bridge');assert.ok(bridge.max[0]-bridge.min[0]>119);
   await click(1260,180);await field(1200,310,'300');bridge=(await map()).items[0];assert.ok(bridge.max[0]-bridge.min[0]>189);
   await screenshot('level-large-bridge');await ctrl('C');await importMap(base);await ctrl('V');assert.equal((await map()).items.length,1);bridge=(await map()).items[0];assert.ok(bridge.max[0]-bridge.min[0]<48,'clipboard group scales to smaller map');
@@ -140,27 +140,32 @@ try {
   // Explicit unbreakable wall tool, and merged terrain presentation.
   await importMap(base);await key('Home','Home',36);await delay(100);
   await click(50,201);await click(120,299);await mapDrag([-11.8,6.2],[11.8,6.8]);assert.equal((await map()).items[0].kind,'solid');
-  await click(144,201);await click(120,349);await mapDrag([-15,-10],[0,0]);await mapDrag([-6,-8],[12,3]);
-  await click(120,397);await mapDrag([-2,-7],[3,6]);await mapDrag([-2,2],[10,7]);
+  await click(144,201);await click(205,250);await click(120,442);await mapDrag([-15,-10],[0,0]);await mapDrag([-6,-8],[12,3]);
+  await click(120,480);await mapDrag([-2,-7],[3,6]);await mapDrag([-2,2],[10,7]);
   await click(120,150);await screenshot('level-merged-terrain');
   // Every drawing tool fills complete cells, regardless of the movement snap toggle.
+  const maskBounds=level=>{
+    const cells=(level.terrain_mask?.rows||[]).flatMap(row=>Array.from(row.tiles,(tile,i)=>tile==='g'?null:[row.x+i,row.y]).filter(Boolean));
+    return [[Math.min(...cells.map(p=>p[0]))*.5,Math.min(...cells.map(p=>p[1]))*.5],[(Math.max(...cells.map(p=>p[0]))+1)*.5,(Math.max(...cells.map(p=>p[1]))+1)*.5]];
+  };
   const gridBounds=item=>item.min ? [item.min,item.max] : [
     item.position.map((n,i)=>n+Math.min(...(item.outline||item.asset.outline).map(p=>p[i]))),
     item.position.map((n,i)=>n+Math.max(...(item.outline||item.asset.outline).map(p=>p[i])))
   ];
-  for (const [category,tool,kind] of [[50,250,'object'],[50,299,'solid'],[225,254,'solid'],[144,254,'terrain'],[144,301,'terrain'],[144,349,'terrain'],[144,397,'terrain']]) {
-    await importMap(base);await click(category,201);await click(120,tool);
+  for (const [category,tool,kind] of [[50,250,'object'],[50,299,'solid'],[225,254,'solid'],[144,404,'terrain'],[144,442,'terrain'],[144,480,'terrain']]) {
+    await importMap(base);await click(category,201);if(category===144)await click(205,250);await click(120,tool);
     await mapClick(-0.05,-1.95);
-    assert.equal((await map()).items[0].kind,kind);
-    assert.deepEqual(gridBounds((await map()).items[0]),[[-1,-2],[0,-1]],'click fills the cell under the pointer');
+    const painted=await map();
+    if(kind==='terrain')assert.equal(painted.items.length,0);else assert.equal(painted.items[0].kind,kind);
+    assert.deepEqual(kind==='terrain'?maskBounds(painted):gridBounds(painted.items[0]),[[-1,-2],[0,-1]],'click fills the cell under the pointer');
     await ctrl('Z');assert.equal((await map()).items.length,0);
     await mapDrag([-2.85,0.15],[3.95,2.95]);
-    const forward=await map();assert.deepEqual(gridBounds(forward.items[0]),[[-3,0],[4,3]],'drag fills endpoint cells');
+    const forward=await map();assert.deepEqual(kind==='terrain'?maskBounds(forward):gridBounds(forward.items[0]),[[-3,0],[4,3]],'drag fills endpoint cells');
     await ctrl('Z');await click(120,790); // movement snapping must not round the drawing cursor into another cell
     await mapDrag([3.95,2.95],[-2.85,0.15]);assert.deepEqual(await map(),forward,'reverse drag and movement snap preserve fill');
     await click(120,790);await ctrl('Z');await ctrl('Y');assert.deepEqual(await map(),forward,'grid fills support undo/redo');
   }
-  await importMap(base);await click(144,201);await click(120,458);await mapClick(22.8,13.8);
+  await importMap(base);await click(144,201);await click(120,638);await mapClick(22.8,13.8);
   let gridBridge=(await map()).items[0];assert.equal(gridBridge.kind,'bridge');assert.deepEqual([gridBridge.min,gridBridge.max],[[20,10],[23,12]],'minimum bridge stays on grid with booth clearance');
   await importMap(base);await click(50,201);await click(120,299);await mapDrag([-8.8,-4.8],[4.8,-2.2]);
   const [previewX,previewY]=await at(7.4,3.4);

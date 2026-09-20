@@ -6,17 +6,53 @@ use std::collections::BTreeMap;
 const EPS: f32 = 1e-5;
 
 impl Level {
-    /// Permanently erase solids under a world-space rectangle. Each cut travels
-    /// with its object; newly placed objects can fill the erased area again.
+    /// Permanently erase solids and all terrain layers under a world-space rectangle.
+    /// Solid cuts travel with their object; erased terrain returns to default ground.
     pub fn erase_rectangle(&mut self, min: Vec2, max: Vec2) -> Result<usize, String> {
         if !min.is_finite() || !max.is_finite() || !max.cmpgt(min).all() {
             return Err("Eraser rectangle must have positive, finite dimensions.".into());
         }
         let corners = [min, Vec2::new(max.x, min.y), max, Vec2::new(min.x, max.y)];
-        let mut changed = 0;
+        let mut changed = usize::from(
+            self.terrain_mask
+                .paint(TerrainKind::Ground, min, max, self.size.into())
+                > 0,
+        );
         let mut remaining = Vec::with_capacity(self.items.len());
         for item in &self.items {
             let mut item = item.clone();
+            if let LevelItem::Terrain {
+                terrain,
+                min: a,
+                max: b,
+            } = item
+            {
+                let patch = crate::TerrainPatch {
+                    kind: terrain,
+                    min: a.into(),
+                    max: b.into(),
+                };
+                if patch.min.max(min).cmplt(patch.max.min(max)).all() {
+                    changed += 1;
+                    remaining.extend(
+                        patch
+                            .subtract(crate::TerrainPatch {
+                                kind: terrain,
+                                min,
+                                max,
+                            })
+                            .into_iter()
+                            // Keep the same minimum editable size as terrain painting.
+                            .filter(|p| (p.max - p.min).cmpge(Vec2::splat(0.3)).all())
+                            .map(|p| LevelItem::Terrain {
+                                terrain,
+                                min: p.min.to_array(),
+                                max: p.max.to_array(),
+                            }),
+                    );
+                    continue;
+                }
+            }
             if matches!(item, LevelItem::Object { .. } | LevelItem::Solid { .. }) {
                 let inverse = Vec2::from_angle(-item.angle());
                 let cutout = corners.map(|p| inverse.rotate(p - item.position()).to_array());
@@ -24,7 +60,9 @@ impl Level {
                 let after = carve(mesh.clone(), &cutout_triangles(&[cutout]))?;
                 if after.area < mesh.area - EPS {
                     changed += 1;
-                    if after.triangles.is_empty() {
+                    if after.triangles.is_empty()
+                        || matches!(&item, LevelItem::Object { asset, .. } if asset.components.decoration.is_some())
+                    {
                         continue;
                     }
                     if let LevelItem::Object { cutouts, .. } | LevelItem::Solid { cutouts, .. } =
@@ -47,6 +85,9 @@ impl Level {
             .items
             .iter()
             .map(|item| match item {
+                LevelItem::Object { asset, .. } if asset.components.decoration.is_some() => {
+                    Ok(None)
+                }
                 LevelItem::Object { .. } | LevelItem::Solid { .. } | LevelItem::Station { .. } => {
                     let mesh = solid_asset(&item.local_outline()).level_mesh()?;
                     carve(mesh, &cutout_triangles(item.cutouts())).map(Some)
@@ -58,6 +99,10 @@ impl Level {
         let mut pieces = 0;
         for (i, item) in self.items.iter().enumerate() {
             let mesh = match item {
+                LevelItem::Object { asset, .. } if asset.components.decoration.is_some() => {
+                    result.push(None);
+                    continue;
+                }
                 LevelItem::Object { .. } | LevelItem::Solid { .. } | LevelItem::Station { .. } => {
                     item.erased_mesh()?
                 }
@@ -343,6 +388,64 @@ mod tests {
     use super::*;
 
     #[test]
+    fn eraser_clears_all_terrain_layers_and_preserves_the_surroundings() {
+        let marker = LevelItem::Flag {
+            team: Team::Blue,
+            position: [0.0, 0.0],
+        };
+        let mut level = Level {
+            items: vec![marker.clone()],
+            ..Level::default()
+        };
+        for terrain in [
+            TerrainKind::Ground,
+            TerrainKind::Road,
+            TerrainKind::Sand,
+            TerrainKind::Water,
+            TerrainKind::Cliff,
+            TerrainKind::TallGrass,
+            TerrainKind::Elevation,
+        ] {
+            level.items.push(LevelItem::Terrain {
+                terrain,
+                min: [-4.0, -4.0],
+                max: [4.0, 4.0],
+            });
+        }
+        assert_eq!(
+            level
+                .erase_rectangle(Vec2::splat(-1.0), Vec2::splat(1.0))
+                .unwrap(),
+            7
+        );
+        assert_eq!(level.items[0], marker);
+        let mut area = 0.0;
+        for item in &level.items[1..] {
+            let LevelItem::Terrain { min, max, .. } = item else {
+                panic!("expected terrain")
+            };
+            let min = Vec2::from(*min);
+            let max = Vec2::from(*max);
+            assert!(!min.cmple(Vec2::ZERO).all() || !max.cmpge(Vec2::ZERO).all());
+            area += (max.x - min.x) * (max.y - min.y);
+        }
+        assert_eq!(area, 7.0 * 60.0);
+        assert_eq!(level, Level::from_json(&level.to_json().unwrap()).unwrap());
+        let before = level.clone();
+        assert_eq!(
+            level
+                .erase_rectangle(Vec2::splat(-1.0), Vec2::splat(1.0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(level, before);
+        level
+            .erase_rectangle(Vec2::splat(-5.0), Vec2::splat(5.0))
+            .unwrap();
+        assert_eq!(level.items, vec![marker]);
+    }
+
+    #[test]
     fn eraser_preserves_holes_through_save_transforms_and_overlap() {
         for solid in [false, true] {
             let mut item = wall();
@@ -396,7 +499,7 @@ mod tests {
             let mesh = level.resolved_meshes().unwrap().remove(0).unwrap();
             assert!((mesh.area - 44.0).abs() < 0.001);
             assert!(!mesh.contains_point(Vec2::ZERO));
-            assert!(!level.items[0].can_join(&level.items[0]));
+            assert!(level.items[0].can_join(&level.items[0]));
         }
         // Erase both overlapping layers, then allow fresh material in the hole.
         let mut level = Level {

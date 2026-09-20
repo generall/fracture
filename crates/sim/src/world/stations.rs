@@ -78,6 +78,9 @@ impl World {
     pub fn stations(&self) -> impl Iterator<Item = StationView> + '_ {
         self.stations.iter().map(|s| s.view)
     }
+    pub fn player_in_radar_zone(&self) -> bool {
+        self.radar_covers(self.team(), self.launcher_position())
+    }
     pub(super) fn radar_covers(&self, team: Team, position: Vector) -> bool {
         self.stations().any(|s| {
             s.kind == StationKind::Radar
@@ -232,6 +235,21 @@ mod tests {
         assert_eq!(w.tanks[1].health, 0.0);
         assert_eq!(w.stations().next().unwrap().owner, Some(Team::Blue));
         assert_eq!(w.stations().next().unwrap().progress, 0.0);
+    }
+
+    #[test]
+    fn player_radar_zone_requires_friendly_ownership_and_configured_coverage() {
+        let mut w = world(StationKind::Radar);
+        w.stations[0].view.settings.radar_radius = 10.0;
+        move_tank(&mut w, Team::Blue, -3.0);
+        assert!(!w.player_in_radar_zone());
+        w.stations[0].view.owner = Some(Team::Blue);
+        assert!(w.player_in_radar_zone());
+        move_tank(&mut w, Team::Blue, -11.0);
+        assert!(!w.player_in_radar_zone());
+        move_tank(&mut w, Team::Blue, -3.0);
+        w.stations[0].view.owner = Some(Team::Red);
+        assert!(!w.player_in_radar_zone());
     }
 
     #[test]

@@ -171,6 +171,7 @@ impl World {
                 shell.ammunition.radius(),
                 shell.owner,
             ) {
+                self.sweep_decorations(shell.position, point, shell.ammunition.radius());
                 let event = self.next_impact();
                 self.hit_tank(
                     piece,
@@ -220,6 +221,11 @@ impl World {
                 }
                 // The shell is consumed here; there is no bouncing collider.
             } else {
+                self.sweep_decorations(
+                    shell.position,
+                    shell.position + shell.velocity * dt,
+                    shell.ammunition.radius(),
+                );
                 shell.position += shell.velocity * dt;
                 shell.age += dt;
                 if shell.age
@@ -357,6 +363,7 @@ impl World {
             }
             let distance = nearest.map_or(RANGE, |(d, _)| (d + RADIUS).min(RANGE));
             let end = origin + barrel * distance;
+            self.sweep_decorations(origin + barrel * distance.min(1.65), end, RADIUS);
             self.laser_beam = Some(LaserBeam {
                 start: origin + barrel * distance.min(1.65),
                 end,
@@ -434,6 +441,7 @@ impl World {
         events: &mut Vec<Event>,
     ) {
         self.blast_pressure(position, source_energy, radius, tank_scale, event, events);
+        self.blast_decorations(position, radius);
         self.explosions += 1;
         events.push(Event::Exploded { position, radius });
     }

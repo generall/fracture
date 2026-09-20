@@ -1,5 +1,61 @@
 use super::*;
 impl LevelEditor {
+    fn brush_controls(&mut self, mouse: Vec2, eraser: bool) {
+        for (i, (label, brush)) in [("BRUSH", true), ("RECTANGLE", false)]
+            .into_iter()
+            .enumerate()
+        {
+            if button(
+                Rect::new(20.0 + i as f32 * 126.0, 234.0, 118.0, 34.0),
+                label,
+                mouse,
+                (if eraser {
+                    self.eraser_brush
+                } else {
+                    self.terrain_brush
+                }) == brush,
+            ) {
+                if eraser {
+                    self.eraser_brush = brush;
+                } else {
+                    self.terrain_brush = brush;
+                }
+                if matches!(self.tool, Tool::Terrain(_) | Tool::Erase) {
+                    self.select_tool(self.tool.clone());
+                }
+            }
+        }
+        let brush = if eraser {
+            self.eraser_brush
+        } else {
+            self.terrain_brush
+        };
+        if brush {
+            text("SIZE", 24.0, 298.0, 14.0, MUTED);
+            for (i, width) in [1, 3, 5, 9].into_iter().enumerate() {
+                if button(
+                    Rect::new(72.0 + i as f32 * 49.0, 278.0, 45.0, 30.0),
+                    &format!("{width} M"),
+                    mouse,
+                    self.brush_size == width,
+                ) {
+                    self.brush_size = width;
+                }
+            }
+            text("ALIGN", 24.0, 334.0, 14.0, MUTED);
+            for (i, grid) in [0.5, 1.0].into_iter().enumerate() {
+                if button(
+                    Rect::new(82.0 + i as f32 * 94.0, 314.0, 88.0, 30.0),
+                    &format!("{grid} M"),
+                    mouse,
+                    self.brush_grid == grid,
+                ) {
+                    self.brush_grid = grid;
+                }
+            }
+        }
+    }
+
     pub(super) fn palette_panel(&mut self, size: Vec2, mouse: Vec2) {
         draw_rectangle(0.0, 80.0, 282.0, size.y - 160.0, PAPER);
         text("PLACE ON MAP", 24.0, 115.0, 20.0, INK);
@@ -28,9 +84,32 @@ impl LevelEditor {
                 mouse,
                 self.category == i,
             ) {
+                if matches!(self.tool, Tool::Erase)
+                    || (i != 1 && matches!(self.tool, Tool::Terrain(_)))
+                {
+                    self.select_tool(Tool::Select);
+                }
                 self.category = i;
+                if i != 1 {
+                    self.selection.retain(|&index| {
+                        !matches!(self.level.items[index], LevelItem::Terrain { .. })
+                    });
+                    self.clamp_selection();
+                }
                 self.page = 0;
             }
+        }
+        if matches!(self.tool, Tool::Erase) {
+            self.brush_controls(mouse, true);
+            paragraph(
+                "Erase objects, walls and terrain. Brush follows the cursor; rectangle cuts a block. Ctrl+Z undoes a stroke; Esc cancels. Choose a category above to switch tools.",
+                24.0,
+                370.0,
+                240.0,
+                17.0,
+                MUTED,
+            );
+            return;
         }
         match self.category {
             0 => {
@@ -85,6 +164,7 @@ impl LevelEditor {
                 }
             }
             1 => {
+                self.brush_controls(mouse, false);
                 for (i, terrain) in [
                     TerrainKind::Ground,
                     TerrainKind::Road,
@@ -98,7 +178,7 @@ impl LevelEditor {
                 .enumerate()
                 {
                     if button(
-                        Rect::new(20.0, 238.0 + i as f32 * 48.0, 244.0, 38.0),
+                        Rect::new(20.0, 352.0 + i as f32 * 38.0, 244.0, 32.0),
                         terrain.label(),
                         mouse,
                         matches!(self.tool,Tool::Terrain(t) if t==terrain),
@@ -108,7 +188,7 @@ impl LevelEditor {
                     }
                 }
                 if button(
-                    Rect::new(20.0, 584.0, 244.0, 38.0),
+                    Rect::new(20.0, 620.0, 244.0, 38.0),
                     "BRIDGE + TWO BOOTHS",
                     mouse,
                     matches!(self.tool, Tool::Bridge),
@@ -117,9 +197,9 @@ impl LevelEditor {
                     self.select_tool(Tool::Bridge);
                 }
                 paragraph(
-                    "Fill 1 m cells. Cliffs and water block tanks, but allow sight and shots. Bridges provide crossings.",
+                    "Brush paints along your drag; rectangle fills a block. Bridges use rectangles.",
                     24.0,
-                    642.0,
+                    684.0,
                     240.0,
                     17.0,
                     MUTED,
@@ -401,15 +481,27 @@ impl LevelEditor {
             }
             if let LevelItem::Pickup { .. } = item {
                 self.field(
+                    Field::PickupCharges,
+                    "CHARGES PER PICKUP",
+                    Rect::new(x, 294.0, 256.0, 34.0),
+                    mouse,
+                );
+                self.field(
+                    Field::PickupCooldown,
+                    "USE COOLDOWN / SECONDS",
+                    Rect::new(x, 366.0, 256.0, 34.0),
+                    mouse,
+                );
+                self.field(
                     Field::PickupRespawn,
                     "RESPAWN / SECONDS",
-                    Rect::new(x, 514.0, 256.0, 34.0),
+                    Rect::new(x, 438.0, 256.0, 34.0),
                     mouse,
                 );
                 paragraph(
-                    "Drive over to collect. One carried special; right-click to use. Starts available.",
+                    "Drive over to collect the charges. Right-click uses one. Laser cooldown starts after its 3-second burst. Respawn controls when the pad refills.",
                     x,
-                    575.0,
+                    514.0,
                     256.0,
                     16.0,
                     MUTED,
@@ -464,6 +556,7 @@ impl LevelEditor {
                     mouse,
                     false,
                 ) {
+                    self.commit_field();
                     let before = self.level.clone();
                     if let LevelItem::Bridge { vertical, .. } = &mut self.level.items[i] {
                         *vertical = !*vertical;
@@ -473,10 +566,24 @@ impl LevelEditor {
                     }
                     self.finish_change(before);
                 }
+                if button(
+                    Rect::new(x, 416.0, 256.0, 36.0),
+                    "ROTATE BRIDGE / 90 DEG",
+                    mouse,
+                    false,
+                ) {
+                    self.commit_field();
+                    let before = self.level.clone();
+                    if let Err(error) = self.level.items[i].rotate_bridge(self.level.size.into()) {
+                        self.status = error;
+                    } else {
+                        self.finish_change(before);
+                    }
+                }
                 paragraph(
-                    "The rectangle is the deck. Both booths need dry banks. Shoot or ram a booth to collapse the crossing.",
+                    "Rotate turns the deck and booths together. Both booths need dry banks. Shoot or ram a booth to collapse the crossing.",
                     x + 4.0,
-                    445.0,
+                    488.0,
                     250.0,
                     17.0,
                     MUTED,

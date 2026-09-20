@@ -5,6 +5,7 @@ mod diagnostics;
 mod fields;
 mod panels;
 mod selection;
+mod terrain_brush;
 use crate::ui::PINK;
 use crate::{level_storage as storage, navigation::Navigation, ui::*, view::Viewport};
 use macroquad::prelude::*;
@@ -62,6 +63,8 @@ enum Field {
     RepairRate,
     RadarRadius,
     PickupRespawn,
+    PickupCharges,
+    PickupCooldown,
 }
 struct Editing {
     field: Field,
@@ -76,6 +79,7 @@ enum DragKind {
     Draw,
     Erase,
     Marquee,
+    Brush,
 }
 struct Drag {
     before: Level,
@@ -87,12 +91,18 @@ pub struct LevelEditor {
     pub active: bool,
     level: Level,
     geometry: Option<(Level, Vec<Option<sim::ObjectMesh>>)>,
+    terrain_cache: Option<(sim::level::TerrainMask, Vec<sim::TerrainPatch>)>,
     selected: Option<usize>,
     selection: Vec<usize>,
     clipboard: Vec<LevelItem>,
     paste_count: u32,
     join: bool,
     tool: Tool,
+    terrain_brush: bool,
+    eraser_brush: bool,
+    brush_size: i32,
+    brush_grid: f32,
+    brush_stroke: Option<terrain_brush::Stroke>,
     category: usize,
     palette: Vec<ObjectAsset>,
     page: usize,
@@ -121,20 +131,27 @@ impl LevelEditor {
     pub fn new() -> Self {
         let restored =
             storage::restore().and_then(|json| json.map(|j| Level::from_json(&j)).transpose());
-        let (level, restore_error) = match restored {
+        let (mut level, restore_error) = match restored {
             Ok(l) => (l.unwrap_or_default(), None),
             Err(e) => (Level::default(), Some(e)),
         };
+        level.migrate_terrain();
         Self {
             active: false,
             level,
             geometry: None,
+            terrain_cache: None,
             selected: None,
             selection: vec![],
             clipboard: vec![],
             paste_count: 0,
             join: true,
             tool: Tool::Select,
+            terrain_brush: true,
+            eraser_brush: true,
+            brush_size: 5,
+            brush_grid: 0.5,
+            brush_stroke: None,
             category: 0,
             palette: vec![],
             page: 0,
@@ -192,6 +209,10 @@ impl LevelEditor {
         }
     }
     fn finish_change(&mut self, before: Level) {
+        if self.level.migrate_terrain() > 0 {
+            self.clear_selection();
+        }
+        self.level.terrain_mask.crop(self.level.size.into());
         if self.level == before {
             return;
         }
@@ -236,6 +257,22 @@ impl LevelEditor {
             self.persist();
         }
     }
+    fn uses_brush(&self) -> bool {
+        match self.tool {
+            Tool::Terrain(_) => self.terrain_brush,
+            Tool::Erase => self.eraser_brush,
+            _ => false,
+        }
+    }
+    fn stroke(&self) -> terrain_brush::Stroke {
+        terrain_brush::Stroke::new(
+            match self.tool {
+                Tool::Terrain(terrain) => terrain,
+                _ => TerrainKind::Ground,
+            },
+            self.brush_grid,
+        )
+    }
     fn select_tool(&mut self, tool: Tool) {
         self.tool = tool;
         self.clear_selection();
@@ -250,7 +287,11 @@ impl LevelEditor {
                 "Drag to fill 1 m grid cells. Bridges need at least 3 x 2 cells plus room for booths."
                     .into()
             }
-            Tool::Erase => "Click to erase a 1 m cell. Drag to erase a rectangle from objects and walls. Ctrl+Z undoes.".into(),
+            Tool::Erase if self.eraser_brush => "Drag to brush away objects, walls and terrain. Ctrl+Z undoes a stroke; Esc cancels.".into(),
+            Tool::Erase => "Drag to erase a rectangle from objects, walls and terrain. Terrain returns to ground. Ctrl+Z undoes.".into(),
+            Tool::Terrain(_) if self.terrain_brush => {
+                "Drag to paint terrain along the cursor. Size controls brush width. Ctrl+Z undoes a stroke; Esc cancels.".into()
+            }
             Tool::Wall | Tool::Fence | Tool::SolidWall | Tool::Terrain(_) | Tool::Solid => {
                 "Click to fill a 1 m grid cell. Drag to fill a rectangle of cells.".into()
             }
@@ -282,7 +323,16 @@ impl LevelEditor {
                 self.history(true);
             }
             if ctrl && is_key_pressed(KeyCode::A) {
-                self.selection = (0..self.level.items.len()).collect();
+                self.selection = self
+                    .level
+                    .items
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, item)| {
+                        self.category == 1 || !matches!(item, LevelItem::Terrain { .. })
+                    })
+                    .map(|(i, _)| i)
+                    .collect();
                 self.clamp_selection();
                 self.tool = Tool::Select;
             }
@@ -399,7 +449,7 @@ impl LevelEditor {
         None
     }
     fn file_panel(&mut self, mouse: Vec2) {
-        let rect = Rect::new(450.0, 70.0, 260.0, 288.0);
+        let rect = Rect::new(450.0, 70.0, 260.0, 334.0);
         draw_rectangle(rect.x, rect.y, rect.w, rect.h, PAPER);
         draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, CYAN);
         for (i, label) in [
@@ -409,6 +459,7 @@ impl LevelEditor {
             "RELOAD DRAFT",
             "NEW EMPTY LEVEL",
             "LOAD DEMO / QUARRY",
+            "LOAD RIVER VALLEY",
         ]
         .iter()
         .enumerate()
@@ -443,14 +494,19 @@ impl LevelEditor {
                         self.fit_requested = true;
                     }
                     _ => {
-                        let before = std::mem::replace(&mut self.level, Level::demo());
+                        let map = if i == 5 {
+                            Level::demo()
+                        } else {
+                            Level::river_valley()
+                        };
+                        let before = std::mem::replace(&mut self.level, map);
                         self.finish_change(before);
                         self.clear_selection();
                         self.tool = Tool::Select;
                         self.vertices = false;
                         self.fit_requested = true;
                         if self.restore_error.is_none() {
-                            self.status = "Quarry Crossing / bridge rush, sandy north bypass, southern road. Choose a team and Play Level.".into();
+                            self.status = if i == 5 { "Quarry Crossing / bridge rush, sandy north bypass, southern road. Choose a team and Play Level." } else { "River Valley / village, radar island and grassy flanks. Choose a team and Play Level." }.into();
                         }
                     }
                 }

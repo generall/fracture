@@ -9,7 +9,7 @@ pub struct Navigation {
     look_offset: Vec2,
     look_direction: Vec2,
     follow_position: Option<Vec2>,
-    game_sight_range: Option<f32>,
+    game_camera_range: Option<f32>,
 }
 
 impl Default for Navigation {
@@ -22,7 +22,7 @@ impl Default for Navigation {
             look_offset: Vec2::ZERO,
             look_direction: Vec2::ZERO,
             follow_position: None,
-            game_sight_range: None,
+            game_camera_range: None,
         }
     }
 }
@@ -37,7 +37,7 @@ impl Navigation {
             look_offset: Vec2::ZERO,
             look_direction: Vec2::ZERO,
             follow_position: None,
-            game_sight_range: None,
+            game_camera_range: None,
         }
     }
 
@@ -58,25 +58,27 @@ impl Navigation {
         (minimum.min(maximum), maximum)
     }
 
-    pub fn scroll_game(&mut self, wheel: f32, rect: Rect, sight_range: f32) {
-        self.advance_game_zoom(0.0, rect, sight_range);
-        let (min, max) = Self::game_zoom_limits(rect, sight_range);
+    pub fn scroll_game(&mut self, wheel: f32, rect: Rect, sight_range: f32, radar: bool) {
+        self.advance_game_zoom(0.0, rect, sight_range, radar);
+        let (min, max) = Self::game_zoom_limits(rect, sight_range * if radar { 3.0 } else { 2.0 });
         self.target_zoom = (self.target_zoom * (wheel * 0.11).exp()).clamp(min, max);
         self.anchor = None;
     }
 
-    pub fn advance_game_zoom(&mut self, dt: f32, rect: Rect, sight_range: f32) {
+    pub fn advance_game_zoom(&mut self, dt: f32, rect: Rect, sight_range: f32, radar: bool) {
+        // Twice the previous camera allowance, or three times inside friendly radar.
+        let sight_range = sight_range * if radar { 3.0 } else { 2.0 };
         let (min, max) = Self::game_zoom_limits(rect, sight_range);
-        if let Some(previous_range) = self.game_sight_range {
-            // Preserve the player's relative zoom as terrain changes sight.
+        if let Some(previous_range) = self.game_camera_range {
+            // Preserve the player's relative zoom as terrain or friendly radar changes camera range.
             // Only retarget here: the post-physics call has dt=0 and must not snap.
             self.target_zoom *= previous_range / sight_range;
         } else {
             self.zoom = self.zoom.clamp(min, max);
         }
-        self.game_sight_range = Some(sight_range);
+        self.game_camera_range = Some(sight_range);
         self.target_zoom = self.target_zoom.clamp(min, max);
-        // The lower zoom limit is approached smoothly on leaving elevation.
+        // The lower zoom limit is approached smoothly on leaving elevation or radar coverage.
         // The upper limit still protects tank visibility after a window resize.
         self.zoom = self.zoom.min(max);
         self.anchor = None;
@@ -193,13 +195,37 @@ mod tests {
         ] {
             for sight in [8.0, 24.0, 36.0] {
                 let mut camera = Navigation::default();
-                camera.scroll_game(-1000.0, rect, sight);
+                camera.scroll_game(-1000.0, rect, sight, false);
                 for _ in 0..120 {
-                    camera.advance_game_zoom(1.0 / 60.0, rect, sight);
+                    camera.advance_game_zoom(1.0 / 60.0, rect, sight, false);
                 }
                 let scale = Viewport::new(rect, camera.center, camera.zoom).scale;
-                assert!(rect.w.max(rect.h) / scale <= sight * 2.0 + 0.001);
+                assert!(rect.w.max(rect.h) / scale <= sight * 4.0 + 0.001);
             }
+        }
+    }
+
+    #[test]
+    fn radar_allows_three_times_previous_view_and_transitions_smoothly() {
+        let rect = Rect::new(0.0, 80.0, 1440.0, 723.0);
+        let mut camera = Navigation::default();
+        camera.scroll_game(-1000.0, rect, 24.0, false);
+        for _ in 0..240 {
+            camera.advance_game_zoom(1.0 / 60.0, rect, 24.0, false);
+        }
+        let width =
+            |camera: &Navigation| rect.w / Viewport::new(rect, camera.center, camera.zoom).scale;
+        assert!((width(&camera) - 96.0).abs() < 0.01);
+        for (radar, expected) in [(true, 144.0), (false, 96.0)] {
+            let before = camera.zoom;
+            camera.advance_game_zoom(0.0, rect, 24.0, radar);
+            assert!((camera.zoom - before).abs() < 1e-6);
+            camera.advance_game_zoom(1.0 / 60.0, rect, 24.0, radar);
+            assert!((camera.zoom - before).abs() < before * 0.03);
+            for _ in 0..240 {
+                camera.advance_game_zoom(1.0 / 60.0, rect, 24.0, radar);
+            }
+            assert!((width(&camera) - expected).abs() < 0.05);
         }
     }
 
@@ -219,9 +245,9 @@ mod tests {
             "respawn must snap to the tank"
         );
         for wheel in [1000.0, -1000.0] {
-            camera.scroll_game(wheel, rect, 24.0);
+            camera.scroll_game(wheel, rect, 24.0, false);
             for _ in 0..120 {
-                camera.advance_game_zoom(1.0 / 60.0, rect, 24.0);
+                camera.advance_game_zoom(1.0 / 60.0, rect, 24.0, false);
                 camera.follow_tank(tank, Some(mouse), 1.0 / 60.0, rect);
                 let view = Viewport::new(rect, camera.center, camera.zoom);
                 for corner in [vec2(-1.8, -1.8), vec2(1.8, 1.8)] {
@@ -229,7 +255,7 @@ mod tests {
                 }
             }
         }
-        camera.advance_game_zoom(0.0, rect, 8.0);
+        camera.advance_game_zoom(0.0, rect, 8.0, false);
         camera.follow_tank(Vec2::ZERO, None, 0.0, rect);
         assert!(rect.contains(Viewport::new(rect, camera.center, camera.zoom).screen(Vec2::ZERO)));
     }
@@ -253,18 +279,18 @@ mod tests {
     fn elevation_zoom_eases_in_both_directions_without_a_zero_dt_snap() {
         let rect = Rect::new(0.0, 80.0, 1440.0, 723.0);
         let mut camera = Navigation::default();
-        camera.advance_game_zoom(0.0, rect, 24.0);
+        camera.advance_game_zoom(0.0, rect, 24.0, false);
         let ground_zoom = camera.zoom;
         for (range, expected) in [(36.0, ground_zoom * 24.0 / 36.0), (24.0, ground_zoom)] {
             let before = camera.zoom;
-            camera.advance_game_zoom(0.0, rect, range);
+            camera.advance_game_zoom(0.0, rect, range, false);
             assert!((camera.zoom - before).abs() < 1e-6);
-            camera.advance_game_zoom(1.0 / 60.0, rect, range);
+            camera.advance_game_zoom(1.0 / 60.0, rect, range, false);
             assert!((camera.zoom - before).abs() > 0.0);
             assert!((camera.zoom - before).abs() < (expected - before).abs() * 0.1);
             let mut previous = camera.zoom;
             for _ in 0..240 {
-                camera.advance_game_zoom(1.0 / 60.0, rect, range);
+                camera.advance_game_zoom(1.0 / 60.0, rect, range, false);
                 assert!((camera.zoom - expected).abs() <= (previous - expected).abs() + 1e-6);
                 previous = camera.zoom;
             }

@@ -35,6 +35,9 @@ impl World {
         {
             return TerrainKind::Bridge;
         }
+        if let Some(mask) = &self.terrain_mask {
+            return mask.at(point);
+        }
         // Gaps win over driveable terrain; the newest gap determines its appearance.
         if let Some(patch) = self
             .terrain

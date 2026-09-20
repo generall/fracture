@@ -2,6 +2,8 @@
 //! Rigid chunks, elastic load paths, and adaptive fracture without health counters.
 
 mod ammunition;
+mod decoration;
+pub use decoration::{DecorationKind, DecorationView};
 pub mod experiment;
 pub mod level;
 mod material;

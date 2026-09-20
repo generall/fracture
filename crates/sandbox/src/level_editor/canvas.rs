@@ -5,7 +5,7 @@ impl LevelEditor {
         if self
             .geometry
             .as_ref()
-            .is_some_and(|(level, _)| level == &self.level)
+            .is_some_and(|(level, _)| level.items == self.level.items)
         {
             return;
         }
@@ -34,6 +34,9 @@ impl LevelEditor {
         pixels: f32,
         input: bool,
     ) {
+        if self.drag.is_none() {
+            self.brush_stroke = None;
+        }
         self.refresh_geometry();
         if self.fit_requested {
             let base = Viewport::new(rect, Vec2::ZERO, 1.0).scale;
@@ -58,6 +61,7 @@ impl LevelEditor {
                 && let Some(drag) = self.drag.take()
             {
                 self.level = drag.before;
+                self.brush_stroke = None;
                 self.selection = drag.selection;
                 self.clamp_selection();
             }
@@ -65,11 +69,35 @@ impl LevelEditor {
                 self.begin_drag(&view, mouse, point);
             }
             if self.drag.is_some() {
-                self.update_drag(point);
+                if self
+                    .drag
+                    .as_ref()
+                    .is_some_and(|d| matches!(d.kind, DragKind::Brush))
+                    && !rect.contains(mouse)
+                {
+                    if let Some(stroke) = &mut self.brush_stroke {
+                        stroke.pause();
+                    }
+                } else {
+                    self.update_drag(point);
+                }
             }
             if is_mouse_button_released(MouseButton::Left)
                 && let Some(drag) = self.drag.take()
             {
+                if matches!(drag.kind, DragKind::Brush) {
+                    if let Some(stroke) = self.brush_stroke.take() {
+                        if matches!(self.tool, Tool::Erase) {
+                            if let Err(error) = stroke.erase(&mut self.level) {
+                                self.level = drag.before.clone();
+                                self.status = error;
+                            }
+                        } else {
+                            stroke.apply(&mut self.level);
+                        }
+                    }
+                    self.clear_selection();
+                }
                 if matches!(drag.kind, DragKind::Erase) {
                     let (min, max, _) =
                         grid_rectangle(drag.start, point, self.level.size.into(), false);
@@ -79,8 +107,10 @@ impl LevelEditor {
                     }
                     self.clear_selection();
                 }
-                if !matches!(drag.kind, DragKind::Marquee | DragKind::Erase)
-                    && self.level != drag.before
+                if !matches!(
+                    drag.kind,
+                    DragKind::Marquee | DragKind::Erase | DragKind::Brush
+                ) && self.level != drag.before
                     && !is_key_down(KeyCode::LeftAlt)
                     && !is_key_down(KeyCode::RightAlt)
                 {
@@ -103,42 +133,39 @@ impl LevelEditor {
         let a = view.screen(-half);
         let b = view.screen(half);
         draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 2.0, MUTED);
-        let terrain: Vec<_> = self
-            .level
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let LevelItem::Terrain { terrain, min, max } = item {
-                    Some(sim::TerrainPatch {
-                        kind: *terrain,
-                        min: (*min).into(),
-                        max: (*max).into(),
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if self.tool.draws_cells() {
-            crate::terrain_view::draw(&terrain, &view);
+        if self
+            .terrain_cache
+            .as_ref()
+            .is_none_or(|(mask, _)| mask != &self.level.terrain_mask)
+        {
+            self.terrain_cache = Some((
+                self.level.terrain_mask.clone(),
+                self.level.terrain_mask.patches(),
+            ));
         }
-        let step = if view.scale < 8.0 && !self.tool.draws_cells() {
-            5
+        let terrain = &self.terrain_cache.as_ref().unwrap().1;
+        if self.tool.draws_cells() {
+            crate::terrain_view::draw(terrain, &view);
+        }
+        let step = if self.uses_brush() {
+            self.brush_grid
+        } else if view.scale < 8.0 && !self.tool.draws_cells() {
+            5.0
         } else {
-            1
+            1.0
         };
-        for x in (-(half.x as i32)..=half.x as i32).step_by(step) {
-            let a = view.screen(vec2(x as f32, -half.y));
-            let b = view.screen(vec2(x as f32, half.y));
+        for x in (-(half.x / step) as i32)..=(half.x / step) as i32 {
+            let a = view.screen(vec2(x as f32 * step, -half.y));
+            let b = view.screen(vec2(x as f32 * step, half.y));
             draw_line(a.x, a.y, b.x, b.y, 0.5, RULE);
         }
-        for y in (-(half.y as i32)..=half.y as i32).step_by(step) {
-            let a = view.screen(vec2(-half.x, y as f32));
-            let b = view.screen(vec2(half.x, y as f32));
+        for y in (-(half.y / step) as i32)..=(half.y / step) as i32 {
+            let a = view.screen(vec2(-half.x, y as f32 * step));
+            let b = view.screen(vec2(half.x, y as f32 * step));
             draw_line(a.x, a.y, b.x, b.y, 0.5, RULE);
         }
         if !self.tool.draws_cells() {
-            crate::terrain_view::draw(&terrain, &view);
+            crate::terrain_view::draw(terrain, &view);
         }
         if self
             .drag
@@ -168,7 +195,10 @@ impl LevelEditor {
             draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, Color { a: 0.08, ..CYAN });
             draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 1.5, CYAN);
         }
-        if matches!(self.tool, Tool::Erase) && (rect.contains(mouse) || self.drag.is_some()) {
+        if matches!(self.tool, Tool::Erase)
+            && !self.eraser_brush
+            && (rect.contains(mouse) || self.drag.is_some())
+        {
             let start = self.drag.as_ref().map_or(point, |drag| drag.start);
             let (min, max, _) = grid_rectangle(start, point, self.level.size.into(), false);
             let a = view.screen(min);
@@ -176,8 +206,23 @@ impl LevelEditor {
             draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, Color { a: 0.22, ..PINK });
             draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 2.0, PINK);
         }
+        let color = if matches!(self.tool, Tool::Erase) {
+            PINK
+        } else {
+            CYAN
+        };
+        if let Some(stroke) = &self.brush_stroke {
+            stroke.draw(&view, Color { a: 0.3, ..color });
+        }
+        let brush = self.uses_brush();
+        if brush && rect.contains(mouse) {
+            let mut cursor = self.stroke();
+            cursor.extend(point, self.brush_size, self.level.size.into());
+            cursor.draw(&view, Color { a: 0.4, ..color });
+        }
         if self.drag.is_none()
             && rect.contains(mouse)
+            && !brush
             && !matches!(self.tool, Tool::Select | Tool::Erase)
         {
             if let Some(mut item) = self.placement(point, point)
@@ -196,11 +241,13 @@ impl LevelEditor {
         draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, RULE);
         text(
             &format!(
-                "{} ITEMS / {:.0} x {:.0} M{}",
+                "{} OBJECTS / {:.0} x {:.0} M{}",
                 self.level.items.len(),
                 self.level.size[0],
                 self.level.size[1],
-                if self.tool.draws_cells() {
+                if self.uses_brush() && self.brush_grid == 0.5 {
+                    " / BRUSH GRID 0.5 M"
+                } else if self.tool.draws_cells() {
                     " / DRAW GRID 1 M"
                 } else {
                     ""
@@ -215,10 +262,16 @@ impl LevelEditor {
     fn begin_drag(&mut self, view: &Viewport, mouse: Vec2, point: Vec2) {
         if !matches!(self.tool, Tool::Select) {
             if self.tool.draws_cells() {
+                let brush = self.uses_brush();
+                if brush {
+                    self.brush_stroke = Some(self.stroke());
+                }
                 self.drag = Some(Drag {
                     before: self.level.clone(),
                     start: point,
-                    kind: if matches!(self.tool, Tool::Erase) {
+                    kind: if brush {
+                        DragKind::Brush
+                    } else if matches!(self.tool, Tool::Erase) {
                         DragKind::Erase
                     } else {
                         DragKind::Draw
@@ -300,32 +353,30 @@ impl LevelEditor {
                 }
             }
         }
-        let hit = self
-            .level
-            .items
-            .iter()
-            .enumerate()
-            .rev()
-            .filter(|(_, i)| !matches!(i, LevelItem::Terrain { .. }))
-            .chain(
-                self.level
-                    .items
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .filter(|(_, i)| matches!(i, LevelItem::Terrain { .. })),
-            )
-            .find(|(i, item)| {
-                self.item_mesh(*i).map_or_else(
-                    || contains(&item.world_outline(), s(point)),
-                    |mesh| {
-                        mesh.contains_point(
-                            sim::Vec2::from_angle(-item.angle()).rotate(s(point) - item.position()),
-                        )
-                    },
+        let hit =
+            self.level
+                .items
+                .iter()
+                .enumerate()
+                .rev()
+                .filter(|(_, i)| !matches!(i, LevelItem::Terrain { .. }))
+                .chain(
+                    self.level.items.iter().enumerate().rev().filter(|(_, i)| {
+                        self.category == 1 && matches!(i, LevelItem::Terrain { .. })
+                    }),
                 )
-            })
-            .map(|(i, _)| i);
+                .find(|(i, item)| {
+                    self.item_mesh(*i).map_or_else(
+                        || contains(&item.world_outline(), s(point)),
+                        |mesh| {
+                            mesh.contains_point(
+                                sim::Vec2::from_angle(-item.angle())
+                                    .rotate(s(point) - item.position()),
+                            )
+                        },
+                    )
+                })
+                .map(|(i, _)| i);
         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
         let hit =
             hit.filter(|&i| !(shift && matches!(self.level.items[i], LevelItem::Terrain { .. })));
@@ -362,8 +413,15 @@ impl LevelEditor {
     fn update_drag(&mut self, point: Vec2) {
         let drag = self.drag.as_ref().unwrap();
         let (start, kind) = (drag.start, drag.kind);
+        if matches!(kind, DragKind::Brush) {
+            if let Some(stroke) = &mut self.brush_stroke {
+                stroke.extend(point, self.brush_size, self.level.size.into());
+            }
+            return;
+        }
         self.level = drag.before.clone();
         match kind {
+            DragKind::Brush => unreachable!(),
             DragKind::Erase => {} // Preview only; apply the cut once on release.
             DragKind::Move => {
                 let desired = self.sticky_delta(s(point - start));
@@ -382,6 +440,9 @@ impl LevelEditor {
                 let hi = s(start.max(point));
                 let mut selected = self.drag.as_ref().unwrap().selection.clone();
                 for (i, item) in self.level.items.iter().enumerate() {
+                    if self.category != 1 && matches!(item, LevelItem::Terrain { .. }) {
+                        continue;
+                    }
                     if item
                         .world_outline()
                         .iter()
@@ -419,6 +480,11 @@ impl LevelEditor {
         }
     }
     fn place(&mut self, mut item: LevelItem) {
+        if let LevelItem::Terrain { terrain, min, max } = item {
+            self.level.paint_terrain(terrain, min.into(), max.into());
+            self.clear_selection();
+            return;
+        }
         if let Err(e) = item.fit_inside(self.level.size.into()) {
             self.status = e;
             return;
@@ -490,6 +556,7 @@ impl LevelEditor {
                 min: min.to_array(),
                 max: max.to_array(),
                 vertical,
+                flipped: false,
             }),
             Tool::Spawn(team) => Some(LevelItem::Spawn {
                 team: *team,
@@ -504,6 +571,8 @@ impl LevelEditor {
                 weapon: *weapon,
                 position: point.to_array(),
                 respawn_time: 20.0,
+                charges: 1,
+                cooldown: 5.0,
             }),
             Tool::Station(station) => Some(LevelItem::Station {
                 station: *station,
@@ -597,6 +666,24 @@ fn draw_item(
     vertices: bool,
     handles: bool,
 ) {
+    if let LevelItem::Object { asset, .. } = item
+        && let Some(kind) = asset.components.decoration
+    {
+        crate::view::decorations::draw(
+            &sim::DecorationView {
+                id: 0,
+                kind,
+                position: item.position(),
+                angle: item.angle(),
+                size: item.dimensions(),
+            },
+            view,
+            1.,
+        );
+        if !selected {
+            return;
+        }
+    }
     let color = match item {
         LevelItem::Object { asset, .. } => crate::object_library::asset_color(asset),
         LevelItem::Terrain {
@@ -653,6 +740,8 @@ fn draw_item(
         LevelItem::Pickup {
             weapon,
             respawn_time,
+            charges,
+            cooldown,
             ..
         } => {
             crate::view::pickup_marker(
@@ -660,6 +749,8 @@ fn draw_item(
                     position: item.position(),
                     weapon: *weapon,
                     respawn_time: *respawn_time,
+                    charges: *charges,
+                    cooldown: *cooldown,
                     remaining: 0.0,
                 },
                 view,
@@ -824,7 +915,10 @@ mod tests {
                 (vec2(500.0, 500.0), vec2(500.0, 502.0)),
             ] {
                 let item = checked_placement(&editor, start, end);
-                let LevelItem::Bridge { min, max, vertical } = item else {
+                let LevelItem::Bridge {
+                    min, max, vertical, ..
+                } = item
+                else {
                     unreachable!()
                 };
                 assert!(min.into_iter().chain(max).all(|n| n == n.floor()));

@@ -4,13 +4,19 @@ use serde::{Deserialize, Serialize};
 mod authoring;
 mod composition;
 mod stations;
+mod terrain_mask;
 pub use authoring::{clamp_translation, merge_items};
 pub use stations::{StationKind, StationSettings};
+pub use terrain_mask::{TERRAIN_CELL_SIZE, TerrainMask};
 
+pub const MAX_LEVEL_OBJECTS: usize = 192;
 pub const MAX_LEVEL_BYTES: usize = 2 * 1024 * 1024;
 pub const FLAG_RADIUS: f32 = 0.35;
 fn default_pickup_respawn() -> f32 {
     20.0
+}
+fn default_pickup_charges() -> u32 {
+    1
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,6 +64,10 @@ pub enum LevelItem {
         position: [f32; 2],
         #[serde(default = "default_pickup_respawn")]
         respawn_time: f32,
+        #[serde(default = "default_pickup_charges")]
+        charges: u32,
+        #[serde(default)]
+        cooldown: f32,
     },
     Station {
         station: StationKind,
@@ -75,6 +85,8 @@ pub enum LevelItem {
         min: [f32; 2],
         max: [f32; 2],
         vertical: bool,
+        #[serde(default)]
+        flipped: bool,
     },
     Spawn {
         team: Team,
@@ -129,6 +141,8 @@ pub struct Level {
     /// Arena dimensions in metres; origin at its centre.
     pub size: [f32; 2],
     pub items: Vec<LevelItem>,
+    #[serde(default, skip_serializing_if = "TerrainMask::is_empty")]
+    pub terrain_mask: TerrainMask,
     #[serde(default)]
     pub enemy_activity: EnemyActivity,
 }
@@ -136,6 +150,7 @@ impl Default for Level {
     fn default() -> Self {
         Self {
             version: 1,
+            terrain_mask: TerrainMask::default(),
             enemy_activity: EnemyActivity::Static,
             name: "Untitled level".into(),
             size: [48.0, 30.0],
@@ -168,6 +183,12 @@ impl Level {
     pub fn demo() -> Self {
         Self::from_json(include_str!("../../../web/levels/quarry-crossing.json"))
             .expect("bundled Quarry Crossing map is valid")
+    }
+
+    /// Large village-and-valley battlefield; loads as an editable copy.
+    pub fn river_valley() -> Self {
+        Self::from_json(include_str!("../../../levels/river-divide.json"))
+            .expect("bundled River Valley map is valid")
     }
 
     pub fn from_json(json: &str) -> Result<Self, String> {
@@ -205,8 +226,15 @@ impl Level {
         {
             return Err("Map dimensions must be 12–200 metres.".into());
         }
-        if self.items.len() > 128 {
-            return Err("Use at most 128 map items.".into());
+        self.terrain_mask.validate(self.size.into())?;
+        if self
+            .items
+            .iter()
+            .filter(|i| !matches!(i, LevelItem::Terrain { .. }))
+            .count()
+            > MAX_LEVEL_OBJECTS
+        {
+            return Err("Use at most 192 non-terrain items.".into());
         }
         let mut pieces = 5;
         let mut bridges = 0;
@@ -245,14 +273,32 @@ impl Level {
                 }
                 match item {
                     LevelItem::Object { asset, .. } => {
-                        Ok(asset.level_mesh()?.triangles.len() + asset.support_segments().len())
+                        let mesh = asset.level_mesh()?;
+                        Ok(if asset.components.decoration.is_some() {
+                            0
+                        } else {
+                            mesh.triangles.len() + asset.support_segments().len()
+                        })
                     }
                     LevelItem::Solid { outline, .. } => {
                         Ok(solid_asset(outline).level_mesh()?.triangles.len())
                     }
-                    LevelItem::Pickup { respawn_time, .. } => {
+                    LevelItem::Pickup {
+                        respawn_time,
+                        charges,
+                        cooldown,
+                        ..
+                    } => {
                         if !respawn_time.is_finite() || !(0.1..=600.0).contains(respawn_time) {
                             return Err("Pickup respawn time must be 0.1–600 seconds.".into());
+                        }
+                        if !(1..=99).contains(charges) {
+                            return Err(
+                                "Pickup charges must be a whole number from 1 to 99.".into()
+                            );
+                        }
+                        if !cooldown.is_finite() || !(0.0..=600.0).contains(cooldown) {
+                            return Err("Special weapon cooldown must be 0–600 seconds.".into());
                         }
                         Ok(0)
                     }
@@ -267,12 +313,19 @@ impl Level {
                         valid_rect(*min, *max)?;
                         Ok(0)
                     }
-                    LevelItem::Bridge { min, max, vertical } => {
+                    LevelItem::Bridge {
+                        min,
+                        max,
+                        vertical,
+                        flipped,
+                    } => {
                         valid_rect(*min, *max)?;
-                        Ok(bridge_mesh(Vec2::from(*max) - Vec2::from(*min), *vertical)?
-                            .triangles
-                            .len()
-                            + 2)
+                        Ok(
+                            bridge_mesh(Vec2::from(*max) - Vec2::from(*min), *vertical, *flipped)?
+                                .triangles
+                                .len()
+                                + 2,
+                        )
                     }
                     LevelItem::Flag { team, .. } | LevelItem::Spawn { team, .. } => {
                         if self.items[..i].iter().any(|other| {
@@ -395,8 +448,14 @@ impl LevelItem {
     }
     pub fn world_outline(&self) -> Vec<Vec2> {
         let mut points = self.local_outline();
-        if let Self::Bridge { min, max, vertical } = self
-            && let Ok(asset) = bridge_asset(Vec2::from(*max) - Vec2::from(*min), *vertical)
+        if let Self::Bridge {
+            min,
+            max,
+            vertical,
+            flipped,
+        } = self
+            && let Ok(asset) =
+                bridge_asset(Vec2::from(*max) - Vec2::from(*min), *vertical, *flipped)
         {
             points = asset.outline;
         }
@@ -528,7 +587,11 @@ pub(crate) fn solid_asset(outline: &[[f32; 2]]) -> ObjectAsset {
 }
 
 /// Same reinforced booth / untargetable deck model as the terrain range.
-pub(crate) fn bridge_asset(size: Vec2, vertical: bool) -> Result<ObjectAsset, String> {
+pub(crate) fn bridge_asset(
+    size: Vec2,
+    vertical: bool,
+    flipped: bool,
+) -> Result<ObjectAsset, String> {
     let size = if vertical {
         Vec2::new(size.y, size.x)
     } else {
@@ -562,13 +625,18 @@ pub(crate) fn bridge_asset(size: Vec2, vertical: bool) -> Result<ObjectAsset, St
             *p = [-p[1], p[0]];
         }
     }
+    if flipped {
+        for p in &mut a.outline {
+            *p = [-p[0], -p[1]];
+        }
+    }
     Ok(a)
 }
 
 /// A conforming grid with explicit deck/booth edges. The fixed-size booths
 /// retain their targetable cells even when the crossing is hundreds of metres.
-pub(crate) fn bridge_mesh(size: Vec2, vertical: bool) -> Result<ObjectMesh, String> {
-    bridge_asset(size, vertical)?;
+pub(crate) fn bridge_mesh(size: Vec2, vertical: bool, flipped: bool) -> Result<ObjectMesh, String> {
+    bridge_asset(size, vertical, flipped)?;
     let size = if vertical {
         Vec2::new(size.y, size.x)
     } else {
@@ -613,6 +681,11 @@ pub(crate) fn bridge_mesh(size: Vec2, vertical: bool) -> Result<ObjectMesh, Stri
             let grain = mesh.grains.len() / 2;
             mesh.triangles.extend([[a, b, c], [a, c, d]]);
             mesh.grains.extend([grain; 2]);
+        }
+    }
+    if flipped {
+        for p in &mut mesh.vertices {
+            *p = -*p;
         }
     }
     Ok(mesh)

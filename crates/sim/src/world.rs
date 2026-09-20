@@ -33,6 +33,7 @@ mod chunks;
 mod combat;
 mod components;
 mod contacts;
+mod decorations;
 mod enemy;
 mod geometry;
 mod level;
@@ -227,7 +228,11 @@ pub struct World {
     player_aim: aiming::AimState,
     primary_ammunition: Ammunition,
     special: Option<crate::SpecialWeapon>,
+    special_charges: u32,
+    special_interval: f32,
+    special_reload: f32,
     pickups: Vec<specials::Pickup>,
+    decorations: Vec<decorations::Decoration>,
     laser_remaining: f32,
     laser_pulse_in: f32,
     last_ammunition: Ammunition,
@@ -248,6 +253,7 @@ pub struct World {
     tank_speed_limit: f32,
     objects: Vec<components::ObjectInstance>,
     terrain: Vec<crate::TerrainPatch>,
+    terrain_mask: Option<crate::level::TerrainMask>,
     bridges: Vec<terrain::Bridge>,
     terrain_barriers: Vec<ColliderHandle>,
     tank_fall: Option<f32>,
@@ -355,6 +361,7 @@ impl World {
         if self.winner.is_none() {
             self.update_stations();
         }
+        self.update_decorations();
         self.cleanup_debris();
         self.tick += 1;
         events

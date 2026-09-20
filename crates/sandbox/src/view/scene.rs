@@ -25,6 +25,7 @@ impl From<sim::BridgeView<'_>> for Bridge {
 #[derive(Clone, Default)]
 pub(crate) struct Scene {
     pub bodies: Vec<BodyView>,
+    pub decorations: Vec<(sim::DecorationView, f32)>,
     pub tanks: Vec<TankView>,
     pub flags: Vec<(Team, Vec2, f32)>,
     pub bridges: Vec<Bridge>,
@@ -35,6 +36,7 @@ impl Scene {
     pub fn capture(world: &World) -> Self {
         Self {
             bodies: world.bodies().collect(),
+            decorations: world.decorations().map(|p| (p, 1.)).collect(),
             tanks: world.tanks().collect(),
             flags: world.flags().map(|(t, p)| (t, p, 1.0)).collect(),
             bridges: world.bridges().map(Bridge::from).collect(),
@@ -59,6 +61,12 @@ impl Scene {
                 }
                 tank
             }));
+        self.decorations.extend(
+            snapshot
+                .decorations
+                .iter()
+                .map(|&(p, a)| (p, a * if remembered { 0.32 } else { 1. })),
+        );
         self.stations.extend(
             snapshot
                 .stations

@@ -8,6 +8,20 @@ impl World {
         mesh: &crate::ObjectMesh,
         origin: Vector,
     ) {
+        if let Some(kind) = object.components.decoration {
+            let min = object
+                .outline
+                .iter()
+                .map(|p| Vector::from(*p))
+                .fold(Vector::splat(f32::INFINITY), Vector::min);
+            let max = object
+                .outline
+                .iter()
+                .map(|p| Vector::from(*p))
+                .fold(Vector::splat(f32::NEG_INFINITY), Vector::max);
+            self.add_decoration(kind, origin + (min + max) * 0.5, 0., max - min);
+            return;
+        }
         let material = object.surface.material();
         let object_id = self.objects.len();
         self.objects.push(components::ObjectInstance {

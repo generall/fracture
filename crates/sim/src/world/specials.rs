@@ -1,4 +1,4 @@
-//! Collectible, single-use weapons and main-gun round changes.
+//! Collectible weapon charges, independent cooldowns and main-gun round changes.
 use super::*;
 use crate::SpecialWeapon;
 
@@ -7,6 +7,8 @@ pub struct PickupView {
     pub position: Vector,
     pub weapon: SpecialWeapon,
     pub respawn_time: f32,
+    pub charges: u32,
+    pub cooldown: f32,
     pub remaining: f32,
 }
 pub(super) type Pickup = PickupView;
@@ -21,6 +23,19 @@ impl World {
     pub fn laser_remaining(&self) -> f32 {
         self.laser_remaining
     }
+    pub fn special_charges(&self) -> u32 {
+        self.special_charges
+    }
+    pub fn special_cooldown(&self) -> f32 {
+        self.special_reload
+    }
+    fn consume_special_charge(&mut self, duration: f32) {
+        self.special_charges -= 1;
+        self.special_reload = duration + self.special_interval;
+        if self.special_charges == 0 {
+            self.special = None;
+        }
+    }
     pub(super) fn select_main_ammunition(&mut self, ammunition: Ammunition) {
         if ammunition.special() || ammunition == self.primary_ammunition {
             return;
@@ -30,12 +45,16 @@ impl World {
         self.last_ammunition = ammunition;
     }
     pub(super) fn activate_special(&mut self, events: &mut Vec<Event>) {
-        if !self.tank_is_alive(self.launcher) || self.laser_remaining > 0.0 {
+        if !self.tank_is_alive(self.launcher)
+            || self.laser_remaining > 0.0
+            || self.special_reload > 1e-5
+            || self.special_charges == 0
+        {
             return;
         }
         match self.special {
             Some(SpecialWeapon::Laser) => {
-                self.special = None;
+                self.consume_special_charge(3.0);
                 self.laser_remaining = 3.0;
                 self.laser_pulse_in = 0.0;
             }
@@ -50,19 +69,25 @@ impl World {
                 self.reload = reload;
                 self.last_ammunition = last;
                 if self.shots > before {
-                    self.special = None;
+                    self.consume_special_charge(0.0);
                 }
             }
             None => {}
         }
     }
     pub(super) fn update_specials(&mut self, events: &mut Vec<Event>) {
+        self.special_reload = (self.special_reload - TICK_DT).max(0.0);
+        if self.special_reload < TICK_DT * 0.5 {
+            self.special_reload = 0.0;
+        }
         for pickup in &mut self.pickups {
             pickup.remaining = (pickup.remaining - TICK_DT).max(0.0);
         }
         if !self.tank_is_alive(self.launcher) {
             self.laser_remaining = 0.0;
             self.special = None;
+            self.special_charges = 0;
+            self.special_reload = 0.0;
             self.laser_beam = None;
             return;
         }
@@ -90,6 +115,8 @@ impl World {
                 p.remaining <= 0.0 && local.x.abs() <= 1.25 && local.y.abs() <= 1.0
             }) {
                 self.special = Some(pickup.weapon);
+                self.special_charges = pickup.charges;
+                self.special_interval = pickup.cooldown;
                 pickup.remaining = pickup.respawn_time;
             }
         }
@@ -106,10 +133,104 @@ mod tests {
             weapon,
             position: [-18.0, 0.0],
             respawn_time: 1.0,
+            charges: 1,
+            cooldown: 0.0,
         });
         let saved = level.to_json().unwrap();
         World::from_level(&Level::from_json(&saved).unwrap(), Team::Blue).unwrap()
     }
+    #[test]
+    fn three_rockets_respect_five_second_cooldown_and_preserve_main_reload() {
+        let mut w = pickup_level(SpecialWeapon::Rocket);
+        w.pickups[0].charges = 3;
+        w.pickups[0].cooldown = 5.0;
+        w.step(&[]);
+        assert_eq!(w.special_charges(), 3);
+        let handle = w.pieces[w.launcher].body;
+        w.physics.bodies[handle].set_translation(Vector::new(-15.0, 0.0), true);
+        w.reload = 0.6;
+        w.activate_special(&mut vec![]);
+        assert_eq!(w.reload, 0.6);
+        assert_eq!(w.special_charges(), 2);
+        assert_eq!(w.special_cooldown(), 5.0);
+        for _ in 0..590 {
+            w.step(&[Command::ActivateSpecial]);
+        }
+        assert_eq!(w.shots, 1);
+        assert_eq!(w.special_charges(), 2);
+        for _ in 0..20 {
+            w.step(&[]);
+        }
+        w.step(&[Command::ActivateSpecial]);
+        assert_eq!(w.shots, 2);
+        assert_eq!(w.special_charges(), 1);
+        for _ in 0..610 {
+            w.step(&[]);
+        }
+        w.step(&[Command::ActivateSpecial]);
+        assert_eq!(w.shots, 3);
+        assert_eq!(w.special_charges(), 0);
+        assert_eq!(w.carried_special(), None);
+    }
+
+    #[test]
+    fn laser_charge_is_a_complete_burst_then_cools_down() {
+        let mut w = pickup_level(SpecialWeapon::Laser);
+        w.pickups[0].charges = 2;
+        w.pickups[0].cooldown = 5.0;
+        w.step(&[]);
+        w.step(&[Command::ActivateSpecial]);
+        assert_eq!(w.special_charges(), 1);
+        for _ in 0..360 {
+            w.step(&[Command::ActivateSpecial]);
+        }
+        assert_eq!(w.laser_remaining(), 0.0);
+        assert!(w.special_cooldown() > 4.9);
+        assert_eq!(w.shots, 30);
+        for _ in 0..580 {
+            w.step(&[Command::ActivateSpecial]);
+        }
+        assert_eq!(w.shots, 30);
+        for _ in 0..30 {
+            w.step(&[]);
+        }
+        w.step(&[Command::ActivateSpecial]);
+        assert!(w.laser_remaining() > 2.9);
+        assert_eq!(w.special_charges(), 0);
+    }
+
+    #[test]
+    fn pickup_charge_settings_roundtrip_and_old_maps_keep_single_use_defaults() {
+        let mut level = Level::default();
+        level.items.push(LevelItem::Pickup {
+            weapon: SpecialWeapon::Rocket,
+            position: [0.0, 0.0],
+            respawn_time: 20.0,
+            charges: 3,
+            cooldown: 5.0,
+        });
+        assert_eq!(level, Level::from_json(&level.to_json().unwrap()).unwrap());
+        let mut json = serde_json::to_value(&level).unwrap();
+        let pickup = json["items"]
+            .as_array_mut()
+            .unwrap()
+            .last_mut()
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        pickup.remove("charges");
+        pickup.remove("cooldown");
+        let legacy = Level::from_json(&json.to_string()).unwrap();
+        assert!(matches!(
+            legacy.items.last(),
+            Some(LevelItem::Pickup {
+                charges: 1,
+                cooldown: 0.0,
+                ..
+            })
+        ));
+    }
+
     #[test]
     fn pickup_is_required_consumed_and_respawns_without_overwriting_inventory() {
         let mut w = pickup_level(SpecialWeapon::Rocket);
@@ -191,6 +312,7 @@ mod tests {
             .map(|p| p.shape.area())
             .sum();
         w.special = Some(SpecialWeapon::Rocket);
+        w.special_charges = 1;
         let target = Vector::new(3.0, 0.0);
         w.step(&[Command::Aim(target), Command::ActivateSpecial]);
         for _ in 0..360 {

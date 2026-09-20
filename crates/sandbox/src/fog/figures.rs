@@ -12,6 +12,7 @@ pub(super) enum Id {
     Flag(u8),
     Bridge(usize),
     Pickup(usize),
+    Decoration(usize),
 }
 #[derive(Clone, Default)]
 pub(super) struct Figure {
@@ -187,6 +188,19 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
                 .tanks
                 .extend(world.tanks().filter(|t| t.id == body.id));
         }
+    }
+    for prop in world.decorations() {
+        result.insert(
+            Id::Decoration(prop.id),
+            Figure {
+                polygons: vec![prop.outline()],
+                snapshot: Scene {
+                    decorations: vec![(prop, 1.)],
+                    ..Scene::default()
+                },
+                ..Figure::default()
+            },
+        );
     }
     for station in world.stations() {
         if let Some(figure) = result.get_mut(&Id::Object(station.object, u32::MAX)) {
@@ -515,5 +529,61 @@ mod tests {
         assert!(!memory.remembered.contains_key(&id));
         assert!(frame.scene.flags.is_empty(), "clear the old complete image");
         assert!(frame.visible.is_empty(), "don't disclose its new position");
+    }
+}
+
+#[cfg(test)]
+mod decoration_tests {
+    use super::*;
+    #[test]
+    fn decoration_memory_does_not_reveal_unseen_destruction() {
+        use sim::{
+            Ammunition, Command, LibraryPreset, Shot,
+            level::{Level, LevelItem, Team},
+        };
+        let level = Level {
+            items: vec![
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [0., 0.],
+                    angle: 0.,
+                },
+                LevelItem::Object {
+                    asset: Box::new(LibraryPreset::Crate.asset()),
+                    position: [8., 0.],
+                    angle: 0.,
+                    cutouts: vec![],
+                },
+            ],
+            ..Level::default()
+        };
+        let mut w = World::from_level(&level, Team::Blue).unwrap();
+        let mut fog = Figures::default();
+        assert_eq!(
+            fog.update(&w, &w.player_vision(0.), 0.)
+                .scene
+                .decorations
+                .len(),
+            1
+        );
+        let away = w.player_vision(std::f32::consts::PI);
+        fog.update(&w, &away, 2.);
+        w.step(&[Command::Fire(Shot::new(
+            Ammunition::ArmorPiercing,
+            Vec2::new(12., 0.),
+        ))]);
+        for _ in 0..120 {
+            w.step(&[]);
+        }
+        assert_eq!(w.decorations().count(), 0);
+        let memory = fog.update(&w, &away, 3.).scene;
+        assert_eq!(memory.decorations.len(), 1);
+        assert!(memory.decorations[0].1 < 1.);
+        assert!(
+            fog.update(&w, &w.player_vision(0.), 4.)
+                .scene
+                .decorations
+                .is_empty()
+        );
     }
 }

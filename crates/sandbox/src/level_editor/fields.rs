@@ -50,6 +50,14 @@ impl LevelEditor {
                     0.0
                 }
             }
+            Field::PickupCharges => match item {
+                Some(LevelItem::Pickup { charges, .. }) => *charges as f32,
+                _ => 0.0,
+            },
+            Field::PickupCooldown => match item {
+                Some(LevelItem::Pickup { cooldown, .. }) => *cooldown,
+                _ => 0.0,
+            },
             Field::Name => unreachable!(),
         };
         format!("{value:.2}")
@@ -205,6 +213,19 @@ impl LevelEditor {
                         Field::PickupRespawn => {
                             if let LevelItem::Pickup { respawn_time, .. } = item {
                                 *respawn_time = n;
+                            }
+                        }
+                        Field::PickupCharges => {
+                            if n.fract() != 0.0 || !(1.0..=99.0).contains(&n) {
+                                return Err("Charges must be a whole number from 1 to 99.".into());
+                            }
+                            if let LevelItem::Pickup { charges, .. } = item {
+                                *charges = n as u32;
+                            }
+                        }
+                        Field::PickupCooldown => {
+                            if let LevelItem::Pickup { cooldown, .. } = item {
+                                *cooldown = n;
                             }
                         }
                         Field::CaptureTime

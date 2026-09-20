@@ -1,5 +1,47 @@
 use super::*;
 use crate::{Ammunition, LibraryPreset};
+
+#[test]
+fn rotating_bridge_turns_deck_booths_and_collision_geometry_through_four_orientations() {
+    let mut level = Level::default();
+    let original = LevelItem::Bridge {
+        min: [-1.0, -0.5],
+        max: [5.0, 2.5],
+        vertical: false,
+        flipped: false,
+    };
+    let center = original.position();
+    let outline = original.world_outline();
+    level.items.push(original.clone());
+    let index = level.items.len() - 1;
+    let mut initial_controls = None;
+    let mut initial_counts = None;
+    for turn in 0..4 {
+        let rotation = Vector::from_angle(turn as f32 * std::f32::consts::FRAC_PI_2);
+        for (point, original_point) in level.items[index].world_outline().iter().zip(&outline) {
+            assert!(point.distance(center + rotation.rotate(*original_point - center)) < 1e-4);
+        }
+        assert_eq!(level, Level::from_json(&level.to_json().unwrap()).unwrap());
+        let mut world = World::from_level(&level, Team::Blue).unwrap();
+        let controls = world.bridges().next().unwrap().controls;
+        let initial = *initial_controls.get_or_insert(controls);
+        for i in 0..2 {
+            assert!(controls[i].distance(center + rotation.rotate(initial[i] - center)) < 1e-4);
+        }
+        let counts = (
+            world.pieces.iter().filter(|p| p.bridge_deck).count(),
+            world.pieces.len(),
+        );
+        assert_eq!(counts, *initial_counts.get_or_insert(counts));
+        for _ in 0..30 {
+            world.step(&[]);
+        }
+        assert!(world.bridges().next().unwrap().intact);
+        level.items[index].rotate_bridge(level.size.into()).unwrap();
+    }
+    assert_eq!(level.items[index], original);
+}
+
 fn fixture() -> Level {
     Level {
         size: [24.0, 15.0],
@@ -545,7 +587,12 @@ fn authored_bridges_cross_and_keep_deck_immune_in_both_orientations() {
             min: water_min,
             max: water_max,
         });
-        l.items.push(LevelItem::Bridge { min, max, vertical });
+        l.items.push(LevelItem::Bridge {
+            min,
+            max,
+            vertical,
+            flipped: false,
+        });
         let mut w = World::from_level(&l, Team::Blue).unwrap();
         for ammo in Ammunition::ALL {
             w.step(&[Command::Fire(Shot::new(ammo, Vector::ZERO))]);
@@ -582,6 +629,7 @@ fn bridge_booths_need_real_banks() {
         min: [-3.4, -1.5],
         max: [3.4, 1.5],
         vertical: false,
+        flipped: false,
     });
     assert!(
         World::from_level(&l, Team::Blue)
@@ -613,7 +661,12 @@ fn large_bridge_remains_intact_at_rest_and_only_booths_are_targetable() {
         } else {
             ([-60., -10.], [60., 10.])
         };
-        level.items.push(LevelItem::Bridge { min, max, vertical });
+        level.items.push(LevelItem::Bridge {
+            min,
+            max,
+            vertical,
+            flipped: false,
+        });
         let mut world = World::from_level(&level, Team::Blue).unwrap();
         for _ in 0..240 {
             world.step(&[]);

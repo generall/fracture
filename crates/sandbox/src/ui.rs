@@ -303,9 +303,22 @@ impl Inspector {
             if ready { CYAN } else { PINK },
         );
         let special_label = if world.laser_remaining() > 0.0 {
-            format!("LASER / {:.1}s", world.laser_remaining())
+            format!(
+                "LASER {:.1}s / x{}",
+                world.laser_remaining(),
+                world.special_charges()
+            )
         } else if let Some(weapon) = world.carried_special() {
-            format!("RMB / {}", weapon.label())
+            if world.special_cooldown() > 0.0 {
+                format!(
+                    "{} x{} / {:.1}s",
+                    weapon.label(),
+                    world.special_charges(),
+                    world.special_cooldown()
+                )
+            } else {
+                format!("RMB / {} x{}", weapon.label(), world.special_charges())
+            }
         } else {
             "SPECIAL / EMPTY".into()
         };

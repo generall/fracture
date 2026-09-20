@@ -209,6 +209,8 @@ impl World {
             self.laser_beam = None;
             self.laser_remaining = 0.0;
             self.special = None;
+            self.special_charges = 0;
+            self.special_reload = 0.0;
         }
         events.push(Event::TankDestroyed {
             position,

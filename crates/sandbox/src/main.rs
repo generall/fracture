@@ -217,16 +217,24 @@ async fn main() {
             let wheel = mouse_wheel().1;
             if wheel != 0.0 {
                 if game_camera {
-                    lab.navigation
-                        .scroll_game(wheel, chamber, lab.world.player_sight_range());
+                    lab.navigation.scroll_game(
+                        wheel,
+                        chamber,
+                        lab.world.player_sight_range(),
+                        lab.world.player_in_radar_zone(),
+                    );
                 } else {
                     lab.navigation.scroll(wheel, mouse, chamber);
                 }
             }
         }
         if game_camera {
-            lab.navigation
-                .advance_game_zoom(wall_dt, chamber, lab.world.player_sight_range());
+            lab.navigation.advance_game_zoom(
+                wall_dt,
+                chamber,
+                lab.world.player_sight_range(),
+                lab.world.player_in_radar_zone(),
+            );
         } else {
             lab.navigation.advance(wall_dt, chamber);
         }
@@ -330,8 +338,12 @@ async fn main() {
                 .unwrap();
             let position = Vec2::new(tank.previous_position.x, tank.previous_position.y)
                 .lerp(Vec2::new(tank.position.x, tank.position.y), alpha);
-            lab.navigation
-                .advance_game_zoom(0.0, chamber, lab.world.player_sight_range());
+            lab.navigation.advance_game_zoom(
+                0.0,
+                chamber,
+                lab.world.player_sight_range(),
+                lab.world.player_in_radar_zone(),
+            );
             lab.navigation
                 .follow_tank(position, in_chamber.then_some(mouse), wall_dt, chamber);
         }

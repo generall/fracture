@@ -58,8 +58,8 @@ impl LevelEditor {
             self.status = "Copy objects first. Each team keeps one spawn and one flag.".into();
             return;
         }
-        if self.level.items.len() + copies.len() > 128 {
-            self.status = "The map's 128-item budget is full.".into();
+        if self.level.items.len() + copies.len() > sim::level::MAX_LEVEL_OBJECTS {
+            self.status = "The map's object budget is full; terrain does not count.".into();
             return;
         }
         self.paste_count += 1;
@@ -239,6 +239,48 @@ fn fit_clipboard(items: &mut [LevelItem], size: sim::Vec2) -> Result<(), String>
         item.translate(delta);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auto_join_closes_a_room_and_connects_a_divider_at_both_ends() {
+        let mut editor = LevelEditor::new();
+        editor.level.items.clear();
+        for (x, y, width, height) in [
+            (0., -3., 8., 2.),
+            (-3., 0., 2., 8.),
+            (0., 3., 8., 2.),
+            (3., 0., 2., 8.),
+            (0., 0., 2., 4.),
+        ] {
+            editor.level.items.push(LevelItem::Object {
+                asset: Box::new(sim::level::wall_asset(sim::Vec2::new(width, height))),
+                position: [x, y],
+                angle: 0.,
+                cutouts: vec![],
+            });
+            editor.select_one(editor.level.items.len() - 1);
+            editor.join_touching();
+            assert_eq!(
+                editor.level.items.len(),
+                1,
+                "every drawn section must connect"
+            );
+        }
+        let mesh = editor.level.resolved_meshes().unwrap().remove(0).unwrap();
+        let center = editor.level.items[0].position();
+        assert!((mesh.area - 56.0).abs() < 0.01);
+        assert!(!mesh.contains_point(sim::Vec2::new(-1.5, 0.) - center));
+        assert!(!mesh.contains_point(sim::Vec2::new(1.5, 0.) - center));
+        assert!(mesh.contains_point(-center));
+        assert_eq!(
+            editor.level,
+            Level::from_json(&editor.level.to_json().unwrap()).unwrap()
+        );
+    }
 }
 
 pub(super) fn item_bounds(item: &LevelItem) -> (sim::Vec2, sim::Vec2) {

@@ -37,6 +37,14 @@ impl World {
         let mut w = Self::new(Scene::Level);
         w.team = team;
         w.arena_size = Vector::from(level.size);
+        w.terrain = level.terrain_mask.patches();
+        if !level
+            .items
+            .iter()
+            .any(|i| matches!(i, LevelItem::Terrain { .. }))
+        {
+            w.terrain_mask = Some(level.terrain_mask.clone());
+        }
         // Keep the normal world constructor and replace its four arena edges.
         let half = Vector::from(level.size) * 0.5;
         for (id, (center, size)) in [
@@ -65,6 +73,10 @@ impl World {
                     angle,
                     ..
                 } => {
+                    if let Some(kind) = asset.components.decoration {
+                        w.add_decoration(kind, Vector::from(*position), *angle, item.dimensions());
+                        continue;
+                    }
                     let mut mesh = meshes[index].clone().unwrap();
                     if mesh.triangles.is_empty() {
                         continue;
@@ -134,8 +146,13 @@ impl World {
                     min: Vector::from(*min),
                     max: Vector::from(*max),
                 }),
-                LevelItem::Bridge { min, max, vertical } => {
-                    w.add_level_bridge(Vector::from(*min), Vector::from(*max), *vertical)?
+                LevelItem::Bridge {
+                    min,
+                    max,
+                    vertical,
+                    flipped,
+                } => {
+                    w.add_level_bridge(Vector::from(*min), Vector::from(*max), *vertical, *flipped)?
                 }
                 LevelItem::Flag { team, position } => w.flags.push(Flag {
                     team: *team,
@@ -145,10 +162,14 @@ impl World {
                     weapon,
                     position,
                     respawn_time,
+                    charges,
+                    cooldown,
                 } => w.pickups.push(specials::Pickup {
                     weapon: *weapon,
                     position: Vector::from(*position),
                     respawn_time: *respawn_time,
+                    charges: *charges,
+                    cooldown: *cooldown,
                     remaining: 0.0,
                 }),
                 LevelItem::Spawn { .. } => {}
@@ -239,10 +260,16 @@ impl World {
         Ok(())
     }
 
-    fn add_level_bridge(&mut self, min: Vector, max: Vector, vertical: bool) -> Result<(), String> {
+    fn add_level_bridge(
+        &mut self,
+        min: Vector,
+        max: Vector,
+        vertical: bool,
+        flipped: bool,
+    ) -> Result<(), String> {
         let center = (min + max) * 0.5;
-        let asset = bridge_asset(max - min, vertical)?;
-        let mesh = bridge_mesh(max - min, vertical)?;
+        let asset = bridge_asset(max - min, vertical, flipped)?;
+        let mesh = bridge_mesh(max - min, vertical, flipped)?;
         let first = self.pieces.len();
         let object = self.objects.len();
         self.add_object(&asset, &mesh, center);
@@ -257,6 +284,7 @@ impl World {
             if let Shape::Triangle { vertices } = p.shape {
                 p.bridge_deck = vertices.iter().any(|v| {
                     let point = *v + p.previous_position;
+                    let point = if flipped { center * 2.0 - point } else { point };
                     if vertical {
                         point.x > min.x + 1e-4
                     } else {
@@ -278,6 +306,7 @@ impl World {
                 Vector::new(min.x + 0.4, max.y + 0.55),
             ]
         };
+        let controls = controls.map(|p| if flipped { center * 2.0 - p } else { p });
         self.bridges.push(terrain::Bridge::new(
             object,
             [anchors[0], anchors[1]],

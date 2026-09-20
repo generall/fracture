@@ -1,3 +1,4 @@
+pub(crate) mod decorations;
 pub(crate) mod scene;
 pub(crate) mod tank_parts;
 mod weapon_effects;
@@ -320,6 +321,9 @@ pub fn draw_world(
         pickup_marker(pickup, viewport, *opacity);
     }
     draw_bridges(scene, viewport);
+    for (prop, opacity) in &scene.decorations {
+        decorations::draw(prop, viewport, *opacity);
+    }
     draw_objects(scene, viewport, alpha, overlay);
     for (station, opacity) in &scene.stations {
         station_marker(
@@ -339,6 +343,11 @@ pub fn draw_world(
         effect.draw(viewport, alpha);
     }
     draw_tanks(world, scene, viewport, alpha);
+    for (prop, age) in world.decoration_bursts() {
+        if vision.is_none_or(|v| v.intersects_polygon(&prop.outline())) {
+            decorations::burst(&prop, age, viewport);
+        }
+    }
     draw_effects(world, viewport, alpha, sparks, blasts, vision);
     draw_crosshair(world, viewport, aim, alpha);
 }
