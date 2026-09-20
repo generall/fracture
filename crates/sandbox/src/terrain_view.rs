@@ -1,5 +1,5 @@
 //! A cached rectangle arrangement: opaque fills and only exposed terrain edges.
-//! Shared by the level editor and the live world, including water precedence.
+//! Shared by the level editor and the live world, including impassable terrain precedence.
 use crate::{ui::*, view::Viewport};
 use macroquad::prelude::*;
 use sim::{TerrainKind as Kind, TerrainPatch};
@@ -28,6 +28,10 @@ fn colors(kind: Kind) -> (Color, Color) {
             Color::from_rgba(190, 161, 120, 255),
             Color::from_rgba(43, 37, 30, 255),
         ),
+        Kind::Cliff => (
+            Color::from_rgba(158, 146, 132, 255),
+            Color::from_rgba(31, 28, 27, 255),
+        ),
         Kind::Water => (
             Color::from_rgba(91, 171, 227, 255),
             Color::from_rgba(13, 28, 44, 255),
@@ -54,8 +58,8 @@ impl Surface {
         let mut cells = vec![None; nx * ny];
         for p in source
             .iter()
-            .filter(|p| p.kind != Kind::Water)
-            .chain(source.iter().filter(|p| p.kind == Kind::Water))
+            .filter(|p| !p.kind.blocks_tanks())
+            .chain(source.iter().filter(|p| p.kind.blocks_tanks()))
         {
             let ix = |n: f32| xs.binary_search_by(|x| x.total_cmp(&n)).unwrap();
             let iy = |n: f32| ys.binary_search_by(|y| y.total_cmp(&n)).unwrap();
@@ -125,6 +129,38 @@ pub fn draw(patches: &[TerrainPatch], view: &Viewport) {
             let a = view.screen(vec2(p.min.x, p.min.y));
             let b = view.screen(vec2(p.max.x, p.max.y));
             draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, colors(p.kind).1);
+            if p.kind == Kind::Cliff {
+                // World-aligned stone fissures, clipped to the composed surface.
+                let spacing = 1.6_f32.max(14.0 / view.scale);
+                let mut x = (p.min.x / spacing).floor() * spacing;
+                while x < p.max.x {
+                    let mut y = (p.min.y / spacing).floor() * spacing;
+                    while y < p.max.y {
+                        let points = [
+                            vec2(x + spacing * 0.15, y + spacing * 0.3),
+                            vec2(x + spacing * 0.4, y + spacing * 0.45),
+                            vec2(x + spacing * 0.55, y + spacing * 0.8),
+                            vec2(x + spacing * 0.85, y + spacing * 0.65),
+                        ];
+                        for pair in points.windows(2) {
+                            let lo = vec2(p.min.x, p.min.y);
+                            let hi = vec2(p.max.x, p.max.y);
+                            let from = view.screen(pair[0].clamp(lo, hi));
+                            let to = view.screen(pair[1].clamp(lo, hi));
+                            draw_line(
+                                from.x,
+                                from.y,
+                                to.x,
+                                to.y,
+                                1.0,
+                                Color::from_rgba(72, 63, 55, 255),
+                            );
+                        }
+                        y += spacing;
+                    }
+                    x += spacing;
+                }
+            }
             if matches!(p.kind, Kind::TallGrass | Kind::Elevation) {
                 let spacing = if p.kind == Kind::Elevation {
                     2.0_f32.max(16.0 / view.scale)
@@ -152,6 +188,9 @@ pub fn draw(patches: &[TerrainPatch], view: &Viewport) {
         for &(kind, a, b) in &cache.edges {
             let a = view.screen(vec2(a.x, a.y));
             let b = view.screen(vec2(b.x, b.y));
+            if kind == Kind::Cliff {
+                draw_line(a.x, a.y, b.x, b.y, 5.0, Color::from_rgba(65, 55, 46, 255));
+            }
             draw_line(a.x, a.y, b.x, b.y, 1.5, colors(kind).0);
         }
     });
@@ -187,14 +226,17 @@ mod tests {
         );
     }
     #[test]
-    fn water_wins_and_dry_layers_respect_placement_order() {
+    fn gaps_win_and_dry_layers_respect_placement_order() {
         let surface = Surface::build(&[
             patch(Kind::Water, [1., 0.], [2., 3.]),
+            patch(Kind::Cliff, [1.75, 0.], [3., 3.]),
             patch(Kind::Sand, [0., 0.], [3., 3.]),
             patch(Kind::Road, [0., 1.], [3., 2.]),
         ]);
         for (p, kind) in [
             ([1.5, 1.5], Kind::Water),
+            ([1.9, 1.5], Kind::Cliff),
+            ([2.5, 1.5], Kind::Cliff),
             ([0.5, 1.5], Kind::Road),
             ([0.5, 0.5], Kind::Sand),
         ] {

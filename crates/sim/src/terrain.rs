@@ -8,6 +8,7 @@ pub enum TerrainKind {
     Road,
     Sand,
     Water,
+    Cliff,
     Bridge,
     TallGrass,
     Elevation,
@@ -22,8 +23,14 @@ impl TerrainKind {
             Self::TallGrass => "TALL GRASS",
             Self::Elevation => "ELEVATION",
             Self::Water => "WATER",
+            Self::Cliff => "CLIFF",
             Self::Bridge => "BRIDGE",
         }
+    }
+
+    /// Impassable terrain; only an intact bridge supplies a crossing.
+    pub fn blocks_tanks(self) -> bool {
+        matches!(self, Self::Water | Self::Cliff)
     }
 
     /// Speed, drive force, grip and lateral damping relative to ordinary ground.
@@ -32,7 +39,7 @@ impl TerrainKind {
             Self::Ground | Self::TallGrass | Self::Elevation => [1.0; 4],
             Self::Road | Self::Bridge => [1.45, 1.3, 1.4, 1.35],
             Self::Sand => [0.48, 0.6, 0.65, 0.8],
-            Self::Water => [0.0; 4],
+            Self::Water | Self::Cliff => [0.0; 4],
         }
     }
 }

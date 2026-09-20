@@ -92,6 +92,7 @@ impl LevelEditor {
                     TerrainKind::Water,
                     TerrainKind::TallGrass,
                     TerrainKind::Elevation,
+                    TerrainKind::Cliff,
                 ]
                 .into_iter()
                 .enumerate()
@@ -107,7 +108,7 @@ impl LevelEditor {
                     }
                 }
                 if button(
-                    Rect::new(20.0, 536.0, 244.0, 38.0),
+                    Rect::new(20.0, 584.0, 244.0, 38.0),
                     "BRIDGE + TWO BOOTHS",
                     mouse,
                     matches!(self.tool, Tool::Bridge),
@@ -116,9 +117,9 @@ impl LevelEditor {
                     self.select_tool(Tool::Bridge);
                 }
                 paragraph(
-                    "Drag to fill 1 m cells. Elevation extends sight; its edges strongly slow both climbs and descents. Water needs a bridge.",
+                    "Fill 1 m cells. Cliffs and water block tanks, but allow sight and shots. Bridges provide crossings.",
                     24.0,
-                    610.0,
+                    642.0,
                     240.0,
                     17.0,
                     MUTED,

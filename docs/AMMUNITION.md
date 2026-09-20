@@ -11,7 +11,7 @@ The main gun uses **HE** or **AP**. Select with **5 / 6**, the HUD buttons, or *
 
 The player starts with an empty special slot. Drive over a pickup to collect it. A full slot leaves further pickups on the ground. Right-click consumes the carried weapon, independently of the main-gun reload. A blocked rocket muzzle retains the pickup. The laser cannot be released or cancelled; movement and turret aiming remain available, while main-gun fire is blocked during its burst. Death ends the beam and discards inventory. Pause and slow motion affect all timers.
 
-In the level editor, choose **Special → Laser / Rocket** to place a non-solid pickup pad. Select it to set **Respawn / Seconds** (0.1–600; default 20). Pads start available and begin their countdown on collection. Fog of war remembers their last observed availability. Pads do not block movement, sight or shots. Camera panning in play mode uses **middle-drag**.
+In the level editor, choose **Special → Laser / Rocket** to place a non-solid pickup pad. Select it to set **Respawn / Seconds** (0.1–600; default 20). Pads start available and begin their countdown on collection. Fog of war remembers their last observed availability. Pads do not block movement, sight or shots. The level camera follows the tank with mouse look-ahead. Material test scenes use **middle-drag** to pan.
 
 Rockets use the existing fracture/material system. The direct hit transmits a short-range internal shock through the struck connected material, limited by seam strength, fracture work and an energy budget. The external explosion respects solid cover; unbreakable walls remain intact. Rockets expire after eight seconds if they hit nothing.
 

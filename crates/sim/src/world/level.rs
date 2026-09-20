@@ -156,7 +156,7 @@ impl World {
         }
         supports::connect(&mut w, &wall_edges, &solid_edges);
         w.rebuild_chunks();
-        w.rebuild_water();
+        w.rebuild_terrain_barriers();
         let p = &mut w.pieces[w.launcher];
         let body = &mut w.physics.bodies[p.body];
         body.set_position(Pose::new(position, angle), true);
@@ -176,8 +176,8 @@ impl World {
             for center in bridge.controls {
                 for x in [-half.x, half.x] {
                     for y in [-half.y, half.y] {
-                        if w.terrain_at(center + Vector::new(x, y)) == crate::TerrainKind::Water {
-                            return Err("Bridge booths need dry banks. Extend or move the span so both booths clear the water.".into());
+                        if w.terrain_at(center + Vector::new(x, y)).blocks_tanks() {
+                            return Err("Bridge booths need dry banks. Extend or move the span so both booths clear the water or cliff.".into());
                         }
                     }
                 }
@@ -202,7 +202,7 @@ impl World {
                 .propagate_modified_body_positions_to_colliders(&mut w.physics.colliders);
             if !w.tank_pose_clear(id, Pose::new(enemy_position, enemy_angle)) {
                 return Err(format!(
-                    "{} enemy spawn overlaps an object, tank or water. Move its whole footprint into a clear area.",
+                    "{} enemy spawn overlaps an object, tank, water or cliff. Move its whole footprint into a clear area.",
                     team.other().label()
                 ));
             }
@@ -230,7 +230,7 @@ impl World {
                 .unwrap_or(true)
                 {
                     return Err(format!(
-                        "{} spawn overlaps an object, a bank or water. Move the whole tank footprint into a clear area.",
+                        "{} spawn overlaps an object, a bank, water or cliff. Move the whole tank footprint into a clear area.",
                         self.team.label()
                     ));
                 }

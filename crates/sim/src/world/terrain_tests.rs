@@ -41,25 +41,33 @@ fn ground_is_unchanged_and_road_and_sand_have_distinct_speed_and_grip() {
 }
 
 #[test]
-fn water_blocks_full_vehicle_at_speed_and_diagonal_approaches() {
-    for angle in [-0.45_f32, 0.0, 0.45] {
-        let mut w = World::new(Scene::Terrain);
-        w.configure_test_tank_angle(4500.0, Vector::new(-7.0, -4.2), 12.0, angle)
-            .unwrap();
-        drive(&mut w, 480, 1.0, 1.0);
-        assert!(w.tank_alive());
-        assert!(
-            w.launcher_position().x < -2.3,
-            "{angle}: {:?}",
-            w.launcher_position()
-        );
-        // Tight clearance, allowing the contact solver's millimetre slop.
-        let pose = w.piece_pose(w.launcher);
-        for x in [-1.08, 1.08] {
-            for y in [-0.82, 0.82] {
-                let p = pose.transform_point(Vector::new(x, y));
-                if p.y.abs() > 1.5 {
-                    assert!(p.x < -2.28, "footprint {p:?}");
+fn water_and_cliffs_block_full_vehicle_at_speed_and_diagonal_approaches() {
+    for kind in [TerrainKind::Water, TerrainKind::Cliff] {
+        for angle in [-0.45_f32, 0.0, 0.45] {
+            let mut w = World::new(Scene::Terrain);
+            for patch in &mut w.terrain {
+                if patch.kind == TerrainKind::Water {
+                    patch.kind = kind;
+                }
+            }
+            w.rebuild_terrain_barriers();
+            w.configure_test_tank_angle(4500.0, Vector::new(-7.0, -4.2), 12.0, angle)
+                .unwrap();
+            drive(&mut w, 480, 1.0, 1.0);
+            assert!(w.tank_alive());
+            assert!(
+                w.launcher_position().x < -2.3,
+                "{angle}: {:?}",
+                w.launcher_position()
+            );
+            // Tight clearance, allowing the contact solver's millimetre slop.
+            let pose = w.piece_pose(w.launcher);
+            for x in [-1.08, 1.08] {
+                for y in [-0.82, 0.82] {
+                    let p = pose.transform_point(Vector::new(x, y));
+                    if p.y.abs() > 1.5 {
+                        assert!(p.x < -2.28, "footprint {p:?}");
+                    }
                 }
             }
         }
@@ -361,35 +369,91 @@ fn a_local_cut_preserves_crossing_but_two_separately_anchored_halves_do_not() {
 }
 
 #[test]
-fn water_collision_does_not_intercept_shells_or_laser() {
-    for ammo in [Ammunition::HighExplosive, Ammunition::Laser] {
-        let mut w = World::new(Scene::Terrain);
-        w.configure_test_tank(4500.0, Vector::new(-7.0, -4.0), 0.0)
-            .unwrap();
-        w.add_box(
-            Vector::new(6.0, -4.0),
-            Vector::splat(0.5),
-            Material::Anchor,
-            true,
-        );
-        let mut events = w.step(&[Command::Fire(Shot::new(ammo, Vector::new(6.0, -4.0)))]);
-        if ammo == Ammunition::Laser {
-            assert!((w.laser_beam().unwrap().end.x - 5.5).abs() < 0.01);
-        } else {
-            for _ in 0..20 {
-                events.extend(w.step(&[]));
+fn water_and_cliff_collision_does_not_intercept_shells_or_laser() {
+    for kind in [TerrainKind::Water, TerrainKind::Cliff] {
+        for ammo in [Ammunition::HighExplosive, Ammunition::Laser] {
+            let mut w = World::new(Scene::Terrain);
+            for patch in &mut w.terrain {
+                if patch.kind == TerrainKind::Water {
+                    patch.kind = kind;
+                }
             }
-            let hit = events
-                .iter()
-                .find_map(|e| {
-                    if let Event::Exploded { position, .. } = e {
-                        Some(position.x)
-                    } else {
-                        None
-                    }
-                })
+            w.rebuild_terrain_barriers();
+            w.configure_test_tank(4500.0, Vector::new(-7.0, -4.0), 0.0)
                 .unwrap();
-            assert!((hit - 5.5).abs() < 0.05, "hit {hit}");
+            w.add_box(
+                Vector::new(6.0, -4.0),
+                Vector::splat(0.5),
+                Material::Anchor,
+                true,
+            );
+            let mut events = w.step(&[Command::Fire(Shot::new(ammo, Vector::new(6.0, -4.0)))]);
+            if ammo == Ammunition::Laser {
+                assert!((w.laser_beam().unwrap().end.x - 5.5).abs() < 0.01);
+            } else {
+                for _ in 0..20 {
+                    events.extend(w.step(&[]));
+                }
+                let hit = events
+                    .iter()
+                    .find_map(|e| {
+                        if let Event::Exploded { position, .. } = e {
+                            Some(position.x)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap();
+                assert!((hit - 5.5).abs() < 0.05, "hit {hit}");
+            }
         }
     }
+}
+
+#[test]
+fn cliff_level_preserves_sight_and_routes_tanks_around_the_gap() {
+    use crate::level::{Level, LevelItem, Team};
+    let mut level = Level {
+        size: [30.0, 20.0],
+        items: vec![
+            LevelItem::Spawn {
+                team: Team::Blue,
+                position: [-7.0, 0.0],
+                angle: 0.0,
+            },
+            LevelItem::Terrain {
+                terrain: TerrainKind::Cliff,
+                min: [-1.0, -3.0],
+                max: [1.0, 3.0],
+            },
+            // Even grass painted later cannot cover an impassable gap.
+            LevelItem::Terrain {
+                terrain: TerrainKind::TallGrass,
+                min: [-1.0, -3.0],
+                max: [1.0, 3.0],
+            },
+        ],
+        ..Level::default()
+    };
+    assert_eq!(Level::from_json(&level.to_json().unwrap()).unwrap(), level);
+    let w = World::from_level(&level, Team::Blue).unwrap();
+    assert_eq!(w.terrain_at(Vector::ZERO), TerrainKind::Cliff);
+    let target = Vector::new(7.0, 0.0);
+    assert!(w.sight_clear(w.launcher, target));
+    assert!(w.player_vision(0.0).contains(target));
+    let route = w.tank_route(w.launcher, w.launcher_position(), target);
+    assert!(!route.is_empty());
+    assert!(
+        route.iter().any(|p| p.y.abs() > 4.0),
+        "route must go around the cliff with hull clearance"
+    );
+    level.items[0] = LevelItem::Spawn {
+        team: Team::Blue,
+        position: [0.0, 0.0],
+        angle: 0.0,
+    };
+    assert!(
+        World::from_level(&level, Team::Blue).is_err(),
+        "spawning on a cliff is invalid"
+    );
 }

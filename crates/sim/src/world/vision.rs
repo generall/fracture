@@ -201,6 +201,10 @@ fn silhouette_vertices(obstacles: &[Occluder]) -> Vec<Vector> {
 }
 
 impl World {
+    pub fn player_sight_range(&self) -> f32 {
+        self.vision_range_at(self.launcher_position())
+    }
+
     pub(super) fn vision_range_at(&self, position: Vector) -> f32 {
         match self.terrain_at(position) {
             crate::TerrainKind::TallGrass => GRASS_VISION_RANGE,
@@ -243,11 +247,10 @@ impl World {
             .filter(|(_, p)| p.kind == crate::TerrainKind::TallGrass)
         {
             let mut patches = vec![*patch];
-            for other in self.terrain[i + 1..].iter().chain(
-                self.terrain
-                    .iter()
-                    .filter(|p| p.kind == crate::TerrainKind::Water),
-            ) {
+            for other in self.terrain[i + 1..]
+                .iter()
+                .chain(self.terrain.iter().filter(|p| p.kind.blocks_tanks()))
+            {
                 patches = patches
                     .into_iter()
                     .flat_map(|p| p.subtract(*other))

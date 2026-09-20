@@ -335,7 +335,11 @@ impl Inspector {
                 "RELEASE  Tracks brake automatically",
                 "MOUSE    Aim turret independently",
                 "CLICK/F  Main gun; RMB use special",
-                "WHEEL    Zoom / middle-drag to pan",
+                if world.scene() == Scene::Level {
+                    "WHEEL    Zoom / mouse look-ahead"
+                } else {
+                    "WHEEL    Zoom / middle-drag to pan"
+                },
                 "5–6 / B  Select ammo / cycle; HOME center",
             ]
             .iter()

@@ -611,6 +611,10 @@ fn draw_item(
             terrain: TerrainKind::Elevation,
             ..
         } => Color::from_rgba(190, 161, 120, 255),
+        LevelItem::Terrain {
+            terrain: TerrainKind::Cliff,
+            ..
+        } => Color::from_rgba(158, 146, 132, 255),
         LevelItem::Terrain { .. } => MUTED,
         LevelItem::Flag { team, .. } | LevelItem::Spawn { team, .. } => team_color(*team),
         _ => INK,
@@ -766,6 +770,7 @@ mod tests {
             Tool::Terrain(TerrainKind::Sand),
             Tool::Terrain(TerrainKind::Elevation),
             Tool::Terrain(TerrainKind::Water),
+            Tool::Terrain(TerrainKind::Cliff),
         ] {
             let mut editor = editor(tool, [48.0, 30.0]);
             for snap in [false, true] {

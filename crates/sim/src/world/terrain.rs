@@ -35,13 +35,14 @@ impl World {
         {
             return TerrainKind::Bridge;
         }
-        // Water always wins over road/sand; only an intact bridge overrides it.
-        if self
+        // Gaps win over driveable terrain; the newest gap determines its appearance.
+        if let Some(patch) = self
             .terrain
             .iter()
-            .any(|p| p.kind == TerrainKind::Water && p.contains(point))
+            .rev()
+            .find(|p| p.kind.blocks_tanks() && p.contains(point))
         {
-            return TerrainKind::Water;
+            return patch.kind;
         }
         self.terrain
             .iter()
@@ -58,15 +59,15 @@ impl World {
         self.tank_fall.map_or(0.0, |t| (t / 1.4).min(1.0))
     }
 
-    pub(super) fn rebuild_water(&mut self) {
-        for handle in self.water_colliders.drain(..) {
+    pub(super) fn rebuild_terrain_barriers(&mut self) {
+        for handle in self.terrain_barriers.drain(..) {
             self.physics.remove_collider(handle);
         }
         let mut blocked: Vec<_> = self
             .terrain
             .iter()
             .copied()
-            .filter(|p| p.kind == TerrainKind::Water)
+            .filter(|p| p.kind.blocks_tanks())
             .collect();
         for b in self.bridges.iter().filter(|b| b.fall.is_none()) {
             blocked = blocked
@@ -77,13 +78,13 @@ impl World {
         for p in blocked {
             let center = (p.min + p.max) * 0.5;
             let half = (p.max - p.min) * 0.5;
-            self.water_colliders.push(
+            self.terrain_barriers.push(
                 self.physics.insert_collider(
                     ColliderBuilder::cuboid(half.x, half.y)
                         .translation(center)
                         .friction(0.0)
                         .restitution(0.0)
-                        .collision_groups(CollisionLayer::Water.groups()),
+                        .collision_groups(CollisionLayer::TerrainBarrier.groups()),
                     None,
                 ),
             );
@@ -111,17 +112,17 @@ impl World {
         attached[0].intersection(&attached[1]).next().is_some()
     }
 
-    fn tank_over_open_water(&self, id: usize) -> bool {
+    fn tank_over_open_gap(&self, id: usize) -> bool {
         let body = &self.physics.bodies[self.pieces[id].body];
-        self.water_colliders.iter().any(|&water| {
-            let water = &self.physics.colliders[water];
+        self.terrain_barriers.iter().any(|&barrier| {
+            let barrier = &self.physics.colliders[barrier];
             body.colliders().iter().any(|&c| {
                 let c = &self.physics.colliders[c];
                 rapier2d::parry::query::intersection_test(
                     c.position(),
                     c.shape(),
-                    water.position(),
-                    water.shape(),
+                    barrier.position(),
+                    barrier.shape(),
                 )
                 .unwrap_or(false)
             })
@@ -173,21 +174,19 @@ impl World {
         if collapsed {
             self.rebuild_chunks();
             self.structural_cache.clear();
-            self.rebuild_water();
-            // Test the actual track/hull shapes before the newly closed water
+            self.rebuild_terrain_barriers();
+            // Test the actual track/hull shapes before the newly closed terrain
             // barrier can push an occupant back onto a bank.
             let sinking: Vec<_> = self
                 .tanks
                 .iter()
-                .filter(|t| t.health > 0.0 && self.tank_over_open_water(t.id))
+                .filter(|t| t.health > 0.0 && self.tank_over_open_gap(t.id))
                 .map(|t| t.id)
                 .collect();
             for id in sinking {
                 self.destroy_tank(id, events);
             }
-            if self.tanks.is_empty()
-                && self.tank_alive()
-                && self.tank_over_open_water(self.launcher)
+            if self.tanks.is_empty() && self.tank_alive() && self.tank_over_open_gap(self.launcher)
             {
                 self.tank_fall = Some(0.0);
                 let body = &mut self.physics.bodies[self.pieces[self.launcher].body];

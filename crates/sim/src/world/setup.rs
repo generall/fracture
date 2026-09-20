@@ -62,7 +62,7 @@ impl World {
             objects: Vec::new(),
             terrain: Vec::new(),
             bridges: Vec::new(),
-            water_colliders: Vec::new(),
+            terrain_barriers: Vec::new(),
             tank_fall: None,
             flags: Vec::new(),
             stations: Vec::new(),

@@ -208,21 +208,28 @@ async fn main() {
             lab.inspector.help = !lab.inspector.help;
         }
         let in_chamber = chamber.contains(mouse) && !lab.inspector.captures(mouse, size);
+        let game_camera = lab.world.scene() == Scene::Level;
 
         if in_chamber {
-            if is_mouse_button_down(MouseButton::Middle) {
+            if !game_camera && is_mouse_button_down(MouseButton::Middle) {
                 lab.navigation.pan(mouse - lab.last_mouse, chamber);
             }
             let wheel = mouse_wheel().1;
             if wheel != 0.0 {
-                if lab.world.scene() == Scene::Level {
-                    lab.navigation.scroll_level(wheel, mouse, chamber);
+                if game_camera {
+                    lab.navigation
+                        .scroll_game(wheel, chamber, lab.world.player_sight_range());
                 } else {
                     lab.navigation.scroll(wheel, mouse, chamber);
                 }
             }
         }
-        lab.navigation.advance(wall_dt, chamber);
+        if game_camera {
+            lab.navigation
+                .advance_game_zoom(wall_dt, chamber, lab.world.player_sight_range());
+        } else {
+            lab.navigation.advance(wall_dt, chamber);
+        }
         viewport = Viewport::new(chamber, lab.navigation.center, lab.navigation.zoom);
         if in_chamber {
             lab.aim = viewport.world(mouse);
@@ -314,7 +321,24 @@ async fn main() {
         } else {
             (lab.accumulator / f64::from(TICK_DT)) as f32
         };
+        if lab.world.scene() == Scene::Level {
+            // Update after physics, using the same interpolated pose as drawing.
+            let tank = lab
+                .world
+                .bodies()
+                .find(|b| b.id == lab.world.player_tank_id())
+                .unwrap();
+            let position = Vec2::new(tank.previous_position.x, tank.previous_position.y)
+                .lerp(Vec2::new(tank.position.x, tank.position.y), alpha);
+            lab.navigation
+                .advance_game_zoom(0.0, chamber, lab.world.player_sight_range());
+            lab.navigation
+                .follow_tank(position, in_chamber.then_some(mouse), wall_dt, chamber);
+        }
         viewport = Viewport::new(chamber, lab.navigation.center, lab.navigation.zoom);
+        if in_chamber {
+            lab.aim = viewport.world(mouse);
+        }
         let fog_active = lab.fog_enabled && lab.world.scene() == Scene::Level;
         if fog_active {
             lab.vision = lab.world.player_vision(lab.world.player_aim().angle);

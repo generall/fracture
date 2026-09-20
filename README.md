@@ -49,13 +49,14 @@ Open [localhost:8000](http://127.0.0.1:8000). The loader and bold font are bundl
 | R | Rebuild the scene |
 | 1 / 2 / 3 / 4 | Barrier / barrel against rubble / rock field / object yard |
 | 9 | Terrain and destructible bridge range |
-| Wheel / middle drag / Home | Zoom / pan / recenter in play mode |
+| Wheel / Home | Zoom / recenter; level camera follows the tank with mouse look-ahead |
+| Middle drag | Pan in material test scenes |
 
 The main gun swaps HE/AP rounds with a 0.9-second reload. Single-use rockets and lasers must be collected from editor-placed pickup pads. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
 
 **River crossing:** press **9**. Road increases tank speed and grip; sand slows it down; water blocks the hull and tracks. Shots pass over the deck; target the booths marked A/B to destroy the crossing. They resist pushing and slow bumps, but remain vulnerable to shooting and forceful direct rams. Losing the connection between its two banks collapses the span, closes the crossing, and sinks a tank standing on it. **R** restores the scene. See [terrain and bridge rules](docs/TERRAIN.md).
 
-Zoom uses normalized mouse-wheel input and time-based easing, anchored at the cursor; it works independently of pause and slow motion.
+Zoom uses normalized mouse-wheel input and time-based easing, independently of pause and slow motion. Editors and material tests anchor zoom at the cursor; level gameplay follows the tank and limits the visible span to twice its sight range.
 
 **Start from the object library:** press **O**, then **L** (or **FILE → OBJECT LIBRARY**). Green barrels, red explosive barrels, amber walls, violet rocks and blue metal fences have distinct editable response profiles. Save named copies, edit color in **SHAPE**, and open **MATERIAL → OBJECT BEHAVIOR** for impact resistance, crushing and explosions. Press **4** in the proving ground for the shared object yard. See [the library guide](docs/OBJECT_LIBRARY.md) for component units, persistence and the current physical approximations.
 

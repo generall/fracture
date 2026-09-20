@@ -60,11 +60,11 @@ impl World {
                 continue;
             }
             let piece = self.weapon_target(collider);
-            let water = self
-                .water_colliders
+            let terrain_barrier = self
+                .terrain_barriers
                 .iter()
                 .any(|h| std::ptr::eq(&self.physics.colliders[*h], collider));
-            if !water && piece.is_none() {
+            if !terrain_barrier && piece.is_none() {
                 continue;
             }
             if piece.is_some_and(|i| self.pieces[i].material == Material::Launcher) {
@@ -77,7 +77,7 @@ impl World {
                     .unwrap_or(0.0)
                     >= 4500.0
             });
-            let hard = water
+            let hard = terrain_barrier
                 || piece.is_some_and(|i| !self.pieces[i].destructible())
                 || (massive && !breach);
             let clearance = if hard { 1.25 } else { 0.85 };

@@ -5,7 +5,7 @@ use super::*;
 pub(super) enum CollisionLayer {
     Solid,
     Tank,
-    Water,
+    TerrainBarrier,
     Deck,
 }
 
@@ -17,7 +17,7 @@ impl CollisionLayer {
                 Group::GROUP_2,
                 Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_3,
             ),
-            Self::Water => (Group::GROUP_3, Group::GROUP_2),
+            Self::TerrainBarrier => (Group::GROUP_3, Group::GROUP_2),
             Self::Deck => return InteractionGroups::none(),
         };
         InteractionGroups::new(membership, filter, InteractionTestMode::And)

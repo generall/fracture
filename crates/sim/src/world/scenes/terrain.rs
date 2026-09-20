@@ -80,6 +80,6 @@ impl World {
             },
             [Vector::new(3.0, 2.05), Vector::new(-3.0, 2.05)],
         ));
-        self.rebuild_water();
+        self.rebuild_terrain_barriers();
     }
 }

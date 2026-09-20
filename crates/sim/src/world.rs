@@ -249,7 +249,7 @@ pub struct World {
     objects: Vec<components::ObjectInstance>,
     terrain: Vec<crate::TerrainPatch>,
     bridges: Vec<terrain::Bridge>,
-    water_colliders: Vec<ColliderHandle>,
+    terrain_barriers: Vec<ColliderHandle>,
     tank_fall: Option<f32>,
     flags: Vec<level::Flag>,
     stations: Vec<stations::Station>,

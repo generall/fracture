@@ -103,13 +103,9 @@ impl Lab {
 
     pub(crate) fn fit_camera(&mut self) {
         self.navigation = navigation::Navigation::default();
-        if self.world.scene() == Scene::Level
-            && let Some((level, _)) = &self.custom_level
-        {
-            self.navigation = navigation::Navigation::fitted(
-                Vec2::ZERO,
-                (24.0 / level.size[0]).min(15.0 / level.size[1]),
-            );
+        if self.world.scene() == Scene::Level {
+            let position = self.world.launcher_position();
+            self.navigation = navigation::Navigation::fitted(vec2(position.x, position.y), 1.0);
         }
     }
 
