@@ -1,5 +1,6 @@
 /target/
 /web/sandbox.wasm
+/web/game.wasm
 /.tools/
 __pycache__/
 /objects/draft.json
@@ -15,3 +16,10 @@ __pycache__/
 /levels/draft.json
 /levels/draft.json.tmp
 /levels/level.json
+
+/levels/match-map.json
+/levels/match-map.json.tmp
+
+/audio-settings.txt
+
+/checkpoints/

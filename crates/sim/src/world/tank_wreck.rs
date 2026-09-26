@@ -23,9 +23,9 @@ impl World {
                 parts.push((Vector::new(x, y), Vector::new(0.35, 0.155)));
             }
         }
-        if self.pieces.len() + parts.len() > 8192 {
-            return;
-        }
+        // Always create new wrecks. Level cleanup targets 8192 active pieces
+        // by retiring small offscreen debris instead of suppressing new ones.
+        // These ten pieces also expire before their tank can respawn.
         let area: f32 = parts.iter().map(|(_, half)| 4.0 * half.x * half.y).sum();
         let rotation = Vector::from_angle(details.hull_angle);
         let weights: Vec<_> = parts
@@ -93,6 +93,37 @@ impl World {
 mod tests {
     use super::*;
     use crate::level::{Level, Team};
+
+    #[test]
+    fn large_levels_still_spawn_complete_tank_wrecks() {
+        let mut world = World::from_level(&Level::default(), Team::Blue).unwrap();
+        while world.pieces.len() < 8200 {
+            let index = world.pieces.len();
+            world.add_box(
+                Vector::new((index % 100) as f32, 50.0 + (index / 100) as f32),
+                Vector::splat(0.1),
+                Material::Anchor,
+                true,
+            );
+        }
+        let tank = world.launcher;
+        let mut events = Vec::new();
+        world.destroy_tank(tank, &mut events);
+        assert!(events.iter().any(|event| matches!(
+            event,
+            Event::TankDestroyed { details, .. } if details.id == tank
+        )));
+        let wreck: Vec<_> = world
+            .bodies()
+            .filter(|b| world.fracture_parent(b.id) == Some(tank))
+            .collect();
+        assert_eq!(wreck.len(), 10, "large maps need hull and track remains");
+        assert!(
+            wreck
+                .iter()
+                .all(|b| b.tank_fragment.is_some() && b.opacity == 1.0)
+        );
+    }
 
     #[test]
     fn wreck_pieces_are_separate_nonoverlapping_bodies_with_inherited_momentum() {

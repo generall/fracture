@@ -1,6 +1,6 @@
 /// Deliberately approximate material parameters for the laboratory, not measured
 /// engineering data. Strength describes a seam, rather than the solid brick.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Material {
     Masonry,
     Panel,

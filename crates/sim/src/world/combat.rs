@@ -17,7 +17,7 @@ pub(super) struct Tank {
     pub reveal_until: u64,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TankView {
     pub id: usize,
     pub team: Team,
@@ -33,27 +33,33 @@ pub struct TankView {
 
 impl World {
     pub fn tanks(&self) -> impl Iterator<Item = TankView> + '_ {
-        self.tanks.iter().map(|t| TankView {
-            id: t.id,
-            team: t.team,
-            health: t.health,
-            respawn_remaining: t.respawn,
-            protected: t.protection > 0.0,
-            turret_angle: t.aim.angle,
-            previous_turret_angle: t.aim.previous_angle,
-            aim_spread: t.aim.spread,
-            reload: if t.id == self.launcher {
-                self.reload
-            } else {
-                t.reload
-            },
-            track_travel: t.track_travel,
-        })
+        self.tanks
+            .iter()
+            .map(|t| TankView {
+                id: t.id,
+                team: t.team,
+                health: t.health,
+                respawn_remaining: t.respawn,
+                protected: t.protection > 0.0,
+                turret_angle: t.aim.angle,
+                previous_turret_angle: t.aim.previous_angle,
+                aim_spread: t.aim.spread,
+                reload: if t.id == self.launcher {
+                    self.reload
+                } else {
+                    t.reload
+                },
+                track_travel: t.track_travel,
+            })
+            .chain(self.replica.iter().flat_map(|f| f.tanks.iter().copied()))
     }
     pub fn player_tank_id(&self) -> usize {
         self.launcher
     }
     pub fn player_respawn_remaining(&self) -> Option<f32> {
+        if let Some(frame) = &self.replica {
+            return frame.respawn;
+        }
         self.tanks
             .iter()
             .find(|t| t.id == self.launcher)
@@ -120,7 +126,7 @@ impl World {
             Ammunition::ArmorPiercing => 1.0,
             Ammunition::HighExplosive => 0.65,
             Ammunition::Rocket => 0.5,
-            Ammunition::Laser => 1.0,
+            Ammunition::Laser | Ammunition::Plasma => 1.0,
         };
         let damage = ((energy * penetration - armor).max(0.0) / 6000.0).min(85.0);
         self.damage_tank_from(
@@ -208,6 +214,8 @@ impl World {
         if id == self.launcher {
             self.laser_beam = None;
             self.laser_remaining = 0.0;
+            self.plasma_remaining = 0.0;
+            self.plasma_beam = None;
             self.special = None;
             self.special_charges = 0;
             self.special_reload = 0.0;

@@ -4,6 +4,9 @@ use super::*;
 impl World {
     /// Immediate parent of a subdivided material cell; chunk changes keep cell IDs.
     pub fn fracture_parent(&self, id: usize) -> Option<usize> {
+        if let Some(frame) = &self.replica {
+            return frame.parents.get(&id).copied();
+        }
         self.pieces.get(id).and_then(|piece| piece.fracture_parent)
     }
 
@@ -12,6 +15,9 @@ impl World {
     }
 
     pub fn launcher_position(&self) -> Vector {
+        if let Some(frame) = &self.replica {
+            return frame.position;
+        }
         self.physics.bodies[self.pieces[self.launcher].body].translation()
     }
 
@@ -24,52 +30,65 @@ impl World {
                     .map(|t| t.id)
                     .filter(|&id| id != self.launcher),
             )
-            .filter(|&id| self.tank_is_alive(id) && self.pieces[id].active)
+            .filter(|&id| {
+                self.replica.is_none() && self.tank_is_alive(id) && self.pieces[id].active
+            })
             .map(|id| {
                 let pose = self.piece_pose(id);
                 (id, pose.translation, pose.rotation.angle())
             })
+            .chain(self.replica.iter().flat_map(|f| {
+                f.bodies
+                    .iter()
+                    .filter(|b| b.material == Material::Launcher && b.opacity > 0.0)
+                    .map(|b| (b.id, b.position, b.angle))
+            }))
     }
 
     pub fn bodies(&self) -> impl Iterator<Item = BodyView> + '_ {
-        self.pieces.iter().enumerate().filter_map(|(id, piece)| {
-            if !piece.active {
-                return None;
-            }
-            let body = self.physics.bodies.get(piece.body)?;
-            let pose = *body.position() * piece.local_pose;
-            Some(BodyView {
-                id,
-                object: piece.object,
-                chunk: piece.body.into_raw_parts().0,
-                origin: piece.origin,
-                position: pose.translation,
-                previous_position: piece.previous_position,
-                angle: pose.rotation.angle(),
-                previous_angle: piece.previous_angle,
-                velocity: body.velocity_at_point(pose.translation),
-                shape: piece.shape,
-                shape_revision: piece.shape_revision,
-                tank_fragment: piece.tank_fragment,
-                plastic_strain: piece.plastic_strain,
-                edges: piece.edges,
-                material: piece.material,
-                color: piece.object.and_then(|i| self.objects[i].color),
-                load: piece.load,
-                sleeping: body.is_sleeping(),
-                fixed: body.is_fixed(),
-                opacity: if piece.material == Material::Launcher
-                    && !self.tank_is_alive(id)
-                    && !self.tanks.is_empty()
-                {
-                    0.0
-                } else if id == self.launcher {
-                    1.0 - self.tank_fall_progress()
-                } else {
-                    piece.debris_remaining.unwrap_or(1.0).clamp(0.0, 1.0)
-                },
+        self.pieces
+            .iter()
+            .enumerate()
+            .filter_map(|(id, piece)| {
+                if !piece.active {
+                    return None;
+                }
+                let body = self.physics.bodies.get(piece.body)?;
+                let pose = *body.position() * piece.local_pose;
+                Some(BodyView {
+                    id,
+                    object: piece.object,
+                    chunk: piece.body.into_raw_parts().0,
+                    origin: piece.origin,
+                    position: pose.translation,
+                    previous_position: piece.previous_position,
+                    angle: pose.rotation.angle(),
+                    previous_angle: piece.previous_angle,
+                    velocity: body.velocity_at_point(pose.translation),
+                    shape: piece.shape,
+                    shape_revision: piece.shape_revision,
+                    tank_fragment: piece.tank_fragment,
+                    plastic_strain: piece.plastic_strain,
+                    edges: piece.edges,
+                    material: piece.material,
+                    color: piece.object.and_then(|i| self.objects[i].color),
+                    load: piece.load,
+                    sleeping: body.is_sleeping(),
+                    fixed: body.is_fixed(),
+                    opacity: if piece.material == Material::Launcher
+                        && !self.tank_is_alive(id)
+                        && !self.tanks.is_empty()
+                    {
+                        0.0
+                    } else if id == self.launcher {
+                        1.0 - self.tank_fall_progress()
+                    } else {
+                        piece.debris_remaining.unwrap_or(1.0).clamp(0.0, 1.0)
+                    },
+                    blocks_sight: false,
+                })
             })
-        })
+            .chain(self.replica.iter().flat_map(|f| f.bodies.iter().copied()))
     }
 
     pub fn bonds(&self) -> impl Iterator<Item = BondView> + '_ {
@@ -88,6 +107,9 @@ impl World {
     }
 
     pub fn stats(&self) -> Stats {
+        if let Some(frame) = &self.replica {
+            return frame.stats;
+        }
         let mut stats = Stats {
             ablated: self.ablated,
             ablated_area: self.ablated_area,
@@ -143,7 +165,9 @@ impl World {
     }
 
     pub fn shells(&self) -> impl Iterator<Item = &Shell> {
-        self.shells.iter()
+        self.shells
+            .iter()
+            .chain(self.replica.iter().flat_map(|f| f.shells.iter()))
     }
 
     pub fn reload_remaining(&self) -> f32 {

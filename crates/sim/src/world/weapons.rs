@@ -96,6 +96,18 @@ impl World {
             } else {
                 0.0
             };
+        if shot.ammunition == Ammunition::Plasma {
+            if shooter == self.launcher && ready && !self.special_active() {
+                self.plasma_remaining = specials::PLASMA_CHARGE;
+                self.plasma_direction = barrel;
+                self.reload = specials::PLASMA_CHARGE + shot.ammunition.interval();
+                self.last_ammunition = shot.ammunition;
+            }
+            return;
+        }
+        if shooter == self.launcher && self.special_active() {
+            return;
+        }
         if shot.ammunition == Ammunition::Laser {
             if shooter != self.launcher {
                 return;
@@ -106,6 +118,7 @@ impl World {
                 self.reload = shot.ammunition.interval();
                 self.last_ammunition = shot.ammunition;
                 events.push(Event::Fired {
+                    ammunition: shot.ammunition,
                     position: origin,
                     velocity: Vector::ZERO,
                 });
@@ -158,7 +171,11 @@ impl World {
         } else if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == shooter) {
             tank.reload = shot.ammunition.interval();
         }
-        events.push(Event::Fired { position, velocity });
+        events.push(Event::Fired {
+            ammunition: shot.ammunition,
+            position,
+            velocity,
+        });
     }
 
     pub(super) fn advance_shells(&mut self, dt: f32, events: &mut Vec<Event>) {
@@ -323,6 +340,26 @@ impl World {
             self.structural_cache.clear();
             self.rebuild_chunks();
         }
+    }
+
+    pub(super) fn fire_plasma(&mut self, origin: Vector, barrel: Vector, events: &mut Vec<Event>) {
+        self.record_aimed_shot(self.launcher, Ammunition::Plasma);
+        self.reveal_firing_tank(self.launcher);
+        self.shots += 1;
+        // The complete laser cutting budget, resolved at one fixed-tick boundary.
+        // Reuse its recasts, shielding, tank damage and refinement limits.
+        for _ in 0..specials::LASER_PULSES {
+            self.fire_laser(origin, barrel, barrel, true, events);
+        }
+        self.plasma_beam = self.laser_beam.take().map(|mut beam| {
+            beam.remaining = 0.18;
+            beam
+        });
+        events.push(Event::Fired {
+            ammunition: Ammunition::Plasma,
+            position: origin + barrel * 1.65,
+            velocity: Vector::ZERO,
+        });
     }
 
     pub(super) fn fire_laser(

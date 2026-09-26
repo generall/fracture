@@ -8,7 +8,7 @@ pub enum DecorationKind {
     Timber,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DecorationView {
     pub id: usize,
     pub kind: DecorationKind,

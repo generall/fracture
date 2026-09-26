@@ -17,6 +17,8 @@ impl World {
             ..Default::default()
         };
         let mut world = Self {
+            replica: None,
+            sight_cache: None,
             plastic_work: 0.0,
             physics,
             pieces: Vec::new(),
@@ -46,6 +48,9 @@ impl World {
             pickups: vec![],
             decorations: vec![],
             laser_remaining: 0.0,
+            plasma_remaining: 0.0,
+            plasma_direction: Vector::X,
+            plasma_beam: None,
             laser_pulse_in: 0.0,
             last_ammunition: Ammunition::HighExplosive,
             laser_beam: None,

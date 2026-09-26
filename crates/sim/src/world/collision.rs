@@ -6,18 +6,23 @@ pub(super) enum CollisionLayer {
     Solid,
     Tank,
     TerrainBarrier,
+    CliffBarrier,
     Deck,
 }
 
 impl CollisionLayer {
     pub(super) fn groups(self) -> InteractionGroups {
         let (membership, filter) = match self {
-            Self::Solid => (Group::GROUP_1, Group::GROUP_1 | Group::GROUP_2),
+            Self::Solid => (
+                Group::GROUP_1,
+                Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4,
+            ),
             Self::Tank => (
                 Group::GROUP_2,
-                Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_3,
+                Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_3 | Group::GROUP_4,
             ),
             Self::TerrainBarrier => (Group::GROUP_3, Group::GROUP_2),
+            Self::CliffBarrier => (Group::GROUP_4, Group::GROUP_1 | Group::GROUP_2),
             Self::Deck => return InteractionGroups::none(),
         };
         InteractionGroups::new(membership, filter, InteractionTestMode::And)

@@ -4,12 +4,13 @@ Start with the [current development summary](docs/HANDOFF.md) for accepted behav
 
 ## Run and check
 
-Rust 2024, Cargo, and the `wasm32-unknown-unknown` target build both applications. Dependencies are pinned in `Cargo.lock`; use `--locked`. Python 3 serves the browser files. No npm build step is needed.
+Rust 2024, Cargo, and the `wasm32-unknown-unknown` target build both applications. Dependencies are pinned in `Cargo.lock`; use `--locked`. Linux native sound uses the ALSA runtime (`libasound.so.2`). Python 3 serves the browser files. No npm build step is needed.
 
 ```sh
-cargo run --release --locked -p sandbox
+cargo run --release --locked -p game      # local game
+cargo run --release --locked -p sandbox   # development tools
 bash tools/check.sh                 # format, workspace tests, clippy
-bash tools/check.sh --web           # also rebuild web/sandbox.wasm
+bash tools/check.sh --web           # also rebuild both browser binaries
 python3 tools/serve.py              # http://127.0.0.1:8000
 ```
 
@@ -24,14 +25,21 @@ bash tools/check-browser.sh editor comparison   # choose relevant suites
 bash tools/check-browser.sh                     # all suites, sequentially
 ```
 
-Start the server and browser in separate terminals. `SANDBOX_URL` and `CHROME_DEBUG_URL` override their addresses. Use an isolated profile because the suites exercise real local storage and import/export. Suites preserve the original stores in their cleanup handlers. Run them sequentially; they share that browser's storage. Screenshots go to `target/screenshots/`. Chromium executable names vary by installation.
+Start the server and browser in separate terminals. `GAME_URL` (default `/`), `SANDBOX_URL` (default `/sandbox.html`) and `CHROME_DEBUG_URL` override their addresses. Use an isolated profile because the suites exercise real local storage and import/export. Suites preserve the original stores in their cleanup handlers. Run them sequentially; they share that browser's storage. Screenshots go to `target/screenshots/`. Chromium executable names vary by installation.
+
+For desktop LAN changes, run `bash tools/check-lan-headless.sh`. It includes real-socket tests and a six-client benchmark; see [LAN validation](docs/LAN_HEADLESS_TESTS.md).
 
 ## Code map
 
-`crates/sim` owns physics, assets and reproducible experiments. It has no renderer, window, browser or runtime network dependency. `crates/sandbox` owns input, drawing, editor/comparison state and platform persistence. Public simulation imports remain available from `sim::{World, Command, Shot, ...}` and `sim::experiment::{Experiment, Runner, ...}`.
+`crates/sim` owns physics, assets and reproducible experiments. It has no renderer, window, browser or runtime network dependency. `crates/game` launches the game; `crates/sandbox` launches the development sandbox and provides their shared `fracture_client` library. That library owns input, drawing, editor/comparison state and platform persistence. Public simulation imports remain available from `sim::{World, Command, Shot, ...}` and `sim::experiment::{Experiment, Runner, ...}`.
 
 | Change | Start here |
 | --- | --- |
+| Music, effects, mixing and volume settings | [audio.rs](crates/sandbox/src/audio.rs), [audio.js](web/audio.js), [AUDIO.md](docs/AUDIO.md) |
+| LAN host, protocol, discovery and replication | [crates/net/src/](crates/net/src), [lan.rs](crates/sandbox/src/lan.rs), [LAN_MULTIPLAYER.md](docs/LAN_MULTIPLAYER.md) |
+| Multiplayer simulation and presentation replicas | [multiplayer.rs](crates/sim/src/world/multiplayer.rs), [replica.rs](crates/sim/src/world/replica.rs) |
+| Local lobby / match HUD / result screens | [game.rs](crates/sandbox/src/game.rs), [game/](crates/sandbox/src/game) |
+| Match rules, timing and setup validation | [matchplay.rs](crates/sim/src/matchplay.rs) |
 | World state and update order | [world.rs](crates/sim/src/world.rs) |
 | Public commands, events and views | [world/api.rs](crates/sim/src/world/api.rs), [world/queries.rs](crates/sim/src/world/queries.rs) |
 | World construction / test placement | [world/setup.rs](crates/sim/src/world/setup.rs), [world/vehicle.rs](crates/sim/src/world/vehicle.rs) |
@@ -57,7 +65,7 @@ Start the server and browser in separate terminals. `SANDBOX_URL` and `CHROME_DE
 | Experiment schema / validation | [experiment.rs](crates/sim/src/experiment.rs) |
 | Prepared studies / sweeps | [experiment/presets.rs](crates/sim/src/experiment/presets.rs), [experiment/sweep.rs](crates/sim/src/experiment/sweep.rs) |
 | Running / recording experiments | [experiment/runner.rs](crates/sim/src/experiment/runner.rs), [experiment/recording.rs](crates/sim/src/experiment/recording.rs) |
-| Window and screen transitions | [sandbox/main.rs](crates/sandbox/src/main.rs) |
+| Window and screen transitions | [shared client](crates/sandbox/src/lib.rs), [game entry](crates/game/src/main.rs), [sandbox entry](crates/sandbox/src/main.rs) |
 | Playable session and effects | [sandbox/lab.rs](crates/sandbox/src/lab.rs) |
 | Scene shortcuts and track input | [sandbox/controls.rs](crates/sandbox/src/controls.rs) |
 | Live world rendering / HUD | [sandbox/view.rs](crates/sandbox/src/view.rs), [sandbox/ui.rs](crates/sandbox/src/ui.rs) |

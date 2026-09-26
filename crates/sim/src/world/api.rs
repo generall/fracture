@@ -1,7 +1,7 @@
 //! Commands, events and read-only views at the simulation boundary.
 use super::{Ammunition, Material, Vector};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Scene {
     #[default]
     Masonry,
@@ -46,7 +46,7 @@ impl Scene {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Shot {
     pub ammunition: Ammunition,
     pub target: Vector,
@@ -66,7 +66,7 @@ impl Shot {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Command {
     Fire(Shot),
     SelectAmmunition(Ammunition),
@@ -80,7 +80,7 @@ pub enum Command {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DestructionCause {
     Shell(Ammunition),
     Blast,
@@ -89,7 +89,7 @@ pub enum DestructionCause {
     Collapse,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TankImpact {
     pub cause: DestructionCause,
     pub point: Vector,
@@ -99,7 +99,7 @@ pub struct TankImpact {
     pub impulse: Vector,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TankDestruction {
     pub id: usize,
     pub hull_angle: f32,
@@ -108,9 +108,10 @@ pub struct TankDestruction {
     pub impact: TankImpact,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Event {
     Fired {
+        ammunition: Ammunition,
         position: Vector,
         velocity: Vector,
     },
@@ -126,6 +127,26 @@ pub enum Event {
     Impacted {
         position: Vector,
         normal: Vector,
+    },
+    /// Significant hull contact; presentation may rate-limit the resulting sound.
+    Collided {
+        position: Vector,
+        energy: f32,
+    },
+    /// Permanent shell buckling (e.g. a crushed barrel); work is joules.
+    Buckled {
+        position: Vector,
+        work: f32,
+    },
+    /// A metal hinge yielded and retained a bend; work is joules.
+    Bent {
+        position: Vector,
+        work: f32,
+    },
+    /// A nonphysical scenery prop was destroyed by a weapon or tank contact.
+    DecorationDestroyed {
+        position: Vector,
+        kind: crate::DecorationKind,
     },
     LaserLimited,
     BridgeCollapsed {
@@ -149,7 +170,7 @@ pub enum Event {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Shape {
     Box { half: Vector },
     Ball { radius: f32 },
@@ -157,7 +178,7 @@ pub enum Shape {
 }
 
 /// Authored detail retained on an independent tank wreck body.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TankFragment {
     /// 0..4 are hull plates; 4..10 are track sections.
     pub part: u8,
@@ -165,7 +186,7 @@ pub struct TankFragment {
     pub tread_phase: f32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BodyView {
     pub id: usize,
     /// Authored object shared by its material cells, including fixed polygons.
@@ -190,9 +211,12 @@ pub struct BodyView {
     pub sleeping: bool,
     pub fixed: bool,
     pub opacity: f32,
+    /// Host sight-blocker classification, filled only in network snapshots so
+    /// replicas can compute their own vision without physics colliders.
+    pub blocks_sight: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BondView {
     pub start: Vector,
     pub end: Vector,
@@ -202,7 +226,7 @@ pub struct BondView {
     pub load: f32,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Stats {
     pub ablated: usize,
     pub ablated_area: f32,
@@ -231,7 +255,7 @@ pub struct Stats {
     pub unconverged: usize,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Shell {
     pub ammunition: Ammunition,
     pub position: Vector,
@@ -242,9 +266,9 @@ pub struct Shell {
     pub(super) owner: usize,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct LaserBeam {
     pub start: Vector,
     pub end: Vector,
-    pub(super) remaining: f32,
+    pub remaining: f32,
 }

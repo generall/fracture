@@ -282,13 +282,7 @@ impl Editor {
                 Color::new(0.10, 0.26, 0.36, 1.0),
             );
         }
-        text(
-            &visible,
-            rect.x + 8.0,
-            rect.y + 22.0,
-            18.0,
-            if active { CYAN } else { INK },
-        );
+        crate::ui::field_text(&visible, rect, 22.0, 18.0, active);
         if rect.contains(mouse)
             && is_mouse_button_pressed(MouseButton::Left)
             && !active

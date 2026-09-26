@@ -69,8 +69,10 @@ impl Comparison {
         ];
         for (j, (field, label)) in fields.into_iter().enumerate() {
             if !tank
-                && self.experiment.variants[self.selected].impact.ammunition
-                    == sim::Ammunition::Laser
+                && self.experiment.variants[self.selected]
+                    .impact
+                    .ammunition
+                    .energy_beam()
                 && matches!(field, Field::ShellMass | Field::ShellSpeed)
             {
                 continue;
@@ -224,8 +226,10 @@ impl Comparison {
                 (Field::Duration, "DURATION s"),
                 (Field::TankAngle, "APPROACH deg"),
             ],
-            1 if self.experiment.variants[self.selected].impact.ammunition
-                == sim::Ammunition::Laser =>
+            1 if self.experiment.variants[self.selected]
+                .impact
+                .ammunition
+                .energy_beam() =>
             {
                 &[
                     (Field::AimX, "AIM X m"),

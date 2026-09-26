@@ -90,13 +90,7 @@ impl LevelEditor {
             .into_iter()
             .rev()
             .collect();
-        text(
-            &display,
-            rect.x + 8.0,
-            rect.y + 23.0,
-            18.0,
-            if active { CYAN } else { INK },
-        );
+        crate::ui::field_text(&display, rect, 23.0, 18.0, active);
         if rect.contains(mouse) && is_mouse_button_pressed(MouseButton::Left) && !active {
             self.commit_field();
             self.editing = Some(Editing {

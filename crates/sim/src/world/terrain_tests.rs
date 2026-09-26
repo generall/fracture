@@ -75,6 +75,46 @@ fn water_and_cliffs_block_full_vehicle_at_speed_and_diagonal_approaches() {
 }
 
 #[test]
+fn cliff_faces_deflect_loose_objects_while_water_keeps_its_tank_only_barrier() {
+    for kind in [TerrainKind::Cliff, TerrainKind::Water] {
+        let mut world = World::new(Scene::Custom);
+        world.terrain.push(TerrainPatch {
+            kind,
+            min: Vector::new(0.0, -5.0),
+            max: Vector::new(1.0, 5.0),
+        });
+        world.rebuild_terrain_barriers();
+        let id = world.add_ball(
+            Vector::new(-2.0, -2.0),
+            0.25,
+            100.0,
+            Material::Rock,
+            Vector::new(8.0, 1.5),
+        );
+        world.pieces[id].floor_friction = 0.0;
+        for _ in 0..120 {
+            world.step(&[]);
+        }
+        let position = world.piece_pose(id).translation;
+        if kind == TerrainKind::Cliff {
+            assert!(
+                position.x < -0.24,
+                "object crossed cliff face: {position:?}"
+            );
+            assert!(
+                position.y > -1.0,
+                "glancing contact should deflect along the face"
+            );
+        } else {
+            assert!(
+                position.x > 4.0,
+                "water must retain existing loose-object behavior"
+            );
+        }
+    }
+}
+
+#[test]
 fn intact_bridge_is_crossable_in_both_directions_without_contact_damage() {
     for direction in [-1.0, 1.0] {
         let mut w = World::new(Scene::Terrain);
@@ -179,9 +219,15 @@ fn all_weapons_pass_over_the_deck_from_both_banks() {
                 ammo,
                 Vector::new(9.0 * direction, 0.0),
             ))]);
+            if ammo == Ammunition::Plasma {
+                for _ in 1..120 {
+                    events.extend(w.step(&[]));
+                }
+            }
             assert_eq!(w.shots, 1, "muzzle must clear the deck");
-            if ammo == Ammunition::Laser {
-                assert!((w.laser_beam().unwrap().end.x * direction - 8.5).abs() < 0.01);
+            if ammo.energy_beam() {
+                let beam = w.laser_beam().or_else(|| w.plasma_beam()).unwrap();
+                assert!((beam.end.x * direction - 8.5).abs() < 0.01);
             } else {
                 for _ in 0..if ammo == Ammunition::Rocket { 240 } else { 30 } {
                     events.extend(w.step(&[]));
@@ -369,9 +415,9 @@ fn a_local_cut_preserves_crossing_but_two_separately_anchored_halves_do_not() {
 }
 
 #[test]
-fn water_and_cliff_collision_does_not_intercept_shells_or_laser() {
+fn water_and_cliff_collision_does_not_intercept_any_weapon() {
     for kind in [TerrainKind::Water, TerrainKind::Cliff] {
-        for ammo in [Ammunition::HighExplosive, Ammunition::Laser] {
+        for ammo in Ammunition::ALL {
             let mut w = World::new(Scene::Terrain);
             for patch in &mut w.terrain {
                 if patch.kind == TerrainKind::Water {
@@ -388,16 +434,24 @@ fn water_and_cliff_collision_does_not_intercept_shells_or_laser() {
                 true,
             );
             let mut events = w.step(&[Command::Fire(Shot::new(ammo, Vector::new(6.0, -4.0)))]);
-            if ammo == Ammunition::Laser {
-                assert!((w.laser_beam().unwrap().end.x - 5.5).abs() < 0.01);
+            if ammo == Ammunition::Plasma {
+                for _ in 1..120 {
+                    events.extend(w.step(&[]));
+                }
+            }
+            if ammo.energy_beam() {
+                let beam = w.laser_beam().or_else(|| w.plasma_beam()).unwrap();
+                assert!((beam.end.x - 5.5).abs() < 0.01, "{kind:?}: {ammo:?}");
             } else {
-                for _ in 0..20 {
+                for _ in 0..if ammo == Ammunition::Rocket { 240 } else { 30 } {
                     events.extend(w.step(&[]));
                 }
                 let hit = events
                     .iter()
                     .find_map(|e| {
-                        if let Event::Exploded { position, .. } = e {
+                        if let Event::Exploded { position, .. } | Event::Impacted { position, .. } =
+                            e
+                        {
                             Some(position.x)
                         } else {
                             None

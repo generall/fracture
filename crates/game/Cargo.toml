@@ -1,0 +1,8 @@
+[package]
+name = "game"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+fracture_client = { package = "sandbox", path = "../sandbox" }
+macroquad.workspace = true

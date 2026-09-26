@@ -2,7 +2,11 @@
 use super::*;
 use crate::SpecialWeapon;
 
-#[derive(Clone, Copy, Debug)]
+pub(super) const LASER_DURATION: f32 = 3.0;
+pub(super) const LASER_PULSES: usize = 30;
+pub(super) const PLASMA_CHARGE: f32 = 1.0;
+
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PickupView {
     pub position: Vector,
     pub weapon: SpecialWeapon,
@@ -15,13 +19,25 @@ pub(super) type Pickup = PickupView;
 
 impl World {
     pub fn pickups(&self) -> impl Iterator<Item = PickupView> + '_ {
-        self.pickups.iter().copied()
+        self.pickups
+            .iter()
+            .copied()
+            .chain(self.replica.iter().flat_map(|f| f.pickups.iter().copied()))
     }
     pub fn carried_special(&self) -> Option<SpecialWeapon> {
         self.special
     }
     pub fn laser_remaining(&self) -> f32 {
         self.laser_remaining
+    }
+    pub fn plasma_remaining(&self) -> f32 {
+        self.plasma_remaining
+    }
+    pub fn plasma_beam(&self) -> Option<LaserBeam> {
+        self.plasma_beam
+    }
+    pub fn special_active(&self) -> bool {
+        self.laser_remaining > 0.0 || self.plasma_remaining > 0.0
     }
     pub fn special_charges(&self) -> u32 {
         self.special_charges
@@ -46,7 +62,7 @@ impl World {
     }
     pub(super) fn activate_special(&mut self, events: &mut Vec<Event>) {
         if !self.tank_is_alive(self.launcher)
-            || self.laser_remaining > 0.0
+            || self.special_active()
             || self.special_reload > 1e-5
             || self.special_charges == 0
         {
@@ -54,9 +70,14 @@ impl World {
         }
         match self.special {
             Some(SpecialWeapon::Laser) => {
-                self.consume_special_charge(3.0);
-                self.laser_remaining = 3.0;
+                self.consume_special_charge(LASER_DURATION);
+                self.laser_remaining = LASER_DURATION;
                 self.laser_pulse_in = 0.0;
+            }
+            Some(SpecialWeapon::Plasma) => {
+                self.consume_special_charge(PLASMA_CHARGE);
+                self.plasma_remaining = PLASMA_CHARGE;
+                self.plasma_direction = Vector::from_angle(self.player_aim.angle);
             }
             Some(SpecialWeapon::Rocket) => {
                 let before = self.shots;
@@ -75,16 +96,28 @@ impl World {
             None => {}
         }
     }
+    #[cfg(test)]
     pub(super) fn update_specials(&mut self, events: &mut Vec<Event>) {
+        self.update_specials_for_player(events, true);
+    }
+    pub(super) fn update_specials_for_player(
+        &mut self,
+        events: &mut Vec<Event>,
+        advance_pickups: bool,
+    ) {
         self.special_reload = (self.special_reload - TICK_DT).max(0.0);
         if self.special_reload < TICK_DT * 0.5 {
             self.special_reload = 0.0;
         }
-        for pickup in &mut self.pickups {
-            pickup.remaining = (pickup.remaining - TICK_DT).max(0.0);
+        if advance_pickups {
+            for pickup in &mut self.pickups {
+                pickup.remaining = (pickup.remaining - TICK_DT).max(0.0);
+            }
         }
         if !self.tank_is_alive(self.launcher) {
             self.laser_remaining = 0.0;
+            self.plasma_remaining = 0.0;
+            self.plasma_beam = None;
             self.special = None;
             self.special_charges = 0;
             self.special_reload = 0.0;
@@ -107,7 +140,20 @@ impl World {
                 self.laser_remaining = 0.0;
             }
         }
-        if self.special.is_none() && self.laser_remaining <= 0.0 {
+        if self.plasma_remaining > 0.0 {
+            self.plasma_remaining = (self.plasma_remaining - TICK_DT).max(0.0);
+            if self.plasma_remaining < TICK_DT * 0.5 {
+                self.plasma_remaining = 0.0;
+                let origin = self.launcher_position();
+                let barrel = if self.player_aim.active {
+                    Vector::from_angle(self.player_aim.angle)
+                } else {
+                    self.plasma_direction
+                };
+                self.fire_plasma(origin, barrel, events);
+            }
+        }
+        if self.special.is_none() && !self.special_active() {
             let position = self.launcher_position();
             let rotation = self.piece_pose(self.launcher).rotation.inverse();
             if let Some(pickup) = self.pickups.iter_mut().find(|p| {
@@ -139,6 +185,166 @@ mod tests {
         let saved = level.to_json().unwrap();
         World::from_level(&Level::from_json(&saved).unwrap(), Team::Blue).unwrap()
     }
+    #[test]
+    fn energy_weapons_cut_in_levels_with_more_than_8192_starting_records() {
+        for weapon in [SpecialWeapon::Laser, SpecialWeapon::Plasma] {
+            for preset in [crate::LibraryPreset::Rock, crate::LibraryPreset::Wall] {
+                let mut w = pickup_level(weapon);
+                let rock = preset.asset();
+                w.add_object(&rock, &rock.mesh().unwrap(), Vector::ZERO);
+                // Fixed background geometry fills the old global record budget,
+                // but should not spend any of this level's runtime cutting detail.
+                while w.pieces.len() < 8200 {
+                    let x = (w.pieces.len() % 100) as f32;
+                    let y = 50.0 + (w.pieces.len() / 100) as f32;
+                    let id = w.add_triangle(
+                        [
+                            Vector::new(x, y),
+                            Vector::new(x + 0.1, y),
+                            Vector::new(x, y + 0.1),
+                        ],
+                        Material::Anchor,
+                    );
+                    w.physics.bodies[w.pieces[id].body].set_body_type(RigidBodyType::Fixed, false);
+                }
+                w.rebuild_chunks();
+                let original_records = w.pieces.len();
+                w.update_specials(&mut vec![]); // Collect the real pickup.
+                w.activate_special(&mut vec![]);
+                for _ in 0..360 {
+                    w.update_specials(&mut vec![]);
+                }
+                assert!(
+                    w.ablated_area > 0.05,
+                    "{weapon:?} / {preset:?} did not cut: {} limit hits",
+                    w.refinement_limited
+                );
+                assert!(w.pieces.len() > original_records);
+                assert_eq!(w.refinement_limited, 0);
+                assert_eq!(w.stats().kinetic_energy, 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn plasma_charges_for_one_second_then_fires_once_and_cools_down() {
+        let mut w = pickup_level(SpecialWeapon::Plasma);
+        w.pickups[0].charges = 2;
+        w.pickups[0].cooldown = 5.0;
+        w.step(&[Command::Aim(Vector::new(10.0, 0.0))]);
+        w.reload = 0.6;
+        w.activate_special(&mut vec![]);
+        assert_eq!(w.reload, 0.6);
+        assert_eq!(w.special_charges(), 1);
+        assert_eq!(w.plasma_remaining(), 1.0);
+        let main = Command::Fire(Shot::new(Ammunition::HighExplosive, Vector::ZERO));
+        for _ in 0..119 {
+            w.step(&[Command::ActivateSpecial, main]);
+            assert_eq!(w.shots, 0, "no discharge or main gun while charging");
+            assert!(w.plasma_beam().is_none());
+            assert_eq!(w.tanks[1].health, 100.0);
+        }
+        assert!(w.plasma_remaining() > 0.0);
+        w.step(&[Command::ActivateSpecial, main]);
+        assert_eq!(w.shots, 1);
+        assert_eq!(w.plasma_remaining(), 0.0);
+        assert!(w.plasma_beam().is_some());
+        assert_eq!(w.tanks[1].health, 0.0);
+        assert!((w.special_cooldown() - 5.0).abs() < 0.001);
+        for _ in 0..30 {
+            w.step(&[Command::ActivateSpecial]);
+        }
+        assert_eq!(w.shots, 1, "visual afterglow cannot deal repeated damage");
+        assert!(w.plasma_beam().is_none());
+        assert_eq!(w.special_charges(), 1);
+    }
+
+    #[test]
+    fn plasma_tracks_the_turret_during_charge_without_spread_and_death_cancels_it() {
+        let mut w = pickup_level(SpecialWeapon::Plasma);
+        w.step(&[Command::Aim(Vector::ZERO)]);
+        w.activate_special(&mut vec![]);
+        w.player_aim.spread = 0.6;
+        let target = w.launcher_position() + Vector::Y * 30.0;
+        for _ in 0..120 {
+            w.step(&[Command::Aim(target)]);
+        }
+        let beam = w.plasma_beam().unwrap();
+        let barrel = Vector::from_angle(w.player_aim.angle);
+        assert!(barrel.y > 0.8, "turret can turn while charging");
+        assert!((beam.end - beam.start).normalize().distance(barrel) < 1e-5);
+        assert!(beam.start.distance(w.launcher_position() + barrel * 1.65) < 0.001);
+        assert_eq!(w.special_charges(), 0);
+        assert_eq!(w.carried_special(), None);
+
+        let mut w = pickup_level(SpecialWeapon::Plasma);
+        w.step(&[Command::Aim(Vector::ZERO)]);
+        w.step(&[Command::ActivateSpecial]);
+        w.destroy_tank(w.launcher, &mut vec![]);
+        assert_eq!(w.plasma_remaining(), 0.0);
+        for _ in 0..130 {
+            w.step(&[]);
+        }
+        assert_eq!(w.shots, 0);
+        assert!(w.plasma_beam().is_none());
+    }
+
+    #[test]
+    fn charging_plasma_does_not_block_enemy_fire() {
+        let mut w = pickup_level(SpecialWeapon::Plasma);
+        w.step(&[Command::Aim(Vector::ZERO)]);
+        w.activate_special(&mut vec![]);
+        let enemy = w.tanks[1].id;
+        w.fire_from(
+            enemy,
+            Shot::new(Ammunition::HighExplosive, w.launcher_position()),
+            &mut vec![],
+        );
+        assert_eq!(w.shells.len(), 1);
+        assert_eq!(w.shells[0].owner, enemy);
+        assert_eq!(w.plasma_remaining(), 1.0);
+    }
+
+    #[test]
+    fn plasma_matches_full_laser_cutting_budget_without_adding_force() {
+        let asset = crate::LibraryPreset::Rock.asset();
+        let mut laser = World::from_object(&asset).unwrap();
+        let mut plasma = World::from_object(&asset).unwrap();
+        let origin = laser.launcher_position();
+        for _ in 0..LASER_PULSES {
+            laser.fire_laser(origin, Vector::X, Vector::X, true, &mut vec![]);
+        }
+        plasma.fire_plasma(origin, Vector::X, &mut vec![]);
+        assert!(plasma.ablated_area > 0.0);
+        assert_eq!(plasma.ablated_area, laser.ablated_area);
+        assert_eq!(plasma.ablated, laser.ablated);
+        assert_eq!(plasma.refinements, laser.refinements);
+        assert_eq!(plasma.stats().kinetic_energy, 0.0);
+        assert!(plasma.laser_beam().is_none());
+        assert_eq!(plasma.shots, 1);
+    }
+
+    #[test]
+    fn plasma_delivers_full_laser_tank_damage_and_respects_solid_cover() {
+        for covered in [false, true] {
+            let mut w = pickup_level(SpecialWeapon::Plasma);
+            w.tanks[1].health = 1000.0;
+            if covered {
+                w.add_box(
+                    Vector::new(-5.0, 0.0),
+                    Vector::new(0.2, 2.0),
+                    Material::Anchor,
+                    true,
+                );
+            }
+            w.fire_plasma(w.launcher_position(), Vector::X, &mut vec![]);
+            assert_eq!(w.tanks[1].health, if covered { 1000.0 } else { 640.0 });
+            if covered {
+                assert!(w.plasma_beam().unwrap().end.x < -4.7);
+            }
+        }
+    }
+
     #[test]
     fn three_rockets_respect_five_second_cooldown_and_preserve_main_reload() {
         let mut w = pickup_level(SpecialWeapon::Rocket);

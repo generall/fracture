@@ -1,0 +1,200 @@
+{
+  "march": {
+    "seconds": 43.6364,
+    "loop": true,
+    "bpm": 88,
+    "key": "D minor / F major",
+    "arrangement": "sampled orchestral military score",
+    "peak": 0.77,
+    "rms": 0.1594
+  },
+  "battle": {
+    "seconds": 29.0909,
+    "loop": true,
+    "bpm": 132,
+    "key": "D minor / F major",
+    "arrangement": "sampled orchestral military score",
+    "peak": 0.77,
+    "rms": 0.1543
+  },
+  "he": {
+    "seconds": 0.75,
+    "loop": false,
+    "peak": 0.641,
+    "rms": 0.1051
+  },
+  "ap": {
+    "seconds": 0.46,
+    "loop": false,
+    "peak": 0.5419,
+    "rms": 0.0607
+  },
+  "rocket": {
+    "seconds": 1.1,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.1216
+  },
+  "plasma": {
+    "seconds": 0.85,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.0943
+  },
+  "impact": {
+    "seconds": 0.38,
+    "loop": false,
+    "peak": 0.4489,
+    "rms": 0.0653
+  },
+  "collision": {
+    "seconds": 0.45,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.089
+  },
+  "fracture": {
+    "seconds": 0.7,
+    "loop": false,
+    "peak": 0.6357,
+    "rms": 0.0826
+  },
+  "explosion": {
+    "seconds": 1.4,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.0934
+  },
+  "splash": {
+    "seconds": 0.8,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.1181
+  },
+  "idle": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.6503,
+    "rms": 0.3318
+  },
+  "engine": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.6503,
+    "rms": 0.3316
+  },
+  "tracks": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.5196,
+    "rms": 0.0584
+  },
+  "laser": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.6503,
+    "rms": 0.303
+  },
+  "charge": {
+    "seconds": 1.0,
+    "loop": false,
+    "peak": 0.6451,
+    "rms": 0.287
+  },
+  "pickup": {
+    "seconds": 0.24,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.1069
+  },
+  "reload": {
+    "seconds": 0.26,
+    "loop": false,
+    "peak": 0.3549,
+    "rms": 0.0452
+  },
+  "respawn": {
+    "seconds": 0.95,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.2269
+  },
+  "victory": {
+    "seconds": 1.15,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.2258
+  },
+  "defeat": {
+    "seconds": 1.15,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.2173
+  },
+  "countdown": {
+    "seconds": 0.48,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.2202
+  },
+  "go": {
+    "seconds": 0.55,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.2054
+  },
+  "barrel-crush": {
+    "seconds": 0.78,
+    "loop": false,
+    "peak": 0.6503,
+    "rms": 0.1072
+  },
+  "fence-crunch": {
+    "seconds": 0.6,
+    "loop": false,
+    "peak": 0.65,
+    "rms": 0.1028
+  },
+  "tracks-road": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.5931,
+    "rms": 0.0806
+  },
+  "tracks-sand": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.6151,
+    "rms": 0.1776
+  },
+  "tracks-grass": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.6249,
+    "rms": 0.1641
+  },
+  "tracks-bridge": {
+    "seconds": 2.0,
+    "loop": true,
+    "peak": 0.6301,
+    "rms": 0.1486
+  },
+  "shrub-break": {
+    "seconds": 0.28,
+    "loop": false,
+    "peak": 0.6193,
+    "rms": 0.1207
+  },
+  "crate-break": {
+    "seconds": 0.38,
+    "loop": false,
+    "peak": 0.5739,
+    "rms": 0.074
+  },
+  "timber-break": {
+    "seconds": 0.48,
+    "loop": false,
+    "peak": 0.5508,
+    "rms": 0.0656
+  }
+}

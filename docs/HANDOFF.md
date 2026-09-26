@@ -1,12 +1,53 @@
 # Development handoff
 
-Current state: **2026-09-14**, after the level-editor interaction, geometry and scale improvements. The user accepted the latest bridge/booth behavior. Start here when continuing; [CONTRIBUTING.md](../CONTRIBUTING.md) maps code locations and workflows. [DEVELOPMENT_HISTORY.md](DEVELOPMENT_HISTORY.md) preserves the earlier decisions, experiments and rejected implementations.
+**Debris budget (2026-09-26):** Levels now target 8,192 active pieces by retiring
+small, distant disposable chunks at 4 Hz. All tank sight ranges, flag lookouts
+and owned radar coverage receive an 8 m protection margin. Whole chunks retire
+smallest-first, then farthest-first; new wrecks and intact structures remain.
+The target is soft if no safe debris is available. Stable retired IDs and the
+separate subdivision budget are unchanged.
+
+**Wrecks on large maps (2026-09-26):** Removed the obsolete 8,192-total-record
+guard from tank wreck creation. Saved match maps can exceed that count before
+play begins, which suppressed hull/track remains while the separate turret
+animation still played. Wrecks retain their 2.5-second lifetime and retire before
+respawn; a regression test covers levels starting above the old limit.
+
+**Laptop controls (2026-09-26):** Q/E or J/K rotate the turret left/right,
+Space (also left-click/F) fires, and G (also right-click) activates the collected
+special weapon. Keyboard aim holds its direction while driving until the mouse
+moves again. WASD drives; the old Q/Z and E/C track overrides are removed.
+Esc opens the match menu; P pauses the sandbox. Comparison playback keeps Space.
+
+**Apple Silicon and input carets (2026-09-26):** Both applications cross-build for
+`aarch64-apple-darwin` (macOS 11+) using `tools/build-macos-arm64.sh`; see
+[macOS packaging](MACOS_BUILD.md). The artifact is
+`target/dist/fracture-macos-arm64.zip`, with separate game/sandbox executables.
+Focused LAN, object-editor, comparison and map-editor fields now display a cyan
+caret, including empty and horizontally scrolled values. Browser captures and
+native LAN focus checks verified the display. macOS runtime testing remains open.
+
+**LAN multiplayer (2026-09-26):** Desktop host/IP/discovery joining, six-player team/ready lobby, host-owned physics, binary/LZ4 visibility-filtered deltas and interpolated client replicas are implemented. Headless validation passed first: 250 unit tests, four real-socket scenarios and a six-client River Valley benchmark. Native/WASM builds, browser game/audio regressions and desktop lobby/match checks also passed. See [run/join instructions](LAN_MULTIPLAYER.md), [headless measurements](LAN_HEADLESS_TESTS.md) and [acceptance audit](LAN_ACCEPTANCE.md). Physical multi-computer LAN/Wi-Fi performance has not been measured.
+
+**Earlier saves:** The completed local-game archive and the initial multiplayer work-in-progress archive are preserved. The latter predates transport and UI implementation; its limitations describe that archive only. See [checkpoint notes](checkpoints/2026-09-26-current-progress.md).
+
+**Decorative destruction sounds (2026-09-26):** Shrubs, crates and timber now have quiet material sounds triggered once by `DecorationDestroyed`, covering tank contact, weapon sweeps and blasts. They share normal effects volume, distance attenuation and coalescing. Decorations remain nonphysical; their visual burst lifecycle is unchanged.
+
+**Terrain feedback (2026-09-26):** Movement audio blends quiet road, sand, grass and bridge textures into the existing engine/treads; elevation adds light grit. Cliff terrain now deflects loose physical objects as well as tanks through a separate collision group, while sight and all weapons still pass over it. Water retains its tank-only barrier. See [AUDIO.md](AUDIO.md) and [TERRAIN.md](TERRAIN.md).
+
+**Small-object sight (2026-09-26):** Player and AI sight exclude props and detached chunks below 0.5 m² before bounds/silhouettes/ray casts. Classification uses connected chunks (whole authored objects for indestructible triangle bodies), preserving intact finely meshed cover. Collision and weapons retain their existing geometry. See [TANK_COMBAT.md](TANK_COMBAT.md).
+
+**Sound design (2026-09-26):** Both binaries now include original sampled-orchestra 88 BPM military / 132 BPM battle music, visibility-driven crossfades, weapon/vehicle/destruction feedback, and a dedicated F7 sound settings screen (four saved sliders), and F8/F9/F10 shortcuts. Pickup/reload cues are quieter; actual barrel buckling and metal-fence yielding emit dedicated crunch sounds. Desktop screech fixes vendor `quad-snd` 0.2.8 through a Cargo patch: correct loop wrapping, smooth gain changes/stops, bounded transient overlap and peak limiting. Harsh effects are filtered offline. Run `cargo test -p quad-snd --lib --locked` alongside workspace tests. Audio is presentation-only. See [AUDIO.md](AUDIO.md).
+
+**Latest addition (2026-09-26):** The default app now opens a title screen and local lobby, with map creation/import/selection, Blue/Red selection, match duration and AI behavior. A dedicated match HUD, countdown, pause menu, capture/time-limit results and rematches replace sandbox controls during play. See [GAME_MODE.md](GAME_MODE.md). `sim::matchplay` owns session rules; `sandbox/game` owns presentation. Game and sandbox now have separate binaries: `cargo run --release --locked -p game` / `-p sandbox`, and browser `/` / `/sandbox.html` load `game.wasm` / `sandbox.wasm`. Shared client code lives in `sandbox/src/lib.rs`; each executable selects its own application.
+
+Current state: **2026-09-26**, after desktop LAN multiplayer, local match flow, separate applications, sound design, visibility filtering and terrain/decorative feedback. The user requested a saved checkpoint; see [the checkpoint notes](checkpoints/2026-09-26.md). Start here when continuing; [CONTRIBUTING.md](../CONTRIBUTING.md) maps code locations and workflows. [DEVELOPMENT_HISTORY.md](DEVELOPMENT_HISTORY.md) preserves the earlier decisions, experiments and rejected implementations.
 
 ## What we are building
 
-A Rust tank-combat game with free movement, a top-down dark wireframe view and satisfying physical destruction. No abstract object health points, movement grid or textured scenery. The user is a software engineer who works mainly in Rust. Browser support works now; multiplayer is a later goal.
+A Rust tank-combat game with free movement, a top-down dark wireframe view and satisfying physical destruction. No abstract object health points, movement grid or textured scenery. The user is a software engineer who works mainly in Rust. Browser support and desktop LAN multiplayer work now.
 
-The project has progressed from a destruction sandbox to an editable object library, reproducible comparison range, multiple weapons, terrain/bridges and playable authored maps with team flags. It remains a sandbox rather than a complete game: no AI enemies, sound, detachable machine assemblies or multiplayer yet.
+The project now has a local game with a lobby, map selection/creation, an AI opponent, match rules, results and rematches. A separate sandbox retains the editors and material experiments. Weapons, terrain/bridges, vision, music and effects are implemented. Desktop LAN play supports up to six humans; detachable machine assemblies are not implemented.
 
 ## Working features
 
@@ -43,6 +84,7 @@ The project has progressed from a destruction sandbox to an editable object libr
 | AP | 8 kg at 350 m/s; concentrated 800 kJ blast, radius 0.65 m; 0.9 s reload. Stronger local damage, no penetration continuation yet. |
 | Rocket | Single-use pickup, right click; 16 kg at 12 m/s, 5.5 m blast and internal material shock. |
 | Laser | Single-use pickup, right click; unstoppable 3 s beam, 0.6 m wide, 10 cutting pulses/s, zero spread. |
+| Plasma cannon | Single-use pickup, right click; 1 s charge while aiming, then one pulse with the full laser budget (30 pulses / up to 240 cutting operations). Special → Plasma in the level editor. |
 
 HE/AP share main-gun reload state; switching starts a full 0.9 s reload. Specials use a separate one-item inventory. Saved recipes retain authored mass/speed rather than silently adopting new defaults. See [AMMUNITION.md](AMMUNITION.md) and [OBJECT_LIBRARY.md](OBJECT_LIBRARY.md).
 
@@ -64,7 +106,7 @@ Simulation uses meters, kilograms and seconds; horizontal gravity is zero. **120
 
 Fracture requires stress overload and bounded work for `Gc × face width × depth × cohesion`; re-equilibrate after each crack, at most eight rounds per pass. Split chunks inherit the parent rigid velocity field and preserve mass/momentum. Do not add separation impulses or reapply Rapier's contact impulses. Preserve load/pulse energy and material points through subdivision.
 
-Refinement keeps existing cracks, support attachments, object identity, collision layer, shape revision, ancestral source IDs and debris deadlines. Maximum eight refinement generations and **8,192 retained records**, including retired parents. Tiny **disconnected chunks** with total area strictly below **0.075 m²** fade after **3.0–3.9 s**. Large chunks stay until further damage; small cells inside them do not expire individually.
+Refinement keeps existing cracks, support attachments, object identity, collision layer, shape revision, ancestral source IDs and debris deadlines. Maximum eight refinement generations. Playable levels allow **8,192 additional runtime subdivision records**, including retired children, independently of starting map geometry; material experiments retain the original **8,192 total-record** cap. Tiny **disconnected chunks** with total area strictly below **0.075 m²** fade after **3.0–3.9 s**. Large chunks stay until further damage; small cells inside them do not expire individually.
 
 Plastic deformation uses rim-edge constraints, **96 projection sweeps**, bounded work/rate/motion and inversion checks; maximum projected movement 15 mm per step. The user rejected extra contact-corner/convexity guards because they worsened flattening. Do not reintroduce that approach casually. [DESTRUCTION.md](DESTRUCTION.md) and [PLASTICITY.md](PLASTICITY.md) explain the models.
 
@@ -79,7 +121,7 @@ Public `sim` imports, JSON fields, defaults, UI layout and controls remain compa
 - `world.rs` owns state and tick order; `world/api.rs` owns commands/events/views; `setup.rs`, `queries.rs`, `debris.rs` and `geometry.rs` handle construction, inspection, cleanup and material geometry.
 - `world/scenes/terrain.rs` owns the terrain/bridge recipe; `world/terrain.rs` owns crossing/collapse. `world/collision.rs` centralizes collision layers and weapon target filtering.
 - `experiment.rs` owns recipe/schema validation. `experiment/{presets,sweep,runner,recording}.rs` separate prepared studies, parameter changes, execution and immutable frames. Mechanics/experiment tests live in companion modules.
-- `sandbox/main.rs` coordinates the window and screen transitions; `lab.rs` owns the playable session/effects; `controls.rs` is the shared scene-button/shortcut catalog and track input.
+- `sandbox/lib.rs` coordinates the window and screen transitions; `lab.rs` owns the playable session/effects; `controls.rs` is the shared scene-button/shortcut catalog and track input.
 - Editor and comparison child modules separate fields, panels, canvas/record rendering, menus/library and browser diagnostics. `ui::wrapped` is a shared text helper.
 
 Use [CONTRIBUTING.md](../CONTRIBUTING.md) for the detailed file map and recipes for adding an object, weapon, terrain rule or editor control. `bash tools/check.sh [--web]` runs standard Rust checks; `bash tools/check-browser.sh [suite ...]` runs browser suites sequentially. The `regression_snapshot` example provides before/after behavior fingerprints across **36 scenarios and prepared studies**.
@@ -88,9 +130,11 @@ Map geometry helpers and unions live in `sim/level/authoring.rs` (pinned `i_over
 
 ## Validation and next work
 
-The current build passes **120 simulation tests and 4 sandbox tests**, formatting and clippy with warnings denied, plus native and WebAssembly release builds. Five relevant browser suites pass: level, level-improvements, demo, terrain and editor. They cover selection/clipboard, actual unions, border and dimension clamping, 190 m bridges, circular barrels, unbreakable walls, both team victories, terrain and bridge targeting, persistence and high-DPI rendering. New native tests check mesh cost and area, real merged rigid bodies, booth targetability at large scale, and actual terminal speed and braking on each dry terrain. Existing destruction, plasticity and replay tests remain green. All 36 pre-change behavior fingerprints match when the new authoring-only `circular` field is omitted from the comparison JSON digest. Existing experiment physics and saved trial parameters remain unchanged.
+Latest verification: **197 simulation + 36 client tests passed**, with one pre-existing ignored test. Formatting passed. Clippy passed with the existing `chunks_exact_to_as_chunks`, `items_after_test_module` and `approx_constant` allowances. Native and WebAssembly release builds for both applications succeeded. The audio browser suite passed with all **32 assets**, real output/mute checks, music visibility transitions, road-to-sand movement audio, actual shrub/crate/timber destruction, settings persistence and input isolation. The vendored mixer has five passing regression tests, run separately via `cargo test -p quad-snd --lib --locked`.
+
+Earlier editor/game/weapon suite results are historical, not fresh validation of this checkpoint. The old general browser smoke test has stale scene-number expectations, and the plasticity smoke test assumes the older fence preset; update those fixtures before using them as a blanket gate.
 
 
-Build/run: `cargo run --release --locked -p sandbox`, or `bash tools/build-web.sh` followed by `python3 tools/serve.py`. Controls: WASD, Q/Z left track, E/C right track; mouse aim/fire; 5–8 ammo/B cycle; 1–4 reference scenes/object yard; 9 terrain; O object editor; M level editor; H manual; R rebuild; Space pause; N step; T slow; Tab stress; wheel/right-drag/Home camera.
+Build/run: `cargo run --release --locked -p game` for the local game; `cargo run --release --locked -p sandbox` for development tools. Browser: `bash tools/build-web.sh`, then `python3 tools/serve.py`; `/` runs the game and `/sandbox.html` runs the sandbox. F7 opens sound settings; F8 mutes. See [GAME_MODE.md](GAME_MODE.md), [AUDIO.md](AUDIO.md) and [SANDBOX.md](SANDBOX.md) for mode-specific controls.
 
-Potential next work, to choose with the user: profile topology rebuild spikes on actual browser hardware; continue object/mesh calibration in the experiment range; saved scene experiments and multi-tank play; better crack geometry; machine parts and functional failures; sound/gameplay; later authoritative multiplayer. Preserve accepted driving/deformation feel. Current limits include triangle-constrained cracks, quasistatic stress, mesh/timestep-dependent fracture, no continuum tearing/fatigue/stress waves, no AP penetration, and no general vertical stacking/fluid dynamics.
+Potential next work, to choose with the user: profile topology rebuild spikes on actual browser hardware; continue object/mesh calibration in the experiment range; measure multiplayer on separate computers and Wi-Fi; better crack geometry; machine parts and functional failures. Preserve accepted driving/deformation feel. Current limits include triangle-constrained cracks, quasistatic stress, mesh/timestep-dependent fracture, no continuum tearing/fatigue/stress waves, no AP penetration, and no general vertical stacking/fluid dynamics.

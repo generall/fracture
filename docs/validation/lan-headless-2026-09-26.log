@@ -1,0 +1,346 @@
+   Compiling tank-net v0.1.0 (/home/generall/projects/the-game/crates/net)
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.75s
+     Running unittests src/main.rs (target/debug/deps/game-65c271a536574b4f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/fracture_client-6c075236cc7e3133)
+
+running 36 tests
+test audio::settings::tests::settings_roundtrip_and_legacy_migration ... ok
+test audio::tests::decorative_destruction_uses_quiet_material_cues_and_coalesces ... ok
+test audio::tests::music_holds_contact_crossfades_and_exits ... ok
+test audio::tests::each_projectile_has_its_own_sound_and_distant_events_are_inaudible ... ok
+test audio::tests::terrain_textures_blend_without_boundary_jumps_or_frame_rate_dependence ... ok
+test audio::tests::many_fractures_coalesce_without_dropping_weapon_cues ... ok
+test fog::figures::tests::brief_sight_interruptions_keep_live_figures_and_reacquisition_resets_cooldown ... ok
+test fog::figures::tests::partial_sighting_reveals_whole_figure_without_revealing_the_next_one ... ok
+test fog::figures::tests::grass_conceals_whole_tanks_at_the_edge_without_visibility_cooldown ... ok
+test fog::figures::tests::memory_freezes_tank_geometry_and_status_for_the_shared_renderer ... ok
+test fog::figures::tests::split_pieces_inherit_remaining_visibility_without_revealing_old_siblings ... ok
+test fog::figures::tests::stations_share_the_building_figure_and_remember_last_seen_ownership ... ok
+test fog::figures::tests::unseen_movement_keeps_the_snapshot_until_old_location_is_seen_again ... ok
+test level_editor::canvas::tests::bridge_grid_accounts_for_minimum_size_booths_and_span_limit ... ok
+test audio::tests::crushing_materials_have_distinct_cues_and_notifications_are_subdued ... ok
+test level_editor::terrain_brush::tests::fast_stroke_is_continuous_clipped_and_packed ... ok
+test navigation::tests::elevation_zoom_eases_in_both_directions_without_a_zero_dt_snap ... ok
+test level_editor::terrain_brush::tests::eraser_follows_a_bent_stroke_instead_of_filling_its_bounds ... ok
+test navigation::tests::gameplay_look_ahead_is_bounded_and_frame_rate_independent ... ok
+test navigation::tests::gameplay_follows_translation_and_keeps_tank_inside_during_zoom_and_respawn ... ok
+test navigation::tests::gameplay_zoom_out_is_bounded_by_sight_on_wide_and_tall_screens ... ok
+test navigation::tests::radar_allows_three_times_previous_view_and_transitions_smoothly ... ok
+test navigation::tests::zoom_eases_without_moving_the_cursor_anchor ... ok
+test navigation::tests::zoom_response_is_independent_of_frame_rate ... ok
+test terrain_view::tests::gaps_win_and_dry_layers_respect_placement_order ... ok
+test level_editor::terrain_brush::tests::painting_cuts_water_preserves_objects_and_roundtrips ... ok
+test terrain_view::tests::overlap_has_no_internal_edges_or_double_fill ... ok
+test level_editor::terrain_brush::tests::half_metre_alignment_keeps_brush_width_and_erases_what_was_painted ... ok
+test track_marks::tests::terrain_is_checked_per_tread_and_teleports_do_not_draw_a_trail ... ok
+test fog::figures::decoration_tests::decoration_memory_does_not_reveal_unseen_destruction ... ok
+test track_marks::tests::moving_treads_mark_only_ground_and_expire_after_ten_seconds ... ok
+test level_editor::canvas::tests::drawing_at_map_edges_keeps_complete_cells ... ok
+test game::tests::invalid_map_keeps_the_player_in_the_lobby ... ok
+test game::tests::countdown_pause_results_and_rematch_gate_gameplay ... ok
+test level_editor::canvas::tests::drawing_fills_whole_cells_in_both_directions_with_or_without_move_snap ... ok
+test level_editor::selection::tests::auto_join_closes_a_room_and_connects_a_divider_at_both_ends ... ok
+
+test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (target/debug/deps/sandbox-0d1e25b48774086f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/sim-8ffa02dd35867102)
+
+running 205 tests
+test experiment::tests::malformed_experiments_and_unbounded_values_are_rejected ... ok
+test level::authoring::tests::barrels_keep_a_circle_and_reject_edited_noncircles ... ok
+test level::authoring::tests::bridge_grid_scales_and_retains_both_booths ... ok
+test level::authoring::tests::transforms_clamp_whole_groups_and_rotated_footprints ... ok
+test level::authoring::tests::merging_into_a_room_preserves_an_irregular_hole ... ok
+test level::authoring::tests::unions_preserve_concavity_and_enclosed_spaces ... ok
+test level::authoring::tests::union_is_one_material_region_with_no_overlap_mass ... ok
+test level::composition::tests::eraser_clears_all_terrain_layers_and_preserves_the_surroundings ... ok
+test level::authoring::tests::merge_preserves_a_support_on_only_part_of_a_straight_edge ... ok
+test matchplay::tests::match_requires_both_teams_and_flags_and_does_not_modify_the_map ... ok
+test level::terrain_mask::tests::legacy_migration_preserves_water_priority_then_allows_painting_over_it ... ok
+test matchplay::tests::time_limit_is_fixed_tick_and_capture_wins_on_the_last_tick ... ok
+test level::terrain_mask::tests::thousands_of_strokes_use_no_items_and_roundtrip_as_a_compact_mask ... ok
+test matchplay::tests::unlimited_matches_end_only_on_capture ... ok
+test object::tests::concave_mesh_preserves_area_and_has_conforming_edges ... ok
+test object::tests::rejects_bad_geometry_and_unbounded_imports ... ok
+test structure::tests::modulus_changes_elastic_energy_without_changing_equilibrium_force ... ok
+test object::tests::reversed_winding_and_inserted_edge_vertex_are_valid ... ok
+test structure::tests::unloaded_structure_has_no_stress ... ok
+test structure::tests::transfers_axial_force_shear_and_bending_to_a_remote_support ... ok
+test object::tests::ground_and_multiple_edge_supports_are_optional_and_validated ... ok
+test world::aiming::tests::driving_and_traversing_widen_spread_then_it_recovers_gradually ... ok
+test world::aiming::tests::laser_leaves_actual_muzzle_and_respects_barrel_cover ... ok
+test object::meshing::tests::wall_grains_are_compact_and_sites_are_editable ... ok
+test world::aiming::tests::shot_sequence_is_repeatable_varied_and_inside_cone ... ok
+test level::composition::tests::erased_opening_is_clear_in_the_simulation ... ok
+test world::aiming::tests::traverse_is_limited_and_takes_shortest_route ... ok
+test world::aiming::tests::simultaneous_aim_and_fire_use_actual_barrel_and_bounded_spread ... ok
+test level::composition::tests::latest_peer_wins_and_moving_it_restores_the_covered_material ... ok
+test world::ammunition_tests::cutting_a_moving_cell_removes_its_mass_without_accelerating_survivors ... ok
+test world::ammunition_tests::laser_detail_limit_never_erases_an_oversized_cell ... ok
+test experiment::tests::explosive_components_and_colors_survive_saved_replay ... ok
+test world::ammunition_tests::level_cutting_budget_remains_bounded_after_removing_the_starting_geometry_limit ... ok
+test world::ammunition_tests::switching_ammunition_cannot_bypass_reload_and_invalid_shots_do_nothing ... ok
+test world::combat::tests::destruction_event_preserves_shell_direction_pose_and_single_death ... ok
+test level::authoring::tests::large_rocks_and_walls_coarsen_automatically ... ok
+test world::ammunition_tests::cutting_fading_debris_preserves_its_deadline_without_double_counting_removal ... ok
+test world::combat::tests::settings_roundtrip_and_old_maps_default_to_static ... ok
+test level::composition::tests::embedded_cutout_has_no_hidden_material_or_unbonded_internal_edges ... ok
+test world::components::tests::component_validation_and_library_preserve_authored_values ... ok
+test world::combat::tests::destruction_from_ramming_has_contact_direction_without_explosion ... ok
+test world::decorations::tests::decorations_neither_carve_walls_nor_merge_and_eraser_removes_whole_prop ... ok
+test world::level::tests::bridge_booths_need_real_banks ... ok
+test world::decorations::tests::decorations_have_no_physics_and_shells_create_only_timed_visuals ... ok
+test world::combat::tests::ram_damage_scales_with_mass_and_speed_squared ... ok
+test world::combat::tests::routes_go_around_solid_and_massive_obstacles_and_allow_light_walls ... ok
+test world::level::tests::invalid_maps_are_rejected_before_loading ... ok
+test world::decorations::tests::decorations_react_to_tracks_laser_and_blast_but_cover_shields_them ... ok
+test world::level::tests::only_live_enemy_tank_footprint_captures_and_emits_one_victory ... ok
+test world::components::tests::plain_barrel_resists_a_standard_shell_without_igniting ... ok
+test world::combat::tests::armor_and_respawn_are_symmetric_and_owner_does_not_hide_the_player ... ok
+test world::contacts::tests::restitution_uses_incoming_speed_without_adding_collision_energy ... ok
+test world::level::tests::merged_rocks_form_one_rigid_body_without_duplicate_material ... ok
+test world::level::tests::map_roundtrip_retains_independent_shapes_and_long_wall_grains ... ok
+test level::composition::tests::eraser_preserves_holes_through_save_transforms_and_overlap ... ok
+test world::level::tests::spawns_use_team_heading_and_reject_hull_overlap_or_open_water ... ok
+test world::multiplayer::tests::invalid_inputs_cannot_change_weapon_physics_or_inject_nonfinite_state ... ok
+test world::decorations::tests::each_decoration_reports_destruction_once_for_sweeps_blasts_and_tracks ... ok
+test world::level::tests::tank_can_drive_to_enemy_flag_and_restart_from_unchanged_recipe ... ok
+test world::plasticity::tests::barrel_pinned_against_rubble_benchmark ... ignored, manual simulation timing benchmark
+test world::level::tests::rotating_bridge_turns_deck_booths_and_collision_geometry_through_four_orientations ... ok
+test world::level::tests::brittle_fence_breaks_under_a_lighter_load_than_wall ... ok
+test world::multiplayer::tests::remote_death_clears_specials_and_respawns_only_that_tank ... ok
+test world::plasticity::tests::shape_change_preserves_mass_and_momentum_and_cannot_spend_unavailable_work ... ok
+test world::combat::tests::ramming_damages_both_tanks_but_gentle_contact_and_pushing_do_not ... ok
+test world::replica::tests::interpolation_uses_network_endpoints_and_snaps_respawn_teleports ... ok
+test world::replica::tests::replicas_have_no_physics_and_ignore_simulation_commands ... ok
+test world::multiplayer::tests::remote_specials_and_pickup_timers_are_independent ... ok
+test world::rigidity_tests::cached_stresses_rotate_with_the_chunk ... ok
+test world::components::tests::library_objects_roundtrip_and_remain_intact_at_rest ... ok
+test world::rigidity_tests::central_attachment_survives_refinement_without_anchoring_detached_chips ... ok
+test world::plasticity::tests::yielding_requires_both_stress_and_work_and_respects_the_strain_limit ... ok
+test world::level::tests::large_bridge_remains_intact_at_rest_and_only_booths_are_targetable ... ok
+test world::rigidity_tests::contact_crack_budgets_fit_dissipation_and_impulses_are_not_applied_twice ... ok
+test world::multiplayer::tests::six_players_have_separate_controls_reload_and_one_shared_clock ... ok
+test world::rigidity_tests::refinement_preserves_support_faces_and_does_not_heal_existing_cracks ... ok
+test world::rigidity_tests::refinement_alone_does_not_break_bonds_or_spend_fracture_energy ... ok
+test world::rigidity_tests::refining_a_moving_rotating_cell_preserves_mass_momentum_and_energy ... ok
+test world::rigidity_tests::high_stress_without_available_work_cannot_create_cracks_or_motion ... ok
+test world::specials::tests::charging_plasma_does_not_block_enemy_fire ... ok
+test world::level::tests::indestructible_polygon_blocks_tanks_and_survives_all_ammunition ... ok
+test world::specials::tests::changing_main_rounds_reloads_and_same_selection_does_not_restart_it ... ok
+test world::specials::tests::pickup_charge_settings_roundtrip_and_old_maps_keep_single_use_defaults ... ok
+test world::rigidity_tests::hull_contact_reports_audio_events_without_stationary_contact_chatter ... ok
+test world::components::tests::explosive_damage_fires_once_and_reaches_neighbors ... ok
+test world::specials::tests::plasma_delivers_full_laser_tank_damage_and_respects_solid_cover ... ok
+test world::level::tests::flags_ignore_every_weapon_and_friendly_tank_touch ... ok
+test world::specials::tests::pickup_is_required_consumed_and_respawns_without_overwriting_inventory ... ok
+test world::specials::tests::plasma_charges_for_one_second_then_fires_once_and_cools_down ... ok
+test world::specials::tests::laser_runs_three_seconds_without_input_and_ignores_spread ... ok
+test world::rigidity_tests::an_isolated_large_triangle_can_be_broken_into_clearable_debris ... ok
+test world::stations::tests::player_radar_zone_requires_friendly_ownership_and_configured_coverage ... ok
+test world::stations::tests::stations_capture_pause_reset_and_change_owner ... ok
+test world::specials::tests::wide_laser_damages_off_axis_tank_but_cannot_cut_through_solid_cover ... ok
+test world::stations::tests::stations_radar_reveals_through_cover_and_transfers_with_ownership ... ok
+test world::stations::tests::stations_capture_runs_in_simulation_step ... ok
+test world::stations::tests::stations_repair_only_living_allies_in_range_at_configured_rate ... ok
+test world::stations::tests::stations_stay_neutral_when_abandoned_after_neutralizing ... ok
+test world::ammunition_tests::laser_cuts_at_ten_pulses_per_second_but_the_beam_tracks_aim_between_pulses ... ok
+test world::tank_wreck::tests::wreck_pieces_are_separate_nonoverlapping_bodies_with_inherited_momentum ... ok
+test world::specials::tests::plasma_tracks_the_turret_during_charge_without_spread_and_death_cancels_it ... ok
+test world::specials::tests::laser_charge_is_a_complete_burst_then_cools_down ... ok
+test world::ammunition_tests::laser_stops_at_fixtures_and_can_sever_a_free_frame_without_kicking_it ... ok
+test world::stations::tests::stations_round_trip_settings_and_carve_overlapping_walls ... ok
+test world::terrain_tests::blasts_over_the_deck_do_not_apply_loads_to_it ... ok
+test world::tank_wreck::tests::wreck_collides_with_walls_then_fades_and_retires_before_respawn ... ok
+test world::terrain_tests::cliff_level_preserves_sight_and_routes_tanks_around_the_gap ... ok
+test world::terrain_tests::cliff_faces_deflect_loose_objects_while_water_keeps_its_tank_only_barrier ... ok
+test world::ammunition_tests::wide_laser_refines_and_removes_bounded_small_cells_without_forces ... ok
+test world::components::tests::rock_chips_under_a_shell_but_retains_a_core_and_resists_ramming ... ok
+test world::level::tests::authored_bridges_cross_and_keep_deck_immune_in_both_orientations ... ok
+test world::terrain_tests::a_local_cut_preserves_crossing_but_two_separately_anchored_halves_do_not ... ok
+test world::bending::tests::fence_holds_its_shape_until_yield_and_keeps_the_permanent_bend ... ok
+test world::specials::tests::three_rockets_respect_five_second_cooldown_and_preserve_main_reload ... ok
+test world::level::tests::level_walls_and_fences_attach_to_authored_solids_without_generated_blocks ... ok
+test world::level::tests::playable_top_speed_is_higher_and_braking_still_stops_the_tank ... ok
+test world::terrain_tests::ground_is_unchanged_and_road_and_sand_have_distinct_speed_and_grip ... ok
+test world::combat::tests::conquer_drives_around_cover_and_cannot_shoot_through_it ... ok
+test world::tests::barrel_cannot_fire_through_nearby_wall ... ok
+test world::tests::ccd_stops_a_fast_ball_at_a_thin_barrier ... ok
+test world::rigidity_tests::material_remains_rigid_and_mass_is_independent_of_editor_detail ... ok
+test world::components::tests::wall_splits_on_the_first_standard_shell_hit ... ok
+test world::tests::cantilever_transmits_bending_load_to_its_neck ... ok
+test world::specials::tests::plasma_matches_full_laser_cutting_budget_without_adding_force ... ok
+test world::tests::floor_resistance_never_adds_energy_or_reverses_motion ... ok
+test experiment::tests::tuned_barrel_leaves_backstop_and_preserves_the_free_shot_reference ... ok
+test world::tests::invalid_shots_cannot_poison_the_world ... ok
+test world::bending::tests::yielding_fence_folds_without_significantly_turning_the_tank ... ok
+test world::tests::gentle_mechanical_load_does_not_break_mortar ... ok
+test object::meshing::tests::layouts_cover_concave_outlines_and_share_every_internal_edge ... ok
+test world::tests::one_track_input_keeps_the_other_track_braked ... ok
+test world::tests::seam_capacity_scales_with_area_and_bending_section ... ok
+test world::tests::shell_detonates_once_on_a_thin_barrier_and_is_consumed ... ok
+test world::tests::shot_and_recoil_conserve_linear_momentum ... ok
+test world::tests::structural_reaction_matches_known_static_load ... ok
+test world::terrain_tests::shells_and_ramming_can_remove_bridge_support ... ok
+test world::terrain_tests::collapsing_bridge_sinks_occupant_once_and_closes_crossing ... ok
+test world::tests::authored_bounciness_survives_refinement_and_legacy_objects_keep_old_response ... ok
+test world::components::tests::barrel_moves_under_a_shove_and_buckles_when_pinned ... ok
+test world::vehicle::elevation_tests::elevation_edges_strongly_slow_both_climbs_and_descents ... ok
+test world::vision::shading::tests::shadow_geometry_excludes_union_of_overlapping_or_separate_sources ... ok
+test world::vision::tests::allied_flag_reveals_nearby_objects_through_respawn_but_respects_cover ... ok
+test world::vision::tests::cone_turns_with_the_turret_and_near_circle_is_always_available ... ok
+test world::vision::tests::elevation_extends_sight_without_blocking_shots ... ok
+test world::vision::tests::fixed_cover_size_uses_the_whole_object_and_cutoff_is_in_world_units ... ok
+test world::vision::tests::grass_blocks_sight_without_blocking_shells_or_tanks ... ok
+test world::vision::tests::grass_keeps_short_vision_and_tanks_inside_can_detect_each_other ... ok
+test world::vision::tests::grass_reveal_requires_actual_fire_expires_and_refreshes ... ok
+test world::vision::tests::grass_shots_do_not_reveal_through_walls_and_death_clears_reveal ... ok
+test world::vision::tests::intact_finely_meshed_cover_blocks_but_small_detached_chunks_do_not ... ok
+test world::plasticity::tests::barrel_yields_under_pinning_and_retains_its_shape_after_unloading ... ok
+test world::vision::tests::small_props_are_not_occluders_but_keep_physical_collision ... ok
+test world::tests::tank_turn_rate_and_release_overshoot_are_limited ... ok
+test world::specials::tests::rocket_blast_fractures_rock ... ok
+test world::weapons::tests::a_solid_wall_shields_a_body_from_blast_pressure ... ok
+test world::weapons::tests::blast_has_a_bounded_energy_budget_for_moving_bodies ... ok
+test world::weapons::tests::adding_an_unrelated_receiver_does_not_redistribute_blast_energy ... ok
+test world::weapons::tests::eccentric_impact_on_light_debris_cannot_create_energy ... ok
+test world::vision::tests::solid_cover_blocks_sight_but_barrels_and_fences_transmit_it ... ok
+test world::tests::authored_supports_preserve_every_edge_orientation_at_rest ... ok
+test world::weapons::tests::blast_resultant_does_not_depend_on_how_the_surface_is_tessellated ... ok
+test world::components::tests::wall_breaks_into_coarser_chunks_under_tank_contact ... ok
+test world::level::demo_tests::demo_is_stable_at_rest_and_fits_a_small_map_budget ... ok
+test world::terrain_tests::intact_bridge_is_crossable_in_both_directions_without_contact_damage ... ok
+test world::tests::track_controls_drive_turn_and_brake ... ok
+test world::terrain_tests::all_weapons_pass_over_the_deck_from_both_banks ... ok
+test experiment::tests::shot_contact_matrix_rebounds_slows_and_replays_after_serialization ... ok
+test world::terrain_tests::water_and_cliff_collision_does_not_intercept_any_weapon ... ok
+test world::terrain_tests::terrain_fracture_and_collapse_replay_deterministically ... ok
+test world::tests::authored_friction_and_strength_change_physical_response ... ok
+test world::vision::tests::moving_observer_does_not_reveal_objects_behind_the_near_circle ... ok
+test experiment::tests::tank_trials_change_actual_vehicle_mass_and_break_the_target ... ok
+test experiment::tests::replay_includes_actual_arena_walls_without_counting_them_as_object_area ... ok
+test world::plasticity::tests::diametric_crushing_expands_the_transverse_span_without_shortening_the_frame ... ok
+test world::tests::structures_remain_intact_and_motionless_at_rest ... ok
+test world::tests::rock_hit_leaves_substantial_chunks_and_does_not_cascade_across_field ... ok
+test world::tests::impact_breaks_connections_before_small_debris_expires ... ok
+test world::multiplayer::tests::shared_visibility_cache_matches_uncached_views_and_expires_before_physics ... ok
+test world::tests::recoil_is_arrested_by_track_brakes ... ok
+test world::components::tests::grounded_rock_cannot_be_pushed_or_turned_by_oblique_tank_impacts ... ok
+test world::tests::authored_objects_preserve_mass_and_remain_stable_until_hit ... ok
+test world::combat::tests::activities_move_fire_and_capture_as_requested ... ok
+test world::terrain_tests::water_and_cliffs_block_full_vehicle_at_speed_and_diagonal_approaches ... ok
+test world::tests::oblique_rock_hits_preserve_the_rest_of_the_field ... ok
+test world::ammunition_tests::projectile_profiles_conserve_launch_momentum_and_have_distinct_blasts ... ok
+test experiment::tests::ground_attachments_and_edge_supports_replay_from_saved_recipes ... ok
+test world::plasticity::tests::legacy_welded_fence_bends_without_detaching_its_support ... ok
+test world::tests::tiny_disconnected_debris_clears_but_intact_structure_remains ... ok
+test world::level::tests::carved_embedded_support_does_not_inject_contact_energy ... ok
+test world::ammunition_tests::ap_breaks_more_material_near_the_hit_than_he_with_a_smaller_blast_radius ... ok
+test world::level::tests::saved_editor_map_embedded_blocks_anchor_both_wall_sections ... ok
+test world::tests::identical_command_logs_reproduce_identical_state ... ok
+test world::tests::repeated_shells_open_a_localized_breach_in_anchored_masonry ... ok
+test world::level::demo_tests::demo_central_bridge_route_reaches_both_enemy_flags ... ok
+test experiment::tests::generated_grains_remain_rigid_and_stress_solutions_converge_on_impact ... ok
+test experiment::tests::saved_recipe_replays_the_same_frames_and_preserves_a_review_checkpoint ... ok
+test experiment::tests::angled_shared_trials_set_pose_and_velocity_and_preserve_old_recipes ... ok
+test world::tests::repeated_shots_respect_reload_and_never_accumulate_projectile_bodies ... ok
+test world::combat::tests::enemy_blasts_a_route_through_breakable_cover ... ok
+test experiment::tests::six_deformation_limits_share_the_test_and_replay_saved_cases ... ok
+test world::specials::tests::energy_weapons_cut_in_levels_with_more_than_8192_starting_records ... ok
+test experiment::tests::ten_barrels_share_a_fixture_and_replay_exactly_with_a_saved_favorite ... ok
+test experiment::tests::ammunition_bursts_and_laser_cuts_replay_with_saved_effects ... ok
+test world::level::demo_tests::demo_has_two_drivable_bypasses_for_each_team_after_bridge_destruction ... ok
+test world::terrain_tests::booths_survive_pushing_slow_bumps_and_glancing_impacts_from_either_bank ... ok
+
+test result: ok. 204 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.49s
+
+     Running unittests src/lib.rs (target/debug/deps/tank_net-d37979fff1383fb7)
+
+running 10 tests
+test codec::tests::compressed_frames_round_trip_and_incremental_reads_wait ... ok
+test codec::tests::invalid_headers_and_compression_are_rejected_before_allocation ... ok
+test replication::tests::enemy_outside_vision_has_no_body_or_tank_state ... ok
+test replication::tests::visible_enemy_is_replicated_without_needing_a_grass_override ... ok
+test session::input_tests::accepted_actions_survive_stalls_once_while_stale_movement_brakes ... ok
+test session::input_tests::malformed_controls_old_sequences_and_regressing_counters_are_ignored ... ok
+test replication::tests::shape_changes_update_cached_geometry_without_resending_stationary_motion ... ok
+test replication::tests::stationary_geometry_is_sent_once_hidden_bodies_stop_and_reentry_restores ... ok
+test session::input_tests::sequence_and_action_counters_wrap_without_replaying_old_packets ... ok
+test replication::tests::map_binary_round_trip_includes_authored_terrain ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lan.rs (target/debug/deps/lan-e9ab75d92f858247)
+
+running 4 tests
+test backed_up_reader_skips_snapshots_without_stalling_others_and_recovers_deltas ... ignored, requires local TCP sockets
+test remote_plasma_charges_once_destroys_props_kills_and_respawns_host ... ignored, requires local TCP sockets
+test six_clients_discover_ready_play_and_return_to_lobby ... ignored, requires local TCP and UDP sockets
+test time_limit_then_map_change_and_capture_rematch_reach_every_client ... ignored, requires local TCP sockets
+
+test result: ok. 0 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests fracture_client
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sim
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tank_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling tank-net v0.1.0 (/home/generall/projects/the-game/crates/net)
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.67s
+     Running tests/lan.rs (target/debug/deps/lan-11bb190425247f87)
+
+running 4 tests
+Six TCP clients, UDP discovery, readiness, independent input, slow guest, disconnect and lobby reset passed. Traffic bytes: [(1348, 271351), (1364, 294932), (1352, 283803), (1352, 297073), (1352, 287902)]
+test six_clients_discover_ready_play_and_return_to_lobby ... ok
+Slow reader recovery: 28 snapshots skipped, peak app queue 29861 bytes
+test backed_up_reader_skips_snapshots_without_stalling_others_and_recovers_deltas ... ok
+test remote_plasma_charges_once_destroys_props_kills_and_respawns_host ... ok
+test time_limit_then_map_change_and_capture_rematch_reach_every_client ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.03s
+
+    Checking tank-net v0.1.0 (/home/generall/projects/the-game/crates/net)
+    Checking sandbox v0.1.0 (/home/generall/projects/the-game/crates/sandbox)
+    Checking game v0.1.0 (/home/generall/projects/the-game/crates/game)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.18s
+   Compiling socket2 v0.6.5
+   Compiling sim v0.1.0 (/home/generall/projects/the-game/crates/sim)
+   Compiling tank-net v0.1.0 (/home/generall/projects/the-game/crates/net)
+    Finished `release` profile [optimized] target(s) in 18.54s
+     Running `target/release/examples/lan_benchmark`
+River Divide / River Valley: [160.0, 160.0] metres, 116 authored items
+Peak authoritative bodies: 5139, snapshots skipped for backpressure: 6
+Host physics tick: n=1202 median=1.350ms p95=2.319ms p99=4.181ms max=13.056ms
+All six snapshots: n=261 median=4.916ms p95=5.533ms p99=5.962ms max=6.708ms
+Client snapshot interval: n=200 median=50.311ms p95=51.745ms p99=52.605ms max=52.731ms
+Simulated ticks: 1202, catch-up caps: 0, snapshots per peer: [260, 260, 260, 260, 260, 260], peak visible bodies: [450, 56, 196, 10, 228, 66]
+Peer 0: 286.2 KiB/s received, position Vec2(21.404669, -26.769665)
+Peer 1: 148.0 KiB/s received, position Vec2(-24.778316, 25.725798)
+Peer 2: 211.2 KiB/s received, position Vec2(32.461056, -36.03994)
+Peer 3: 106.1 KiB/s received, position Vec2(-37.55861, 41.24526)
+Peer 4: 145.8 KiB/s received, position Vec2(37.372055, -35.03347)
+Peer 5: 176.4 KiB/s received, position Vec2(-29.036983, 27.682837)

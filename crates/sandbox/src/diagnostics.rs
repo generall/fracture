@@ -12,9 +12,11 @@ static REFINED: AtomicU32 = AtomicU32::new(0);
 static UNCONVERGED: AtomicU32 = AtomicU32::new(0);
 static CLEARED_AREA: AtomicU32 = AtomicU32::new(0);
 static SPECIAL: AtomicU32 = AtomicU32::new(0);
+static PLASMA_TIME: AtomicU32 = AtomicU32::new(0);
 static LASER_TIME: AtomicU32 = AtomicU32::new(0);
 static RELOAD: AtomicU32 = AtomicU32::new(0);
 static AMMUNITION: AtomicU32 = AtomicU32::new(0);
+static TURRET_ANGLE: AtomicU32 = AtomicU32::new(0);
 static ABLATED: AtomicU32 = AtomicU32::new(0);
 static ABLATED_AREA: AtomicU32 = AtomicU32::new(0);
 
@@ -43,17 +45,25 @@ pub extern "C" fn lab_laser_remaining() -> f32 {
     f32::from_bits(LASER_TIME.load(Ordering::Relaxed))
 }
 #[unsafe(no_mangle)]
+pub extern "C" fn lab_plasma_remaining() -> f32 {
+    f32::from_bits(PLASMA_TIME.load(Ordering::Relaxed))
+}
+#[unsafe(no_mangle)]
 pub extern "C" fn lab_reload() -> f32 {
     f32::from_bits(RELOAD.load(Ordering::Relaxed))
 }
 
 pub fn publish(world: &sim::World) {
+    TURRET_ANGLE.store(world.player_aim().angle.to_bits(), Ordering::Relaxed);
     SPECIAL.store(
-        world
-            .carried_special()
-            .map_or(0, |w| if w == sim::SpecialWeapon::Laser { 1 } else { 2 }),
+        world.carried_special().map_or(0, |w| match w {
+            sim::SpecialWeapon::Laser => 1,
+            sim::SpecialWeapon::Rocket => 2,
+            sim::SpecialWeapon::Plasma => 3,
+        }),
         Ordering::Relaxed,
     );
+    PLASMA_TIME.store(world.plasma_remaining().to_bits(), Ordering::Relaxed);
     LASER_TIME.store(world.laser_remaining().to_bits(), Ordering::Relaxed);
     RELOAD.store(world.reload_remaining().to_bits(), Ordering::Relaxed);
     WINNER.store(
@@ -97,6 +107,10 @@ pub fn publish(world: &sim::World) {
     BROKEN.store(stats.broken as u32, Ordering::Relaxed);
     SHOTS.store(stats.shots as u32, Ordering::Relaxed);
     BODIES.store(stats.bodies as u32, Ordering::Relaxed);
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_turret_angle() -> f32 {
+    f32::from_bits(TURRET_ANGLE.load(Ordering::Relaxed))
 }
 static PLASTIC_STRAIN: AtomicU32 = AtomicU32::new(0);
 static PLASTIC_WORK: AtomicU32 = AtomicU32::new(0);

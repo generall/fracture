@@ -154,7 +154,7 @@ At that stage, engine revision **`experiment-angle-5`** recorded the new test se
 
 After testing the speed/partial-impact update, the user said **“no, the deformation was better before.”** The contact-corner constraint introduced in `plastic-frame-contact-3` has been removed completely. `Mesh` again projects only the authored rim edge lengths; there is no contact-side convexity/flatness guard. This restores the deformation implementation from `plastic-frame-rim-2`, including inward folds. The six-case barrel's strain limit is also restored from 3 to **1.2**; profile name is now `Barrel / soft frame`, yield 500 Pa, flow 2/s, hardening 0. Do not treat the rejected flat-wall/deep-crush response as the accepted baseline. Existing mass, momentum, work, perimeter and geometry constraints remain in place. User-authored drafts/materials and saved checkpoints were not rewritten.
 
-At the rollback stage, the testing additions were: **`http://127.0.0.1:8000/?experiment=crush`**, native **`--crush`**, or **O → L → SPEED / HALF HITS**. `Experiment::crush_comparison()` gives **six cases: rows 0.8 / 3 m/s, columns full / upper half / lower half**, eight seconds each, with the same 72 kg soft barrel, 4500 kg tank and backstop. The tank lane moves by −0.82 / +0.82 m (screen up/down), putting a track edge on the barrel's initial midline. Actual contact drives folding, rotation and slip; overlap can change during a crush. Focus → IMPACT retains numeric speed/offset and FULL / UPPER 1/2 / LOWER 1/2 presets; compact cards show actual speed/offset, and camera fit accommodates the offset tanks. All cases remain editable, saveable and replayable, with favorite selection and JSON v1. The original ten-case yield/hardening study remains available and its profiles are unchanged.
+At the rollback stage, the testing additions were: **`http://127.0.0.1:8000/sandbox.html?experiment=crush`**, native **`--crush`**, or **O → L → SPEED / HALF HITS**. `Experiment::crush_comparison()` gives **six cases: rows 0.8 / 3 m/s, columns full / upper half / lower half**, eight seconds each, with the same 72 kg soft barrel, 4500 kg tank and backstop. The tank lane moves by −0.82 / +0.82 m (screen up/down), putting a track edge on the barrel's initial midline. Actual contact drives folding, rotation and slip; overlap can change during a crush. Focus → IMPACT retains numeric speed/offset and FULL / UPPER 1/2 / LOWER 1/2 presets; compact cards show actual speed/offset, and camera fit accommodates the offset tanks. All cases remain editable, saveable and replayable, with favorite selection and JSON v1. The original ten-case yield/hardening study remains available and its profiles are unchanged.
 
 Rollback engine revision **`plastic-frame-rim-4`** identifies that rollback, so saved contact-3 checkpoints trigger the version notice instead of silently being treated as the same physics. New RUN uses current physics with the saved recipe's material values; opening the prepared study uses the restored 1.2 cap. Both portable recipes are regenerated. `cargo run --release -p sim --example barrel_comparison -- --crush` exports `web/experiments/crush.json` with a six-second checkpoint; without the flag exports the ten-case recipe. Removed the test demanding a flat wall-facing rim/deeper flattening; retained physical invariants and six-case exact replay checks. Browser tests now expect the original profile and deformation with retained perimeter. See [EXPERIMENTS.md](EXPERIMENTS.md) and [PLASTICITY.md](PLASTICITY.md).
 
@@ -176,7 +176,7 @@ Each piece has `reference_area`, `plastic_strain`, `shape_revision`; `BodyView` 
 
 The ten-barrel study now sweeps yield **0.5/1/2/4/8 kPa** across columns and hardening **0/4** across rows. Same 72 kg body, 4500 kg tank at 0.8 m/s, 15 cm backstop gap, four seconds. Final peak strain spans about 15%–120%; all ten remain one chunk with zero cracks/failed solves. Generic deformable comparisons default to a yield sweep and expose yield/flow/hardening in the inspector/sweep menu. Let the user pick and tune the preferred response.
 
-Open `http://127.0.0.1:8000/?experiment=barrels` or **O → L → COMPARE 10 BARRELS**; desktop accepts `--barrels`. Direct launch starts looping playback without changing the editor draft or saved experiments. `web/index.html` recognizes comparison startup when dismissing the loading panel. The range/schema accept 1–10 cases; five-column/two-row overview hides the inspector until FOCUS CASE. Click a case, MARK SELECTED FAVORITE, SAVE; in focus mode USE CASE IN OBJECT EDITOR copies the exact profile. LOOP is a playback control. Existing four-case sweeps remain available.
+Open `http://127.0.0.1:8000/sandbox.html?experiment=barrels` or **O → L → COMPARE 10 BARRELS**; desktop accepts `--barrels`. Direct launch starts looping playback without changing the editor draft or saved experiments. `web/index.html` recognizes comparison startup when dismissing the loading panel. The range/schema accept 1–10 cases; five-column/two-row overview hides the inspector until FOCUS CASE. Click a case, MARK SELECTED FAVORITE, SAVE; in focus mode USE CASE IN OBJECT EDITOR copies the exact profile. LOOP is a playback control. Existing four-case sweeps remain available.
 
 Optional `Impact.backstop` defaults to false for old JSON; the runner adds a rigid unbreakable fixture through `World::add_test_backstop`. Impact inspector can toggle/copy it. Current engine revision is **`experiment-angle-5`**. `web/experiments/barrels.json` is a portable recipe with a 1.5-second review checkpoint, regenerated by `cargo run -p sim --example barrel_comparison`. Browser suite `tools/barrel-smoke.mjs` checks ten cards, direct and library launch, focus, exact replay, saved favorite and high-DPI. Screenshots: `target/screenshots/barrels-ten.png`, `barrels-start.png`, `barrels-focus.png`.
 
@@ -343,3 +343,51 @@ For further detail, read [DESTRUCTION.md](DESTRUCTION.md) for current physics, [
 - Tank top speed increased from 4.6 to 6.5 m/s; road 9.425 m/s and sand 3.12 m/s. Existing traction/brake forces and saved experiment speeds remain.
 - Added the pinned `i_overlay` crate for robust polygon booleans and a fallback for rare grain-boundary clipping failures. Existing successful mesh construction remains unchanged.
 - Validation: 120 simulation and 4 sandbox tests; fmt, clippy, native/WASM releases; five relevant browser suites, including new interaction and geometry coverage.
+
+
+## 2026-09-26 — Local game and audio/terrain checkpoint
+
+Saved the local lobby/match flow and separate applications, plasma/cutting fixes,
+WWII-style adaptive soundtrack, sound settings, native mixer repairs, quieter
+material effects, small-object sight filtering, terrain movement sounds, CLIFF
+object deflection and decorative destruction audio. See the
+[checkpoint notes](checkpoints/2026-09-26.md) for the exact scope and validation.
+Latest checks: 233 workspace tests passed (one existing ignored), formatting and
+clippy with existing allowances, native/WASM builds, and the audio browser suite.
+A source-and-assets archive is saved under `checkpoints/2026-09-26-game-progress/`;
+Git was unavailable because this workspace has an empty, read-only `.git`.
+
+
+## 2026-09-26 — Current workspace save
+
+Saved a second source/assets checkpoint, preserving the earlier completed-game
+archive. This snapshot includes the unfinished six-player simulation groundwork;
+network transport and client/lobby integration remain outstanding. See
+[current checkpoint notes](checkpoints/2026-09-26-current-progress.md).
+
+
+## 2026-09-26 — LAN multiplayer headless acceptance phase
+
+Added authoritative multi-tank simulation, desktop host/join and readiness flow,
+UDP discovery, bounded binary/LZ4 TCP replication, persistent geometry and motion
+deltas, per-player visibility and display-only interpolated client worlds.
+
+At the user's request, desktop checks stopped in favor of headless validation.
+`tools/check-lan-headless.sh` passed with 250 unit tests and four real-socket
+scenarios, formatting and lint. Six-client River Valley movement/firing held
+20 Hz snapshots and 120 Hz simulation without dropping time; see
+[the report](LAN_HEADLESS_TESTS.md). Shared visibility preparation reduced snapshot
+work from approximately 19 ms to 5 ms. Full multiplayer completion still requires
+the remaining UI/build/browser acceptance checks.
+
+
+## 2026-09-26 — LAN multiplayer acceptance complete
+
+Following headless success, both native executables and both WASM executables built successfully. Existing game and audio browser regressions passed. Two native game processes verified direct/discovery joining, map/readiness updates, editor return, countdown, independent views, movement and shooting, non-pausing menus/settings, return to lobby and disconnect feedback. This caught a queued text-input leak: movement keys appeared in the name field after leaving a match. LAN entry and disconnect now clear that queue; rebuilt-client checks passed. See [the acceptance audit](LAN_ACCEPTANCE.md) for evidence and remaining measurement limits. No physical multi-computer LAN/Wi-Fi test was performed.
+
+
+## 2026-09-26 — Apple Silicon build and text carets
+
+Added reproducible native/cross macOS ARM64 build and ZIP packaging scripts. Both executables link as ARM64 Mach-O with macOS 11.0 deployment targets and ad-hoc signatures; only system dylibs/frameworks are required. Fixed the vendored sound library AudioToolbox spelling. The SDK is excluded from the archive. See [macOS build notes](MACOS_BUILD.md); no Mac runtime test was available.
+
+A shared text-field renderer draws a cyan end-of-text caret for focused LAN name/IP, object-editor, comparison and map-editor inputs. It reserves space for the caret and handles empty/overflowing Unicode text. Existing input semantics are retained. Native/WASM builds, formatting and lint passed. Comparison and level browser suites passed. Visual checks covered focused, empty and long values in editors and focus switching between native LAN fields. The broader editor browser suite timed out at `shell refines and fractures isolated triangle`; it did not finish, so it is not counted as passing validation. No physics code changed.

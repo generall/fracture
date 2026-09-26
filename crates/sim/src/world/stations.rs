@@ -1,7 +1,7 @@
 use super::*;
 use crate::level::{StationKind, StationSettings, Team};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct StationView {
     pub kind: StationKind,
     pub position: Vector,
@@ -76,9 +76,15 @@ impl Station {
 
 impl World {
     pub fn stations(&self) -> impl Iterator<Item = StationView> + '_ {
-        self.stations.iter().map(|s| s.view)
+        self.stations
+            .iter()
+            .map(|s| s.view)
+            .chain(self.replica.iter().flat_map(|f| f.stations.iter().copied()))
     }
     pub fn player_in_radar_zone(&self) -> bool {
+        if let Some(frame) = &self.replica {
+            return frame.radar;
+        }
         self.radar_covers(self.team(), self.launcher_position())
     }
     pub(super) fn radar_covers(&self, team: Team, position: Vector) -> bool {

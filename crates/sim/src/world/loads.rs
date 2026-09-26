@@ -49,10 +49,12 @@ impl World {
     pub(super) fn collect_contact_loads(
         &mut self,
         previous: &BTreeMap<(u32, u32), Motion>,
+        events: &mut Vec<Event>,
     ) -> Vec<(usize, f32, TankImpact)> {
         let event = self.next_impact();
         let first = self.loads.len();
         let mut ramming: BTreeMap<usize, (f32, f32, Vector, Vector)> = BTreeMap::new();
+        let mut collision: Option<(Vector, f32)> = None;
         for pair in self.physics.contact_pairs() {
             let c1 = &self.physics.colliders[pair.collider1];
             let c2 = &self.physics.colliders[pair.collider2];
@@ -91,6 +93,19 @@ impl World {
                     // The collision solver already dissipated this work. Each
                     // side may spend half on crack surfaces; no energy is added.
                     let energy = (-0.25 * relative.dot(impulse1)).max(0.0);
+                    let hull_contact = [c1, c2].iter().any(|collider| {
+                        (collider.user_data as usize)
+                            .checked_sub(1)
+                            .and_then(|id| self.pieces.get(id))
+                            .is_some_and(|p| p.material == Material::Launcher)
+                    });
+                    if hull_contact
+                        && relative.dot(normal) > 0.35
+                        && energy > 80.0
+                        && collision.is_none_or(|(_, strongest)| energy > strongest)
+                    {
+                        collision = Some((point, energy));
+                    }
                     for (collider, impulse) in [(c1, impulse1), (c2, -impulse1)] {
                         let Some(id) = (collider.user_data as usize).checked_sub(1) else {
                             continue;
@@ -146,6 +161,9 @@ impl World {
                 }
             }
         }
+        if let Some((position, energy)) = collision {
+            events.push(Event::Collided { position, energy });
+        }
         // Contact-wise estimates can overlap in a multi-contact collision.
         // Cap their combined crack budget by the actual global kinetic loss
         // during this Rapier microstep (all driven/weapon loads preceded it).
@@ -196,6 +214,7 @@ impl World {
         }
         self.refine_loaded_cells();
         let mut deformed = std::collections::BTreeSet::new();
+        let mut settled = std::collections::BTreeSet::new();
         // Re-equilibrate after each crack, with bounded rounds. This allows loads
         // to reach a distant neck, and redistributes them after local failure.
         for _ in 0..8 {
@@ -231,10 +250,19 @@ impl World {
             }
             let mut failed = Vec::new();
             let mut shape_changed = false;
+            let mut evaluated = std::collections::BTreeSet::new();
             for (key, (source, edge_ids)) in loaded {
                 if edge_ids.is_empty() {
                     continue;
                 }
+                // Cracks and plastic flow drop the cached system of every chunk
+                // they touch, and only a chunk's own cracks spend its loads' energy.
+                // A chunk solved last round with its system intact would repeat
+                // exactly the same outcome.
+                if settled.contains(&key) && self.structural_cache.contains_key(&key) {
+                    continue;
+                }
+                evaluated.insert(key);
                 let members = &groups[&key];
                 let resistance = self.fracture_resistance(&source, dt);
                 let handle = self.pieces[members[0]].body;
@@ -341,6 +369,7 @@ impl World {
                     self.unconverged += 1;
                     continue;
                 }
+                let plastic_before = self.plastic_work;
                 if !deformed.contains(&handle.into_raw_parts())
                     && self.deform_plastically(
                         &ids,
@@ -352,6 +381,18 @@ impl World {
                         dt,
                     )
                 {
+                    let work = (self.plastic_work - plastic_before) as f32;
+                    if work > 0.5
+                        && self
+                            .components_for(self.loads[source[0]].piece)
+                            .crush
+                            .is_some()
+                    {
+                        events.push(Event::Buckled {
+                            position: self.physics.bodies[handle].translation(),
+                            work,
+                        });
+                    }
                     deformed.insert(handle.into_raw_parts());
                     shape_changed = true;
                     continue;
@@ -416,11 +457,29 @@ impl World {
                     break;
                 }
             }
+            settled = evaluated;
             if failed.is_empty() {
                 if shape_changed {
                     continue;
                 } else {
                     break;
+                }
+            }
+            // A crack changes the systems of its endpoints' bodies, and rebuilding
+            // those bodies moves nodes that bonded neighbours reference. Every
+            // other cached system stays exactly valid.
+            let mut touched = std::collections::BTreeSet::new();
+            for &id in &failed {
+                let b = &self.bonds[id];
+                touched.insert(self.pieces[b.a].body.into_raw_parts());
+                touched.insert(self.pieces[b.b].body.into_raw_parts());
+            }
+            for b in self.bonds.iter().filter(|b| b.active) {
+                let a = self.pieces[b.a].body.into_raw_parts();
+                let z = self.pieces[b.b].body.into_raw_parts();
+                if touched.contains(&a) || touched.contains(&z) {
+                    self.structural_cache.remove(&a);
+                    self.structural_cache.remove(&z);
                 }
             }
             for id in failed {
@@ -435,7 +494,6 @@ impl World {
                 self.broken += 1;
             }
             self.topology_changed = true;
-            self.structural_cache.clear();
             self.rebuild_chunks();
         }
         for l in std::mem::take(&mut self.loads) {

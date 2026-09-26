@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const debugUrl = process.env.CHROME_DEBUG_URL || 'http://127.0.0.1:9227';
-const url = process.env.SANDBOX_URL || 'http://127.0.0.1:8000';
+const sandboxUrl = new URL(process.env.SANDBOX_URL || 'http://127.0.0.1:8000/sandbox.html');
+sandboxUrl.searchParams.delete('mode');
+const url = sandboxUrl.href;
 const page = await fetch(`${debugUrl}/json/new?${encodeURIComponent(url)}`, { method: 'PUT' }).then(r => r.json());
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
@@ -71,13 +73,13 @@ try {
   assert.equal((await stats()).broken, 0);
   await screenshot('sandbox-ready');
 
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   const paused = await stats();
   await delay(200);
   assert.equal((await stats()).ticks, paused.ticks, 'pause freezes simulation');
   await key('KeyN', 'n', 78);
   assert.equal((await stats()).ticks, paused.ticks + 1, 'single-step advances one tick');
-  await key('KeyF', 'f', 70);
+  await key('Space', ' ', 32);
   assert.equal((await stats()).shots, 0, 'paused shot is queued');
   await key('KeyN', 'n', 78);
   assert.equal((await stats()).shots, 1, 'step executes queued shot');
@@ -86,11 +88,11 @@ try {
   for (let i = 0; i < 8 && (await stats()).explosions === 0; i++) await key('KeyN', 'n', 78);
   assert.equal((await stats()).explosions, 1, 'swept shell hits during single stepping');
   await screenshot('sandbox-impact');
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   await until('wasm_exports.lab_broken() > 0', 'masonry fractures');
   const fractureTick = (await stats()).ticks;
   await until(`wasm_exports.lab_ticks() > ${fractureTick + 60}`, 'debris moves');
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   await screenshot('sandbox-fracture');
   await key('Tab', 'Tab', 9);
   await screenshot('sandbox-loads');
@@ -103,10 +105,10 @@ try {
   assert.ok(impacted.refined > 0, 'impact adds local detail inside the barrier');
   console.log('Masonry after shot:', impacted);
   await key('Tab', 'Tab', 9);
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   await until('wasm_exports.lab_cleared() > 0', 'tiny fragments disappear');
   await until(`wasm_exports.lab_ticks() > ${impacted.ticks + 550}`, 'debris cleanup settles');
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   await screenshot('sandbox-cleared');
 
   await key('KeyR', 'r', 82);
@@ -114,7 +116,7 @@ try {
   assert.equal((await stats()).shots, 0);
   await key('Digit2', '2', 50);
   assert.equal((await stats()).cells, 148, 'cantilever scene selected');
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   await click(845, 478);
   await until('wasm_exports.lab_shots() === 1 && wasm_exports.lab_broken() > 0', 'mouse shot fractures cantilever');
   console.log('Cantilever after shot:', await stats());
@@ -145,18 +147,18 @@ try {
   const stopped = await stats();
   await delay(300);
   assert.ok(Math.abs((await stats()).x - stopped.x) < 0.02, 'released tracks brake');
-  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyQ', key: 'q', windowsVirtualKeyCode: 81 });
+  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyD', key: 'd', windowsVirtualKeyCode: 68 });
   await delay(500);
-  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyQ', key: 'q', windowsVirtualKeyCode: 81 });
-  assert.ok((await stats()).angle > stopped.angle + 0.1, 'Q controls left track independently');
+  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyD', key: 'd', windowsVirtualKeyCode: 68 });
+  assert.ok((await stats()).angle > stopped.angle + 0.1, 'D steers the tank');
   const turnReleased = (await stats()).angle;
   await delay(350);
-  assert.ok(Math.abs((await stats()).angle - turnReleased) < 0.08, 'rotation stops promptly after releasing a track');
+  assert.ok(Math.abs((await stats()).angle - turnReleased) < 0.08, 'rotation stops promptly after releasing steering');
   await key('KeyH', 'h', 72);
   await screenshot('sandbox-manual');
   await key('KeyH', 'h', 72);
 
-  await key('Space', ' ', 32);
+  await key('KeyP', 'p', 80);
   const zoomBefore = await evaluate('wasm_exports.lab_zoom()');
   await evaluate(`window.zoomFrames = []; window.captureZoom = true;
     function sampleZoom() {

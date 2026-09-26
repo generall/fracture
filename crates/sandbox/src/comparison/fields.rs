@@ -212,13 +212,7 @@ impl Comparison {
                 Color::new(0.1, 0.26, 0.36, 1.0),
             );
         }
-        ui::text(
-            &visible,
-            rect.x + 8.0,
-            rect.y + 23.0,
-            18.0,
-            if active { CYAN } else { INK },
-        );
+        ui::field_text(&visible, rect, 23.0, 18.0, active);
         if rect.contains(mouse)
             && is_mouse_button_pressed(MouseButton::Left)
             && !active

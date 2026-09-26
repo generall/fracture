@@ -18,21 +18,24 @@ impl World {
     }
 
     pub fn bridges(&self) -> impl Iterator<Item = BridgeView<'_>> {
-        self.bridges.iter().map(|b| BridgeView {
-            deck: b.deck,
-            controls: b.controls,
-            intact: b.fall.is_none(),
-            fall_progress: b.fall.map_or(0.0, |t| (t / 1.4).min(1.0)),
-            fragments: &b.fragments,
-        })
+        self.bridges
+            .iter()
+            .map(|b| BridgeView {
+                deck: b.deck,
+                controls: b.controls,
+                intact: b.fall.is_none(),
+                fall_progress: b.fall.map_or(0.0, |t| (t / 1.4).min(1.0)),
+                fragments: &b.fragments,
+            })
+            .chain(
+                self.replica
+                    .iter()
+                    .flat_map(|f| f.bridges.iter().map(replica::Bridge::view)),
+            )
     }
 
     pub fn terrain_at(&self, point: Vector) -> TerrainKind {
-        if self
-            .bridges
-            .iter()
-            .any(|b| b.fall.is_none() && b.deck.contains(point))
-        {
+        if self.bridges().any(|b| b.intact && b.deck.contains(point)) {
             return TerrainKind::Bridge;
         }
         if let Some(mask) = &self.terrain_mask {
@@ -55,11 +58,16 @@ impl World {
     }
 
     pub fn tank_alive(&self) -> bool {
-        self.tank_is_alive(self.launcher)
+        self.replica
+            .as_ref()
+            .map_or_else(|| self.tank_is_alive(self.launcher), |f| f.alive)
     }
 
     pub fn tank_fall_progress(&self) -> f32 {
-        self.tank_fall.map_or(0.0, |t| (t / 1.4).min(1.0))
+        self.replica.as_ref().map_or_else(
+            || self.tank_fall.map_or(0.0, |t| (t / 1.4).min(1.0)),
+            |f| f.fall,
+        )
     }
 
     pub(super) fn rebuild_terrain_barriers(&mut self) {
@@ -81,13 +89,20 @@ impl World {
         for p in blocked {
             let center = (p.min + p.max) * 0.5;
             let half = (p.max - p.min) * 0.5;
+            // Cliff faces deflect loose scenery as well as tanks. These
+            // colliders have no piece ID, so sight and weapon queries skip them.
+            let layer = if p.kind == TerrainKind::Cliff {
+                CollisionLayer::CliffBarrier
+            } else {
+                CollisionLayer::TerrainBarrier
+            };
             self.terrain_barriers.push(
                 self.physics.insert_collider(
                     ColliderBuilder::cuboid(half.x, half.y)
                         .translation(center)
                         .friction(0.0)
                         .restitution(0.0)
-                        .collision_groups(CollisionLayer::TerrainBarrier.groups()),
+                        .collision_groups(layer.groups()),
                     None,
                 ),
             );
@@ -197,6 +212,8 @@ impl World {
                 body.set_angvel(0.0, false);
                 body.set_enabled(false);
                 self.laser_beam = None;
+                self.plasma_remaining = 0.0;
+                self.plasma_beam = None;
                 events.push(Event::TankSunk {
                     position: self.launcher_position(),
                 });

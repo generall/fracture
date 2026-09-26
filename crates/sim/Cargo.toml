@@ -8,3 +8,6 @@ rapier2d.workspace = true
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = { version = "=1.0.145", features = ["float_roundtrip"] }
 i_overlay = "=4.5.2"
+
+# Serialize presentation vectors without serializing the Rapier physics world.
+glam = { version = "=0.33.7", default-features = false, features = ["serde"] }

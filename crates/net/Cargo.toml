@@ -1,0 +1,11 @@
+[package]
+name = "tank-net"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sim = { path = "../sim" }
+serde = { version = "=1.0.228", features = ["derive"] }
+bincode = "=1.3.3"
+lz4_flex = { version = "=0.13.1", default-features = false, features = ["std"] }
+socket2 = "=0.6.5"

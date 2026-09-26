@@ -9,6 +9,8 @@ use sim::{Command, Event, Scene, Shot, TICK_DT, World};
 
 pub(crate) struct Lab {
     pub(crate) world: World,
+    pub(crate) audio_cues: Vec<crate::audio::Cue>,
+    pub(crate) match_progress: Option<sim::matchplay::MatchProgress>,
     pub(crate) custom_level: Option<(sim::level::Level, sim::level::Team)>,
     pub(crate) custom_object: Option<sim::ObjectAsset>,
     pub(crate) inspector: Inspector,
@@ -20,6 +22,7 @@ pub(crate) struct Lab {
     pub(crate) vision: sim::Vision,
     pub(crate) accumulator: f64,
     pub(crate) aim: Vec2,
+    pub(crate) keyboard_aim: crate::controls::KeyboardAim,
     pub(crate) pending: Vec<Command>,
     pub(crate) firing: bool,
     pub(crate) sparks: Vec<Spark>,
@@ -37,6 +40,8 @@ impl Lab {
     pub(crate) fn new() -> Self {
         Self {
             world: World::new(Scene::Masonry),
+            audio_cues: Vec::new(),
+            match_progress: None,
             custom_object: None,
             custom_level: None,
             inspector: Inspector::default(),
@@ -48,6 +53,7 @@ impl Lab {
             vision: sim::Vision::default(),
             accumulator: 0.0,
             aim: vec2(3.0, 0.0),
+            keyboard_aim: crate::controls::KeyboardAim::default(),
             pending: Vec::new(),
             firing: false,
             sparks: Vec::new(),
@@ -63,6 +69,7 @@ impl Lab {
     }
 
     pub(crate) fn reset(&mut self, scene: Scene) {
+        self.match_progress = None;
         self.world = if scene == Scene::Level {
             self.custom_level
                 .as_ref()
@@ -76,10 +83,17 @@ impl Lab {
         } else {
             World::new(scene)
         };
+        self.clear_session();
+    }
+
+    pub(crate) fn clear_session(&mut self) {
+        let scene = self.world.scene();
         self.pending.clear();
+        self.audio_cues.clear();
         self.fog = None;
         self.vision = sim::Vision::default();
         self.firing = false;
+        self.keyboard_aim = crate::controls::KeyboardAim::default();
         self.sparks.clear();
         self.blasts.clear();
         self.wreck_effects.clear();
@@ -101,6 +115,23 @@ impl Lab {
         }
     }
 
+    pub(crate) fn start_match(
+        &mut self,
+        level: &sim::level::Level,
+        config: sim::matchplay::MatchConfig,
+    ) -> Result<(), String> {
+        let world = config.create_world(level)?;
+        self.world = world;
+        self.match_progress = Some(sim::matchplay::MatchProgress::new(config));
+        self.inspector = Inspector::default();
+        self.paused = false;
+        self.slow = false;
+        self.overlay = false;
+        self.fog_enabled = true;
+        self.clear_session();
+        Ok(())
+    }
+
     pub(crate) fn fit_camera(&mut self) {
         self.navigation = navigation::Navigation::default();
         if self.world.scene() == Scene::Level {
@@ -109,7 +140,15 @@ impl Lab {
         }
     }
 
+    pub(crate) fn refresh_keyboard_aim(&mut self) {
+        let origin = self.world.launcher_position();
+        if let Some(target) = self.keyboard_aim.target(vec2(origin.x, origin.y)) {
+            self.aim = target;
+        }
+    }
+
     pub(crate) fn fire(&mut self) {
+        self.refresh_keyboard_aim();
         // Bound queued input while paused. A click replaces the pending shot.
         self.pending.retain(|c| !matches!(c, Command::Fire(_)));
         self.pending.push(Command::Fire(Shot {
@@ -124,6 +163,14 @@ impl Lab {
     }
 
     pub(crate) fn tick(&mut self, tracks: [f32; 2]) {
+        self.refresh_keyboard_aim();
+        if self
+            .match_progress
+            .as_ref()
+            .is_some_and(|p| p.outcome.is_some())
+        {
+            return;
+        }
         if self.firing
             && self.inspector.ammunition.automatic()
             && !self.pending.iter().any(|c| matches!(c, Command::Fire(_)))
@@ -140,24 +187,54 @@ impl Lab {
         });
         let start = get_time();
         self.track_marks.seed(&self.world);
+        let charges = self.world.special_charges();
+        let reloading = self.world.reload_remaining() > 0.0;
         let events = self.world.step(&self.pending);
+        if self.world.special_charges() > charges {
+            self.audio_cues.push(crate::audio::Cue::local(
+                crate::audio::Clip::Pickup,
+                &self.world,
+            ));
+        }
+        if reloading && self.world.reload_remaining() <= 0.0 && self.world.tank_alive() {
+            self.audio_cues.push(crate::audio::Cue::local(
+                crate::audio::Clip::Reload,
+                &self.world,
+            ));
+        }
+        for event in &events {
+            if let Some(cue) = crate::audio::Cue::event(event, self.world.team()) {
+                cue.enqueue(&mut self.audio_cues, self.world.launcher_position());
+            }
+        }
+        if let Some(progress) = &mut self.match_progress {
+            progress.record_tick(self.world.winner(), &events);
+        }
         self.track_marks.update(&self.world);
         let elapsed = (get_time() - start) * 1_000.0;
         self.tick_ms = self.tick_ms * 0.9 + elapsed * 0.1;
         self.pending.clear();
+        self.advance_effects(TICK_DT);
+        self.present_events(&events);
+    }
+
+    pub(crate) fn advance_effects(&mut self, dt: f32) {
         for spark in &mut self.sparks {
-            spark.position += spark.velocity * TICK_DT;
-            spark.life -= TICK_DT;
+            spark.position += spark.velocity * dt;
+            spark.life -= dt;
         }
         self.sparks.retain(|spark| spark.life > 0.0);
         for effect in &mut self.wreck_effects {
-            effect.advance(TICK_DT);
+            effect.advance(dt);
         }
         self.wreck_effects.retain(|effect| effect.alive());
         for blast in &mut self.blasts {
-            blast.life -= TICK_DT;
+            blast.life -= dt;
         }
         self.blasts.retain(|blast| blast.life > 0.0);
+    }
+
+    pub(crate) fn present_events(&mut self, events: &[Event]) {
         for (index, event) in events.iter().enumerate() {
             match *event {
                 Event::Fractured { position, normal } | Event::Impacted { position, normal } => {
@@ -172,7 +249,9 @@ impl Lab {
                         });
                     }
                 }
-                Event::Fired { position, velocity } => {
+                Event::Fired {
+                    position, velocity, ..
+                } => {
                     self.notice = None;
                     self.sparks.push(Spark {
                         position: vec2(position.x, position.y),
@@ -261,6 +340,10 @@ impl Lab {
                     self.notice = Some(("TANK LOST / R TO REBUILD".into(), 5.0))
                 }
                 Event::MuzzleBlocked => self.notice = Some(("BARREL OBSTRUCTED".into(), 2.0)),
+                Event::Collided { .. }
+                | Event::Buckled { .. }
+                | Event::Bent { .. }
+                | Event::DecorationDestroyed { .. } => {}
                 Event::LaserLimited => {
                     self.notice = Some(("CUTTING DETAIL LIMIT / R TO REBUILD".into(), 2.0))
                 }

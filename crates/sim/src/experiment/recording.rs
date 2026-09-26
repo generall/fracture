@@ -262,6 +262,7 @@ impl Recording {
         record.frames.push(Frame {
             beam: w
                 .laser_beam()
+                .or_else(|| w.plasma_beam())
                 .map(|b| (b.start.to_array(), b.end.to_array())),
             tick,
             poses,

@@ -89,6 +89,7 @@ struct Drag {
 }
 pub struct LevelEditor {
     pub active: bool,
+    lobby_mode: bool,
     level: Level,
     geometry: Option<(Level, Vec<Option<sim::ObjectMesh>>)>,
     terrain_cache: Option<(sim::level::TerrainMask, Vec<sim::TerrainPatch>)>,
@@ -138,6 +139,7 @@ impl LevelEditor {
         level.migrate_terrain();
         Self {
             active: false,
+            lobby_mode: false,
             level,
             geometry: None,
             terrain_cache: None,
@@ -170,6 +172,18 @@ impl LevelEditor {
             restore_error,
         }
     }
+    pub fn open_for_lobby(&mut self, level: Level) {
+        *self = Self::new();
+        self.level = level;
+        self.restore_error = None;
+        self.lobby_mode = true;
+        self.open();
+        self.status = "Build your battlefield, then choose USE MAP to return to the lobby.".into();
+    }
+    pub fn lobby_map(&mut self) -> Level {
+        self.commit_field();
+        self.level.clone()
+    }
     pub fn open(&mut self) {
         self.active = true;
         self.drag = None;
@@ -188,7 +202,13 @@ impl LevelEditor {
             self.status = format!("Saved level could not be read: {e} Export to keep this draft.");
             return;
         }
-        match self.level.to_json().and_then(|j| storage::persist(&j)) {
+        match self.level.to_json().and_then(|j| {
+            if self.lobby_mode {
+                crate::game_storage::persist(&j)
+            } else {
+                storage::persist(&j)
+            }
+        }) {
             Ok(()) => self.status = "Draft saved on this device.".into(),
             Err(e) => self.status = e,
         }
@@ -380,7 +400,17 @@ impl LevelEditor {
         self.draw_canvas(canvas, mouse, dt, pixel_scale, !typing && !self.file_menu);
         // Panels mask the canvas and own all clicks outside it.
         draw_rectangle(0.0, 0.0, size.x, 80.0, PAPER);
-        text("FRACTURE / LEVEL WORKSHOP", 24.0, 35.0, 24.0, INK);
+        text(
+            if self.lobby_mode {
+                "FRACTURE / MAP BUILDER"
+            } else {
+                "FRACTURE / LEVEL WORKSHOP"
+            },
+            24.0,
+            35.0,
+            24.0,
+            INK,
+        );
         text(&self.level.name, 24.0, 62.0, 16.0, CYAN);
         if button(
             Rect::new(450.0, 23.0, 85.0, 38.0),
@@ -407,7 +437,11 @@ impl LevelEditor {
         }
         if button(
             Rect::new(size.x - 400.0, 23.0, 200.0, 38.0),
-            "PLAY LEVEL",
+            if self.lobby_mode {
+                "USE MAP"
+            } else {
+                "PLAY LEVEL"
+            },
             mouse,
             false,
         ) {
@@ -422,7 +456,11 @@ impl LevelEditor {
         }
         if button(
             Rect::new(size.x - 190.0, 23.0, 166.0, 38.0),
-            "M  BACK",
+            if self.lobby_mode {
+                "M  LOBBY"
+            } else {
+                "M  BACK"
+            },
             mouse,
             false,
         ) {

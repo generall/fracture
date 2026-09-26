@@ -86,7 +86,7 @@ impl World {
         }
     }
 
-    pub(super) fn update_plastic_bends(&mut self) {
+    pub(super) fn update_plastic_bends(&mut self, events: &mut Vec<Event>) {
         for &handle in &self.bending_joints {
             let Some(joint) = self.physics.impulse_joints.get_mut(handle, false) else {
                 continue;
@@ -105,6 +105,13 @@ impl World {
                 // Return mapping for perfect plasticity: only the excess over
                 // elastic yield becomes permanent. Below yield the rest stays put.
                 let rest = wrap(angle - error.signum() * ELASTIC_ANGLE);
+                let work = (error.abs() - ELASTIC_ANGLE) * motor.max_force;
+                if work > 1.0 {
+                    let position = (self.physics.bodies[joint.body1()].translation()
+                        + self.physics.bodies[joint.body2()].translation())
+                        * 0.5;
+                    events.push(Event::Bent { position, work });
+                }
                 let (stiffness, damping) = (motor.stiffness, motor.damping);
                 joint
                     .data
@@ -162,7 +169,12 @@ mod tests {
             .map(|(i, _)| (i, world.piece_pose(i)))
             .collect();
         for _ in 0..360 {
-            world.step(&[]);
+            assert!(
+                !world
+                    .step(&[])
+                    .iter()
+                    .any(|e| matches!(e, Event::Bent { .. }))
+            );
         }
         assert_eq!(
             initial,
@@ -188,15 +200,20 @@ mod tests {
         world
             .configure_test_tank(4500.0, Vector::new(1.42, 0.0), 3.0)
             .unwrap();
+        let mut sounded = false;
         for _ in 0..600 {
-            world.step(&[Command::Tracks {
-                left: 1.0,
-                right: 1.0,
-            }]);
+            sounded |= world
+                .step(&[Command::Tracks {
+                    left: 1.0,
+                    right: 1.0,
+                }])
+                .iter()
+                .any(|e| matches!(e,Event::Bent{work,..} if *work>1.0));
             if world.launcher_position().x > 6.0 {
                 break;
             }
         }
+        assert!(sounded, "a yielding fence reports a bend event");
         assert!(
             rest_angles(&world)
                 .iter()

@@ -448,7 +448,7 @@ fn contact_crack_budgets_fit_dissipation_and_impulses_are_not_applied_twice() {
         let velocities = world.contact_velocities();
         world.physics.step();
         let after = world.stats().kinetic_energy;
-        world.collect_contact_loads(&velocities);
+        world.collect_contact_loads(&velocities, &mut Vec::new());
         let budget: f32 = world.loads.iter().map(|l| l.energy).sum();
         assert!(budget <= (before - after).max(0.0) + 1e-3);
         assert!(world.loads.iter().all(|l| !l.apply));
@@ -461,4 +461,52 @@ fn contact_crack_budgets_fit_dissipation_and_impulses_are_not_applied_twice() {
         );
     }
     assert!(work > 100.0, "test must include an energetic contact");
+}
+
+#[test]
+fn hull_contact_reports_audio_events_without_stationary_contact_chatter() {
+    let mut level = crate::level::Level::default();
+    level.items.retain(|item| {
+        !matches!(
+            item,
+            crate::level::LevelItem::Spawn {
+                team: crate::level::Team::Blue,
+                ..
+            }
+        )
+    });
+    level.items.push(crate::level::LevelItem::Spawn {
+        team: crate::level::Team::Blue,
+        position: [-5.0, 0.0],
+        angle: 0.0,
+    });
+    level.items.push(crate::level::LevelItem::Solid {
+        outline: vec![[-2.0, -4.0], [-1.0, -4.0], [-1.0, 4.0], [-2.0, 4.0]],
+        position: [0.0, 0.0],
+        angle: 0.0,
+        cutouts: vec![],
+    });
+    let mut world = World::from_level(&level, crate::level::Team::Blue).unwrap();
+    for _ in 0..5 {
+        assert!(
+            !world
+                .step(&[])
+                .iter()
+                .any(|event| matches!(event, Event::Collided { .. }))
+        );
+    }
+    let mut collided = false;
+    for _ in 0..240 {
+        collided |= world
+            .step(&[Command::Tracks {
+                left: 1.0,
+                right: 1.0,
+            }])
+            .iter()
+            .any(|event| matches!(event,Event::Collided {energy,..} if *energy > 80.0));
+    }
+    assert!(
+        collided,
+        "driving into fixed scenery produces a hull impact cue"
+    );
 }

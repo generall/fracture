@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#060813">
-  <title>Fracture — proving ground</title>
+  <title>Fracture — tank combat</title>
   <link rel="icon" href="data:,">
   <style>
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #060813; }
@@ -16,17 +16,17 @@
   </style>
 </head>
 <body>
-  <canvas id="glcanvas" tabindex="0" aria-label="Fracture destruction sandbox. Click to fire, WASD to drive, Q/Z left track, E/C right track, H for controls, Space to pause, N to single-step, T for slow motion, Tab for connection loads, R to reset.">
-    This sandbox requires a browser with WebAssembly and WebGL support.
+  <canvas id="glcanvas" tabindex="0" aria-label="Fracture tank combat. Enter the local lobby, choose a map and start a match. WASD to drive, mouse to aim, left click to fire, right click for a special weapon, Escape for the match menu.">
+    This game requires a browser with WebAssembly and WebGL support.
   </canvas>
-  <div id="status" role="status"><strong>FRACTURE</strong><span>Preparing the proving ground…</span></div>
+  <div id="status" role="status"><strong>FRACTURE</strong><span>Preparing the battlefield…</span></div>
   <script>
     const statusPanel = document.getElementById('status');
     let failed = false;
     function showError(message) {
       failed = true;
       statusPanel.hidden = false;
-      statusPanel.textContent = 'The proving ground could not start. ' + message;
+      statusPanel.textContent = 'The game could not start. ' + message;
     }
     window.addEventListener('error', event => showError(event.message));
     window.addEventListener('unhandledrejection', event => showError(String(event.reason)));
@@ -48,17 +48,19 @@
     surface.addEventListener('pointerdown', () => surface.focus());
   </script>
   <script src="mq_js_bundle.js"></script>
+  <script src="audio.js"></script>
   <script src="editor.js"></script>
   <script src="experiments.js"></script>
   <script src="levels.js"></script>
+  <script src="game.js"></script>
   <script>
     if (!window.WebAssembly) {
       showError('WebAssembly is unavailable.');
     } else {
-      load('sandbox.wasm');
+      load('game.wasm');
       const ready = setInterval(() => {
         if (failed) { clearInterval(ready); return; }
-        if (typeof wasm_exports !== 'undefined' && (wasm_exports?.lab_ticks?.() > 0 || wasm_exports?.comparison_active?.() === 1)) {
+        if (typeof wasm_exports !== 'undefined' && (wasm_exports?.game_ready?.() === 1 || wasm_exports?.lab_ticks?.() > 0 || wasm_exports?.comparison_active?.() === 1)) {
           statusPanel.hidden = true;
           clearInterval(ready);
           surface.focus();

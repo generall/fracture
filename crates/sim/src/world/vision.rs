@@ -8,8 +8,31 @@ pub const ELEVATED_VISION_RANGE: f32 = 36.0;
 const GRASS_REVEAL_SECONDS: f32 = 5.0;
 pub const NEAR_VISION: f32 = 3.0;
 pub const VISION_HALF_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
+// World-space footprint, measured per connected chunk, never per mesh triangle.
+const MIN_SIGHT_BLOCKER_AREA: f32 = 0.5;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum SightGroup {
+    Chunk(u32, u32),
+    FixedObject(usize),
+}
+
+impl Piece {
+    fn sight_group(&self) -> SightGroup {
+        // Authored indestructible objects use a separate fixed body per triangle.
+        // Their triangles still belong to one prop for size classification.
+        if self.material == Material::Anchor
+            && let Some(object) = self.object
+        {
+            SightGroup::FixedObject(object)
+        } else {
+            let (index, generation) = self.body.into_raw_parts();
+            SightGroup::Chunk(index, generation)
+        }
+    }
+}
+
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Vision {
     pub origin: Vector,
     /// Ordered boundary of the visible region, suitable for a triangle fan.
@@ -135,7 +158,9 @@ impl Vision {
             || (middle + half > tau && search(0.0, middle + half - tau))
     }
 }
-struct Occluder {
+#[derive(Clone)]
+pub(super) struct Occluder {
+    source: Option<usize>,
     shape: SharedShape,
     pose: Pose,
     bounds: Aabb,
@@ -144,8 +169,24 @@ struct Occluder {
 }
 // Adjacent collision triangles share internal edges. Only their exposed
 // outline corners affect visibility; mortar subdivisions need no extra rays.
-fn silhouette_vertices(obstacles: &[Occluder]) -> Vec<Vector> {
-    use std::collections::{BTreeMap, BTreeSet};
+// Also reports which obstacles own an exposed edge: a ray from outside the
+// union always meets such a triangle first, so fully interior ones never
+// shorten a ray.
+/// World-space vertices of polygonal occluders (triangles, and the convex
+/// cells that chunk rebuilding creates); None for other shapes.
+fn outline(o: &Occluder) -> Option<Vec<Vector>> {
+    if let Some(t) = o.shape.as_triangle() {
+        Some([t.a, t.b, t.c].map(|p| o.pose.transform_point(p)).to_vec())
+    } else {
+        o.shape.as_convex_polygon().map(|c| {
+            c.points()
+                .iter()
+                .map(|&p| o.pose.transform_point(p))
+                .collect()
+        })
+    }
+}
+fn silhouette(obstacles: &[Occluder]) -> (Vec<Vector>, Vec<bool>) {
     type Key = (i32, i32);
     let key = |p: Vector| {
         (
@@ -153,55 +194,71 @@ fn silhouette_vertices(obstacles: &[Occluder]) -> Vec<Vector> {
             (p.y * 10000.0).round() as i32,
         )
     };
-    let mut points: BTreeMap<Key, Vector> = BTreeMap::new();
-    let mut edges = BTreeSet::new();
-    for o in obstacles {
-        let polygon = if let Some(t) = o.shape.as_triangle() {
-            [t.a, t.b, t.c].map(|p| o.pose.transform_point(p)).to_vec()
-        } else {
+    let mut points: Vec<(Key, Vector)> = Vec::with_capacity(obstacles.len() * 3);
+    let mut edges: Vec<((Key, Key), usize)> = Vec::with_capacity(obstacles.len() * 3);
+    for (index, o) in obstacles.iter().enumerate() {
+        let polygon = outline(o).unwrap_or_else(|| {
             vec![
                 o.bounds.mins,
                 Vector::new(o.bounds.maxs.x, o.bounds.mins.y),
                 o.bounds.maxs,
                 Vector::new(o.bounds.mins.x, o.bounds.maxs.y),
             ]
-        };
+        });
         for i in 0..polygon.len() {
             let a = key(polygon[i]);
             let b = key(polygon[(i + 1) % polygon.len()]);
-            points.insert(a, polygon[i]);
-            if a == b {
-                continue;
-            }
-            let edge = (a.min(b), a.max(b));
-            if !edges.insert(edge) {
-                edges.remove(&edge);
+            points.push((a, polygon[i]));
+            if a != b {
+                edges.push(((a.min(b), a.max(b)), index));
             }
         }
     }
-    let mut neighbors: BTreeMap<Key, Vec<Key>> = BTreeMap::new();
-    for (a, b) in edges {
-        neighbors.entry(a).or_default().push(b);
-        neighbors.entry(b).or_default().push(a);
+    // Stable sorts keep the last-inserted point per key, like a map insert.
+    points.sort_by_key(|p| p.0);
+    let point = |k: Key| {
+        let end = points.partition_point(|p| p.0 <= k);
+        points[end - 1].1
+    };
+    edges.sort_unstable();
+    let mut exposed = vec![false; obstacles.len()];
+    let mut outline: Vec<(Key, Key)> = vec![];
+    for run in edges.chunk_by(|a, b| a.0 == b.0) {
+        // Edges shared an even number of times cancel.
+        if run.len() % 2 == 1 {
+            outline.push((run[0].0.0, run[0].0.1));
+            for &(_, index) in run {
+                exposed[index] = true;
+            }
+        }
     }
-    neighbors
-        .into_iter()
-        .filter_map(|(id, adjacent)| {
-            let p = points[&id];
+    let mut ends: Vec<(Key, Key)> = outline
+        .iter()
+        .flat_map(|&(a, b)| [(a, b), (b, a)])
+        .collect();
+    ends.sort_by_key(|e| e.0);
+    let vertices = ends
+        .chunk_by(|a, b| a.0 == b.0)
+        .filter_map(|adjacent| {
+            let p = point(adjacent[0].0);
             if adjacent.len() == 2 {
-                let a = points[&adjacent[0]] - p;
-                let b = points[&adjacent[1]] - p;
+                let a = point(adjacent[0].1) - p;
+                let b = point(adjacent[1].1) - p;
                 if a.dot(b) < 0.0 && a.perp_dot(b).abs() <= 0.0001 * (a.length() + b.length()) {
                     return None;
                 }
             }
             Some(p)
         })
-        .collect()
+        .collect();
+    (vertices, exposed)
 }
 
 impl World {
     pub fn player_sight_range(&self) -> f32 {
+        if let Some(frame) = &self.replica {
+            return frame.sight_range;
+        }
         self.vision_range_at(self.launcher_position())
     }
 
@@ -212,10 +269,78 @@ impl World {
             _ => VISION_RANGE,
         }
     }
+    pub(super) fn prepare_snapshot_vision(&mut self) {
+        self.sight_cache = None;
+        self.sight_cache = Some(self.sight_occluders(Vector::ZERO, None, f32::MAX));
+    }
     fn sight_occluders(&self, origin: Vector, ignored: Option<usize>, range: f32) -> Vec<Occluder> {
+        if let Some(cache) = &self.sight_cache {
+            return cache
+                .iter()
+                .filter(|o| {
+                    (ignored.is_none() || o.source != ignored)
+                        && origin.clamp(o.bounds.mins, o.bounds.maxs).distance(origin) <= range
+                })
+                .cloned()
+                .collect();
+        }
         let nearby =
             |bounds: Aabb| origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= range;
         let mut out = vec![];
+        if let Some(frame) = &self.replica {
+            // Replicas rebuild the host's classified blockers from body geometry.
+            for body in frame
+                .bodies
+                .iter()
+                .filter(|b| b.blocks_sight && Some(b.id) != ignored)
+            {
+                let pose = Pose::new(body.position, body.angle);
+                let shapes = match body.shape {
+                    _ if body.material == Material::Launcher => super::vehicle::tank_colliders()
+                        .map(|(offset, half)| {
+                            (
+                                SharedShape::cuboid(half.x, half.y),
+                                pose * Pose::from_translation(offset),
+                            )
+                        })
+                        .to_vec(),
+                    Shape::Triangle {
+                        vertices: [a, b, c],
+                    } => vec![(SharedShape::triangle(a, b, c), pose)],
+                    Shape::Box { half } => vec![(SharedShape::cuboid(half.x, half.y), pose)],
+                    Shape::Ball { radius } => vec![(SharedShape::ball(radius), pose)],
+                };
+                for (shape, pose) in shapes {
+                    let bounds = shape.compute_aabb(&pose);
+                    if nearby(bounds) {
+                        out.push(Occluder {
+                            source: Some(body.id),
+                            shape,
+                            pose,
+                            bounds,
+                            grass: false,
+                            tank: body.material == Material::Launcher,
+                        });
+                    }
+                }
+            }
+        } else {
+            self.collider_occluders(ignored, &nearby, &mut out);
+        }
+        self.grass_occluders(&nearby, &mut out);
+        out
+    }
+
+    fn collider_occluders(
+        &self,
+        ignored: Option<usize>,
+        nearby: &dyn Fn(Aabb) -> bool,
+        out: &mut Vec<Occluder>,
+    ) {
+        let mut areas = std::collections::BTreeMap::<SightGroup, f32>::new();
+        for piece in self.pieces.iter().filter(|p| p.active && !p.bridge_deck) {
+            *areas.entry(piece.sight_group()).or_default() += piece.shape.area();
+        }
         for (_, collider) in self.physics.colliders.iter() {
             let Some(id) = self.weapon_target(collider) else {
                 continue;
@@ -228,9 +353,15 @@ impl World {
                 .object
                 .and_then(|i| self.objects[i].components.blocks_vision)
                 .unwrap_or(true);
+            // Reject small props/debris before bounds, silhouette extraction or
+            // ray tests. Splitting a chunk immediately changes its eligibility.
+            if !blocks || areas[&piece.sight_group()] < MIN_SIGHT_BLOCKER_AREA {
+                continue;
+            }
             let bounds = collider.compute_aabb();
-            if blocks && nearby(bounds) {
+            if nearby(bounds) {
                 out.push(Occluder {
+                    source: Some(id),
                     shape: collider.shared_shape().clone(),
                     pose: *collider.position(),
                     bounds,
@@ -239,6 +370,9 @@ impl World {
                 });
             }
         }
+    }
+
+    fn grass_occluders(&self, nearby: &dyn Fn(Aabb) -> bool, out: &mut Vec<Occluder>) {
         // Use painted terrain precedence, so painting ground over grass clears it.
         for (i, patch) in self
             .terrain
@@ -261,6 +395,7 @@ impl World {
                 if nearby(bounds) {
                     let half = (p.max - p.min) * 0.5;
                     out.push(Occluder {
+                        source: None,
                         shape: SharedShape::cuboid(half.x, half.y),
                         pose: Pose::new((p.min + p.max) * 0.5, 0.0),
                         bounds,
@@ -270,7 +405,14 @@ impl World {
                 }
             }
         }
-        out
+    }
+
+    /// Pieces currently classified as sight blockers, for network snapshots.
+    pub(super) fn sight_blockers(&self) -> std::collections::BTreeSet<usize> {
+        self.sight_occluders(Vector::ZERO, None, f32::MAX)
+            .into_iter()
+            .filter_map(|o| o.source)
+            .collect()
     }
 
     /// A visibility query for AI and notifications, separate from weapon clearance.
@@ -366,7 +508,36 @@ impl World {
 
     /// Combined player sight, including the allied flag's short-range lookout.
     pub fn player_vision(&self, angle: f32) -> Vision {
-        let mut vision = self.vision(self.player_tank_id(), angle);
+        if let Some(frame) = &self.replica {
+            return frame.vision.clone();
+        }
+        let mut vision = self.sight_regions(angle);
+        vision.tank_visibility = self.tank_visibility(angle);
+        vision
+    }
+
+    /// Host-only part of player sight: foliage, fire reveals and radar decide
+    /// which tanks are detected. Trusted clients compute the geometry locally.
+    pub fn host_vision(&self, angle: f32) -> Vision {
+        Vision {
+            origin: self.launcher_position(),
+            tank_visibility: self.tank_visibility(angle),
+            ..Vision::default()
+        }
+    }
+
+    /// Geometric sight regions: turret cone, allied flag lookout and radar.
+    pub(super) fn sight_regions(&self, angle: f32) -> Vision {
+        let mut vision = if self.replica.is_none() {
+            self.vision(self.player_tank_id(), angle)
+        } else if self.tank_alive() {
+            self.vision_from(self.launcher_position(), Some(self.launcher), Some(angle))
+        } else {
+            Vision {
+                origin: self.launcher_position(),
+                ..Vision::default()
+            }
+        };
         for (team, position) in self.flags() {
             if team == self.team() {
                 vision.additional.push(self.vision_from(
@@ -391,6 +562,11 @@ impl World {
                     .collect(),
             ));
         }
+        vision
+    }
+
+    fn tank_visibility(&self, angle: f32) -> Vec<(usize, bool)> {
+        let mut visibility = vec![];
         for tank in &self.tanks {
             let target = self.piece_pose(tank.id).translation;
             if tank.id == self.launcher || self.terrain_at(target) != crate::TerrainKind::TallGrass
@@ -422,9 +598,24 @@ impl World {
             let visible = self.tank_is_alive(tank.id)
                 && !self.concealed_from(self.launcher, tank.id)
                 && (player_sees || flag_sees || self.radar_covers(self.team, target));
-            vision.tank_visibility.push((tank.id, visible));
+            visibility.push((tank.id, visible));
         }
-        vision
+        visibility
+    }
+
+    /// Replica sight from replicated blockers; the host supplies tank detection.
+    pub(super) fn apply_replica_vision(&mut self) {
+        let Some(frame) = &self.replica else {
+            return;
+        };
+        let angle = frame.aim.angle;
+        self.sight_cache = None;
+        self.sight_cache = Some(self.sight_occluders(Vector::ZERO, None, f32::MAX));
+        let mut vision = self.sight_regions(angle);
+        self.sight_cache = None;
+        let frame = self.replica.as_mut().unwrap();
+        vision.tank_visibility = std::mem::take(&mut frame.vision.tank_visibility);
+        frame.vision = vision;
     }
 
     fn vision_from(&self, origin: Vector, ignored: Option<usize>, cone: Option<f32>) -> Vision {
@@ -455,7 +646,14 @@ impl World {
             add_angle(angle + VISION_HALF_ANGLE);
         }
         let forward = Vector::from_angle(cone.unwrap_or(0.0));
-        for p in silhouette_vertices(&obstacles) {
+        let (corners, exposed) = silhouette(&obstacles);
+        let mut exposed = exposed.into_iter();
+        obstacles.retain(|o| {
+            exposed.next().unwrap()
+                || outline(o).is_none()
+                || origin.cmpge(o.bounds.mins).all() && origin.cmple(o.bounds.maxs).all()
+        });
+        for p in corners {
             let delta = p - origin;
             // Distant corners outside the cone cannot affect the nearby circle.
             // Keep a small angular margin for the cone's boundary rays.
@@ -489,6 +687,21 @@ impl World {
                 (radius / center.length()).asin() + 0.0001
             };
             let middle = center.to_angle().rem_euclid(tau);
+            // With the origin outside its bounding circle, a polygon lies within
+            // the wedge of its vertex angles; rays outside that wedge cannot hit.
+            let (below, above) = match outline(&o) {
+                Some(points) if half_angle < std::f32::consts::PI => {
+                    points.iter().fold((f32::MAX, f32::MIN), |(lo, hi), &v| {
+                        let d = v - origin;
+                        let relative = (d.to_angle() - middle + std::f32::consts::PI)
+                            .rem_euclid(tau)
+                            - std::f32::consts::PI;
+                        (lo.min(relative - 0.0001), hi.max(relative + 0.0001))
+                    })
+                }
+                _ => (-half_angle, half_angle),
+            };
+            let (below, above) = (below.max(-half_angle), above.min(half_angle));
             let mut cast = |lo: f32, hi: f32| {
                 let first = angles.partition_point(|a| *a < lo);
                 let last = angles.partition_point(|a| *a <= hi);
@@ -511,8 +724,8 @@ impl World {
             if half_angle >= std::f32::consts::PI {
                 cast(0.0, tau);
             } else {
-                let lo = middle - half_angle;
-                let hi = middle + half_angle;
+                let lo = middle + below;
+                let hi = middle + above;
                 cast(lo.max(0.0), hi.min(tau));
                 if lo < 0.0 {
                     cast(lo + tau, tau);
@@ -807,6 +1020,122 @@ mod tests {
         assert!(turned.contains(Vector::new(0.0, 12.0)));
         assert!(!turned.contains(Vector::new(12.0, 0.0)));
     }
+
+    fn sized_wall(half: Vector, refinement: u8) -> LevelItem {
+        let mut asset = crate::LibraryPreset::Wall.asset();
+        asset.outline = rectangle(half);
+        asset.layout = None;
+        asset.refinement = refinement;
+        asset.components.blocks_vision = Some(true);
+        LevelItem::Object {
+            asset: Box::new(asset),
+            position: [5.0, 0.0],
+            angle: 0.0,
+            cutouts: vec![],
+        }
+    }
+
+    #[test]
+    fn small_props_are_not_occluders_but_keep_physical_collision() {
+        for item in [
+            sized_wall(Vector::splat(0.3), 2),
+            LevelItem::Solid {
+                outline: rectangle(Vector::splat(0.3)),
+                position: [5.0, 0.0],
+                angle: 0.7,
+                cutouts: vec![],
+            },
+        ] {
+            let mut level = map(Some(item));
+            let world = World::from_level(&level, Team::Blue).unwrap();
+            let baseline = World::from_level(&map(None), Team::Blue).unwrap();
+            assert_eq!(
+                world
+                    .sight_occluders(Vector::ZERO, Some(world.launcher), VISION_RANGE)
+                    .len(),
+                baseline
+                    .sight_occluders(Vector::ZERO, Some(baseline.launcher), VISION_RANGE)
+                    .len(),
+                "small props must not contribute any occlusion geometry"
+            );
+            assert!(world.player_vision(0.0).contains(Vector::new(9.0, 0.0)));
+            assert!(world.sight_clear(world.launcher, Vector::new(9.0, 0.0)));
+            assert!(!world.tank_pose_clear(world.launcher, Pose::new(Vector::new(5.0, 0.0), 0.0)));
+
+            level.items.push(LevelItem::Spawn {
+                team: Team::Red,
+                position: [9.0, 0.0],
+                angle: 0.0,
+            });
+            let world = World::from_level(&level, Team::Blue).unwrap();
+            let enemy = world.tanks[1].id;
+            assert!(world.detects_tank(world.launcher, enemy));
+            assert!(world.detects_tank(enemy, world.launcher));
+        }
+    }
+
+    #[test]
+    fn intact_finely_meshed_cover_blocks_but_small_detached_chunks_do_not() {
+        let mut world =
+            World::from_level(&map(Some(sized_wall(Vector::new(0.3, 2.0), 3))), Team::Blue)
+                .unwrap();
+        assert!(
+            world
+                .pieces
+                .iter()
+                .filter(|p| p.destructible())
+                .all(|p| p.shape.area() < MIN_SIGHT_BLOCKER_AREA)
+        );
+        let target = Vector::new(9.0, 0.0);
+        assert!(!world.player_vision(0.0).contains(target));
+        assert!(!world.sight_clear(world.launcher, target));
+        // Detach the cells without moving or retiring them. Their original
+        // object identity must not keep the new small chunks opaque.
+        for bond in &mut world.bonds {
+            bond.active = false;
+        }
+        world.rebuild_chunks();
+        let baseline = World::from_level(&map(None), Team::Blue).unwrap();
+        assert_eq!(
+            world
+                .sight_occluders(Vector::ZERO, Some(world.launcher), VISION_RANGE)
+                .len(),
+            baseline
+                .sight_occluders(Vector::ZERO, Some(baseline.launcher), VISION_RANGE)
+                .len(),
+            "detached small chunks must not contribute any occlusion geometry"
+        );
+        assert!(world.player_vision(0.0).contains(target));
+        assert!(world.sight_clear(world.launcher, target));
+    }
+
+    #[test]
+    fn fixed_cover_size_uses_the_whole_object_and_cutoff_is_in_world_units() {
+        // Each triangle has only 0.4 m², but together they form a 0.8 m² wall.
+        let world = World::from_level(
+            &map(Some(LevelItem::Solid {
+                outline: rectangle(Vector::new(0.1, 2.0)),
+                position: [5.0, 0.0],
+                angle: 0.0,
+                cutouts: vec![],
+            })),
+            Team::Blue,
+        )
+        .unwrap();
+        assert!(!world.player_vision(0.0).contains(Vector::new(9.0, 0.0)));
+        assert!(!world.sight_clear(world.launcher, Vector::new(9.0, 0.0)));
+        for (half, blocks) in [
+            (Vector::new(0.25, 0.49), false),
+            (Vector::new(0.25, 0.5), true),
+        ] {
+            let world = World::from_level(&map(Some(sized_wall(half, 0))), Team::Blue).unwrap();
+            assert_eq!(
+                !world.sight_clear(world.launcher, Vector::new(9.0, 0.0)),
+                blocks
+            );
+        }
+    }
+
     #[test]
     fn solid_cover_blocks_sight_but_barrels_and_fences_transmit_it() {
         for preset in crate::LibraryPreset::ALL {
@@ -823,6 +1152,9 @@ mod tests {
                     | crate::LibraryPreset::ExplosiveBarrel
                     | crate::LibraryPreset::MetalFence
                     | crate::LibraryPreset::Fence
+                    | crate::LibraryPreset::Shrub
+                    | crate::LibraryPreset::Crate
+                    | crate::LibraryPreset::Timber
             );
             assert_eq!(
                 world

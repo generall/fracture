@@ -249,12 +249,16 @@ impl LevelEditor {
                         self.select_tool(Tool::Station(kind));
                     }
                 }
-                for (i, weapon) in [sim::SpecialWeapon::Laser, sim::SpecialWeapon::Rocket]
-                    .into_iter()
-                    .enumerate()
+                for (i, weapon) in [
+                    sim::SpecialWeapon::Laser,
+                    sim::SpecialWeapon::Rocket,
+                    sim::SpecialWeapon::Plasma,
+                ]
+                .into_iter()
+                .enumerate()
                 {
                     if button(
-                        Rect::new(20.0 + i as f32 * 126.0, 604.0, 118.0, 38.0),
+                        Rect::new(20.0 + i as f32 * 83.0, 604.0, 78.0, 38.0),
                         weapon.label(),
                         mouse,
                         matches!(self.tool, Tool::Pickup(w) if w == weapon),
@@ -499,7 +503,7 @@ impl LevelEditor {
                     mouse,
                 );
                 paragraph(
-                    "Drive over to collect the charges. Right-click uses one. Laser cooldown starts after its 3-second burst. Respawn controls when the pad refills.",
+                    "Drive over to collect the charges. Right-click uses one. Laser cooldown starts after its 3-second burst; plasma after its 1-second charge and pulse. Respawn controls when the pad refills.",
                     x,
                     514.0,
                     256.0,

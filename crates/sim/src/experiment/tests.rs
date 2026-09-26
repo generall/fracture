@@ -27,10 +27,16 @@ fn ammunition_bursts_and_laser_cuts_replay_with_saved_effects() {
             .iter()
             .map(|w| w.stats().shots)
             .collect::<Vec<_>>(),
-        vec![1, 1, 1, 20]
+        vec![1, 1, 1, 20, 1]
     );
     assert!(
         first.recordings[3]
+            .frames
+            .iter()
+            .any(|f| f.beam.is_some() && f.metrics.ablated_area > 0.0)
+    );
+    assert!(
+        first.recordings[4]
             .frames
             .iter()
             .any(|f| f.beam.is_some() && f.metrics.ablated_area > 0.0)

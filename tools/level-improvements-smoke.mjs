@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const debugUrl = process.env.CHROME_DEBUG_URL || 'http://127.0.0.1:9227';
-const url = process.env.SANDBOX_URL || 'http://127.0.0.1:8000';
+const sandboxUrl = new URL(process.env.SANDBOX_URL || 'http://127.0.0.1:8000/sandbox.html');
+sandboxUrl.searchParams.delete('mode');
+const url = sandboxUrl.href;
 const page = await fetch(`${debugUrl}/json/new?${encodeURIComponent(url)}`, { method: 'PUT' }).then(r => r.json());
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });

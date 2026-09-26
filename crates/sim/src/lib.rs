@@ -6,6 +6,7 @@ mod decoration;
 pub use decoration::{DecorationKind, DecorationView};
 pub mod experiment;
 pub mod level;
+pub mod matchplay;
 mod material;
 mod object;
 mod structure;
@@ -25,3 +26,7 @@ pub use world::{
     PickupView, Scene, Shape, Shell, Shot, StationView, Stats, TICK_DT, TankDestruction,
     TankFragment, TankImpact, TankView, VISION_HALF_ANGLE, VISION_RANGE, Vision, World,
 };
+
+pub use world::multiplayer;
+
+pub use world::replica;

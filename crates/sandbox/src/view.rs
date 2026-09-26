@@ -628,25 +628,39 @@ fn draw_effects(
             true,
         );
     }
-    if let Some(beam) = world.laser_beam()
-        && visible(beam.start)
-    {
-        let start = viewport.screen(v(beam.start));
-        let mut endpoint = beam.end;
-        if !visible(endpoint) {
-            let mut start = beam.start;
-            for _ in 0..14 {
-                let mid = (start + endpoint) * 0.5;
-                if visible(mid) {
-                    start = mid;
-                } else {
-                    endpoint = mid;
-                }
-            }
-            endpoint = start;
+    for weapon in world.weapon_effects() {
+        if weapon.charging > 0.0 && visible(weapon.muzzle) {
+            weapon_effects::plasma_charge(
+                viewport.screen(v(weapon.muzzle)),
+                viewport.scale,
+                weapon.charging,
+            );
         }
-        let end = viewport.screen(v(endpoint));
-        weapon_effects::laser(start, end, viewport.scale, 3.0 - world.laser_remaining());
+        for (beam, plasma) in [(weapon.laser, false), (weapon.plasma, true)] {
+            let Some(beam) = beam.filter(|beam| visible(beam.start)) else {
+                continue;
+            };
+            let start = viewport.screen(v(beam.start));
+            let mut endpoint = beam.end;
+            if !visible(endpoint) {
+                let mut start = beam.start;
+                for _ in 0..14 {
+                    let mid = (start + endpoint) * 0.5;
+                    if visible(mid) {
+                        start = mid;
+                    } else {
+                        endpoint = mid;
+                    }
+                }
+                endpoint = start;
+            }
+            let end = viewport.screen(v(endpoint));
+            if plasma {
+                weapon_effects::plasma(start, end, viewport.scale, beam.remaining);
+            } else {
+                weapon_effects::laser(start, end, viewport.scale, weapon.laser_elapsed);
+            }
+        }
     }
     for blast in blasts {
         if !visible(sim::Vec2::new(blast.position.x, blast.position.y)) {

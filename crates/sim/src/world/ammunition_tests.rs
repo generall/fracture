@@ -260,6 +260,23 @@ fn cutting_a_moving_cell_removes_its_mass_without_accelerating_survivors() {
 }
 
 #[test]
+fn level_cutting_budget_remains_bounded_after_removing_the_starting_geometry_limit() {
+    let mut w = World::from_object(&coarse_triangle()).unwrap();
+    w.scene = Scene::Level;
+    w.refinements = 2047; // Only four of the 8192 runtime records remain.
+    let id = w.pieces.iter().position(Piece::destructible).unwrap();
+    let first_child = w.pieces.len();
+    assert!(w.laser_cut(id));
+    assert_eq!(w.pieces.len(), first_child + 4);
+    let area = material_area(&w);
+    assert!(!w.laser_cut(first_child));
+    assert_eq!(w.pieces.len(), first_child + 4);
+    assert_eq!(material_area(&w), area);
+    assert_eq!(w.ablated, 0);
+    assert_eq!(w.refinement_limited, 1);
+}
+
+#[test]
 fn laser_detail_limit_never_erases_an_oversized_cell() {
     let mut w = World::from_object(&coarse_triangle()).unwrap();
     let id = w.pieces.iter().position(Piece::destructible).unwrap();

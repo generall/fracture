@@ -10,9 +10,12 @@ The road leads across the river. Sand occupies the northwest and southeast corne
 | Road | 1.45× speed limit (9.425 m/s), 1.3× engine force, 1.4× grip/braking capacity and 1.35× lateral damping. |
 | Sand | 0.48× speed limit (3.12 m/s), 0.6× engine force, 0.65× grip/braking capacity and 0.8× lateral damping. |
 | Water | Impassable to the tank. Collision checks use the complete hull and tracks, including diagonal approaches. |
+| Cliff | Impassable to tanks and loose physical objects; contact deflects props and rubble along the cliff face. Sight, projectiles, beams and blast rays pass over it. |
 | Intact bridge | Road response; permits crossing over water. |
 
 The four track contact patches sample terrain independently. Each track's front/rear samples determine its target speed; each patch supplies its own traction and braking force. Speed changes come from forces, not instantaneous velocity resets. Default ground retains the original force calculations. Object material friction and the accepted barrel, wall, rock and ammunition profiles are unchanged.
+
+The movement soundtrack subtly changes across ground, road, sand, tall grass, elevation and intact bridges, with smooth surface transitions. See [AUDIO.md](AUDIO.md).
 
 ## Breaking a bridge
 

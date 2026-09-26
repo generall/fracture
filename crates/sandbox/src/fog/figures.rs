@@ -10,8 +10,8 @@ pub(super) enum Id {
     Object(usize, u32),
     Piece(usize),
     Flag(u8),
-    Bridge(usize),
-    Pickup(usize),
+    Bridge(u32, u32),
+    Pickup(u32, u32),
     Decoration(usize),
 }
 #[derive(Clone, Default)]
@@ -207,9 +207,9 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
             figure.snapshot.stations.push((station, 1.0));
         }
     }
-    for (index, pickup) in world.pickups().enumerate() {
+    for pickup in world.pickups() {
         result.insert(
-            Id::Pickup(index),
+            Id::Pickup(pickup.position.x.to_bits(), pickup.position.y.to_bits()),
             Figure {
                 polygons: vec![rectangle(
                     pickup.position - Vec2::splat(0.65),
@@ -239,13 +239,13 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
             },
         );
     }
-    for (index, bridge) in world.bridges().enumerate() {
+    for bridge in world.bridges() {
         let mut polygons = vec![rectangle(bridge.deck.min, bridge.deck.max)];
         for p in bridge.controls {
             polygons.push(rectangle(p - Vec2::splat(0.6), p + Vec2::splat(0.6)));
         }
         result.insert(
-            Id::Bridge(index),
+            Id::Bridge(bridge.deck.min.x.to_bits(), bridge.deck.min.y.to_bits()),
             Figure {
                 polygons,
                 snapshot: Scene {

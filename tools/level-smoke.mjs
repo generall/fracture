@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const debugUrl = process.env.CHROME_DEBUG_URL || 'http://127.0.0.1:9227';
-const url = process.env.SANDBOX_URL || 'http://127.0.0.1:8000';
+const sandboxUrl = new URL(process.env.SANDBOX_URL || 'http://127.0.0.1:8000/sandbox.html');
+sandboxUrl.searchParams.delete('mode');
+const url = sandboxUrl.href;
 const page = await fetch(`${debugUrl}/json/new?${encodeURIComponent(url)}`, { method: 'PUT' }).then(r => r.json());
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
@@ -114,7 +116,7 @@ try {
   // Saved custom objects appear in the map palette, without being mutated by placement.
   let asset=structuredClone(originalWall.asset);asset.name='Saved custom block';asset.outline=[[-1,-1],[1,-1],[1,1],[-1,1]];asset.layout=null;asset.pinned_edge=null;
   await evaluate(`localStorage.setItem('fracture.objects.v1',JSON.stringify({objects:[${JSON.stringify(asset)}]}))`);
-  await key('KeyM','m',77);await key('KeyM','m',77);await click(50,201);await click(100,611);await mapClick(12,-5);
+  await key('KeyM','m',77);await key('KeyM','m',77);await click(50,201);await click(210,678);await click(100,525);await mapClick(12,-5);
   assert.equal((await map()).items.at(-1).asset.name,'Saved custom block');
   const savedObjects=await evaluate('localStorage.getItem("fracture.objects.v1")');await field(1200,310,'3');assert.equal(await evaluate('localStorage.getItem("fracture.objects.v1")'),savedObjects);
   // Export uses the browser download boundary, import remains validated and undoable.

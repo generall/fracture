@@ -58,6 +58,30 @@ pub fn right_text(value: &str, right: f32, y: f32, size: f32, color: Color) {
         color,
     );
 }
+/// Text fields edit at the end. Keep that insertion point visible, including
+/// for empty values and long Unicode names that need to scroll horizontally.
+pub fn field_text(value: &str, rect: Rect, baseline: f32, size: f32, active: bool) {
+    let available = (rect.w - 24.0).max(0.0);
+    let mut visible = value;
+    let mut width = measure_text(visible, None, size as u16, 1.0).width;
+    while width > available && !visible.is_empty() {
+        visible = &visible[visible.chars().next().unwrap().len_utf8()..];
+        width = measure_text(visible, None, size as u16, 1.0).width;
+    }
+    let x = rect.x + 8.0;
+    let y = rect.y + baseline;
+    text(visible, x, y, size, if active { CYAN } else { INK });
+    if active {
+        draw_line(
+            x + width + 3.0,
+            y - size,
+            x + width + 3.0,
+            y + 3.0,
+            2.0,
+            CYAN,
+        );
+    }
+}
 pub fn button(rect: Rect, label: &str, mouse: Vec2, selected: bool) -> bool {
     let hover = rect.contains(mouse);
     if hover || selected {
@@ -138,11 +162,7 @@ impl Inspector {
         }
         if button(
             Rect::new(size.x - 189.0, 23.0, 165.0, 38.0),
-            if paused {
-                "SPACE  RESUME"
-            } else {
-                "SPACE  PAUSE"
-            },
+            if paused { "P  RESUME" } else { "P  PAUSE" },
             mouse,
             paused,
         ) {
@@ -175,7 +195,7 @@ impl Inspector {
         for (i, speed) in world.track_speeds().into_iter().enumerate() {
             let x = 32.0 + i as f32 * 135.0;
             text(
-                if i == 0 { "L / Q Z" } else { "R / E C" },
+                if i == 0 { "L TRACK" } else { "R TRACK" },
                 x,
                 y + 26.0,
                 17.0,
@@ -202,7 +222,7 @@ impl Inspector {
             19.0,
             INK,
         );
-        text("LMB / MAIN GUN   RMB / SPECIAL", 328.0, y + 32.0, 17.0, INK);
+        text("SPACE/LMB FIRE   G/RMB SPECIAL", 328.0, y + 32.0, 17.0, INK);
         if button(
             Rect::new(315.0, y + 48.0, 192.0, 36.0),
             "H  FIELD MANUAL",
@@ -265,7 +285,7 @@ impl Inspector {
             );
         }
         let ready =
-            world.tank_alive() && world.reload_remaining() <= 0.0 && world.laser_remaining() <= 0.0;
+            world.tank_alive() && world.reload_remaining() <= 0.0 && !world.special_active();
         for (i, ammunition) in Ammunition::MAIN.into_iter().enumerate() {
             if button(
                 Rect::new(size.x - 382.0 + i as f32 * 89.0, y + 5.0, 85.0, 36.0),
@@ -282,7 +302,9 @@ impl Inspector {
             } else {
                 format!(
                     "{} / {} / {:.0} M/S",
-                    if world.laser_remaining() > 0.0 {
+                    if world.plasma_remaining() > 0.0 {
+                        "PLASMA CHARGING"
+                    } else if world.laser_remaining() > 0.0 {
                         "LASER ACTIVE"
                     } else if ready {
                         "READY"
@@ -302,7 +324,9 @@ impl Inspector {
             17.0,
             if ready { CYAN } else { PINK },
         );
-        let special_label = if world.laser_remaining() > 0.0 {
+        let special_label = if world.plasma_remaining() > 0.0 {
+            format!("CHARGE {:.1}s", world.plasma_remaining())
+        } else if world.laser_remaining() > 0.0 {
             format!(
                 "LASER {:.1}s / x{}",
                 world.laser_remaining(),
@@ -317,7 +341,7 @@ impl Inspector {
                     world.special_cooldown()
                 )
             } else {
-                format!("RMB / {} x{}", weapon.label(), world.special_charges())
+                format!("G/RMB / {} x{}", weapon.label(), world.special_charges())
             }
         } else {
             "SPECIAL / EMPTY".into()
@@ -343,11 +367,11 @@ impl Inspector {
             for (i, label) in [
                 "W / S    Forward / reverse",
                 "A / D    Differential steering",
-                "Q / Z    Left track forward / reverse",
-                "E / C    Right track forward / reverse",
+                "Q/E J/K  Rotate turret left / right",
+                "SPACE/F  Fire main gun (or click)",
                 "RELEASE  Tracks brake automatically",
                 "MOUSE    Aim turret independently",
-                "CLICK/F  Main gun; RMB use special",
+                "G / RMB  Use collected special",
                 if world.scene() == Scene::Level {
                     "WHEEL    Zoom / mouse look-ahead"
                 } else {

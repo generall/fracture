@@ -8,6 +8,8 @@ pub const TICK_DT: f32 = 1.0 / 120.0;
 const SUBSTEPS: usize = 4;
 const DEPTH: f32 = 0.25;
 mod aiming;
+pub mod multiplayer;
+pub mod replica;
 mod specials;
 pub use specials::PickupView;
 mod api;
@@ -205,6 +207,8 @@ struct Bond {
 }
 
 pub struct World {
+    replica: Option<Box<replica::Frame>>,
+    sight_cache: Option<Vec<vision::Occluder>>,
     plastic_work: f64,
     physics: PhysicsWorld,
     pieces: Vec<Piece>,
@@ -234,6 +238,9 @@ pub struct World {
     pickups: Vec<specials::Pickup>,
     decorations: Vec<decorations::Decoration>,
     laser_remaining: f32,
+    plasma_remaining: f32,
+    plasma_direction: Vector,
+    plasma_beam: Option<LaserBeam>,
     laser_pulse_in: f32,
     last_ammunition: Ammunition,
     laser_beam: Option<LaserBeam>,
@@ -267,10 +274,20 @@ impl World {
     /// All input and fracture mutations occur at fixed tick boundaries. Events
     /// describe this tick only; callers can record the command slice for replay.
     pub fn step(&mut self, commands: &[Command]) -> Vec<Event> {
-        if self.winner.is_some() {
+        if self.replica.is_some() || self.winner.is_some() {
             return Vec::new();
         }
         let mut events = Vec::new();
+        self.begin_tick(&mut events);
+        let tracks = self.control_player(commands, true, true, &mut events);
+        let mut drivers = vec![(self.launcher, tracks)];
+        drivers.extend(self.enemy_commands(&mut events));
+        self.finish_tick(&drivers, &mut events);
+        events
+    }
+
+    fn begin_tick(&mut self, events: &mut Vec<Event>) {
+        self.sight_cache = None;
         self.structural_residual = 0.0;
         self.elastic_energy = 0.0;
         self.structural_iterations = 0;
@@ -289,13 +306,33 @@ impl World {
         for bond in &mut self.bonds {
             bond.load *= 0.965;
         }
-        self.update_tanks(&mut events);
+        self.update_tanks(events);
+        for shell in &mut self.shells {
+            shell.previous_position = shell.position;
+        }
+    }
+
+    fn control_player(
+        &mut self,
+        commands: &[Command],
+        decay_reload: bool,
+        advance_pickups: bool,
+        events: &mut Vec<Event>,
+    ) -> [f32; 2] {
         self.update_player_aim(commands);
-        self.reload = (self.reload - TICK_DT).max(0.0);
+        if decay_reload {
+            self.reload = (self.reload - TICK_DT).max(0.0);
+        }
         if let Some(beam) = &mut self.laser_beam {
             beam.remaining -= TICK_DT;
             if beam.remaining <= 0.0 {
                 self.laser_beam = None;
+            }
+        }
+        if let Some(beam) = &mut self.plasma_beam {
+            beam.remaining -= TICK_DT;
+            if beam.remaining <= 0.0 {
+                self.plasma_beam = None;
             }
         }
         for command in commands {
@@ -303,57 +340,56 @@ impl World {
                 self.select_main_ammunition(ammo);
             }
         }
-        for shell in &mut self.shells {
-            shell.previous_position = shell.position;
-        }
         let mut tracks = [0.0; 2];
         for command in commands {
             match *command {
                 Command::Fire(shot) => {
                     if !self.player_aim.active {
                         // Precisely authored material experiments have no player controls.
-                        self.fire(shot, &mut events);
-                    } else if !shot.ammunition.special() && self.laser_remaining <= 0.0 {
+                        self.fire(shot, events);
+                    } else if !shot.ammunition.special() && !self.special_active() {
                         if shot.ammunition != self.primary_ammunition {
                             self.select_main_ammunition(shot.ammunition);
                         } else {
-                            self.fire(shot, &mut events);
+                            self.fire(shot, events);
                         }
                     }
                 }
-                Command::ActivateSpecial => self.activate_special(&mut events),
+                Command::ActivateSpecial => self.activate_special(events),
                 Command::Tracks { left, right } if left.is_finite() && right.is_finite() => {
                     tracks = [left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0)];
                 }
                 _ => {}
             }
         }
-        self.update_specials(&mut events);
-        let enemy_tracks = self.enemy_commands(&mut events);
+        self.update_specials_for_player(events, advance_pickups);
+        tracks
+    }
+
+    fn finish_tick(&mut self, drivers: &[(usize, [f32; 2])], events: &mut Vec<Event>) {
         for _ in 0..SUBSTEPS {
             let dt = self.physics.integration_parameters.dt;
             self.ground_resistance(dt);
-            self.drive_tracks(tracks, dt);
-            if let Some((id, tracks)) = enemy_tracks {
+            for &(id, tracks) in drivers {
                 self.drive_tank(id, tracks, dt);
             }
-            self.advance_shells(dt, &mut events);
+            self.advance_shells(dt, events);
             self.advance_blasts(dt);
-            self.process_loads(dt, &mut events);
-            self.detonate_objects(&mut events);
-            self.update_bridges(dt, &mut events);
+            self.process_loads(dt, events);
+            self.detonate_objects(events);
+            self.update_bridges(dt, events);
             let velocities = self.contact_velocities();
             self.physics
                 .step_with_events(&contacts::ReboundHooks(&self.pieces), &());
-            self.update_plastic_bends();
-            let ramming = self.collect_contact_loads(&velocities);
+            self.update_plastic_bends(events);
+            let ramming = self.collect_contact_loads(&velocities, events);
             for (id, damage, impact) in ramming {
-                self.damage_tank_from(id, damage, impact, &mut events);
+                self.damage_tank_from(id, damage, impact, events);
             }
-            self.process_loads(dt, &mut events);
-            self.detonate_objects(&mut events);
-            self.update_bridges(0.0, &mut events);
-            self.capture_flags(&mut events);
+            self.process_loads(dt, events);
+            self.detonate_objects(events);
+            self.update_bridges(0.0, events);
+            self.capture_flags(events);
             if self.winner.is_some() {
                 break;
             }
@@ -361,10 +397,9 @@ impl World {
         if self.winner.is_none() {
             self.update_stations();
         }
-        self.update_decorations();
+        self.update_decorations(events);
         self.cleanup_debris();
         self.tick += 1;
-        events
     }
 }
 

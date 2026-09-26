@@ -1,0 +1,6 @@
+
+Running game browser checks
+PASS: home, lobby, map creation/persistence, config, countdown, gameplay, sandbox isolation, pause, validation, capture, results, rematch, saved-map reload and sandbox access
+
+Running audio browser checks
+PASS: 32 decoded assets, gesture unlock, audible music, visible/occluded enemy music, smooth transition, terrain movement/shot/decorative destruction cues, pause, modal sliders, input isolation, mute output and saved mixer settings

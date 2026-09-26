@@ -44,7 +44,7 @@ impl TerrainKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TerrainPatch {
     pub kind: TerrainKind,
     pub min: Vec2,

@@ -112,12 +112,17 @@ fn barrel_yields_under_pinning_and_retains_its_shape_after_unloading() {
         .filter(|p| p.object == Some(0))
         .map(Piece::mass)
         .sum();
+    let mut buckled = false;
     for _ in 0..480 {
-        w.step(&[Command::Tracks {
-            left: 1.0,
-            right: 1.0,
-        }]);
+        buckled |= w
+            .step(&[Command::Tracks {
+                left: 1.0,
+                right: 1.0,
+            }])
+            .iter()
+            .any(|e| matches!(e,Event::Buckled{work,..} if *work>0.5));
     }
+    assert!(buckled, "real barrel crushing reports a buckling event");
     assert!(w.stats().plastic_work > 0.0);
     assert!(w.stats().plastic_strain > 0.03);
     assert_eq!(w.stats().broken, 0);

@@ -5,6 +5,7 @@ use rapier2d::parry::{query::RayCast, shape::Cuboid};
 pub(super) struct Decoration {
     view: DecorationView,
     destroyed: Option<f32>,
+    destruction_reported: bool,
 }
 impl World {
     pub(super) fn add_decoration(
@@ -24,6 +25,7 @@ impl World {
                 size,
             },
             destroyed: None,
+            destruction_reported: false,
         });
     }
     pub fn decorations(&self) -> impl Iterator<Item = DecorationView> + '_ {
@@ -31,13 +33,21 @@ impl World {
             .iter()
             .filter(|d| d.destroyed.is_none())
             .map(|d| d.view)
+            .chain(
+                self.replica
+                    .iter()
+                    .flat_map(|f| f.decorations.iter().copied()),
+            )
     }
     pub fn decoration_bursts(&self) -> impl Iterator<Item = (DecorationView, f32)> + '_ {
-        self.decorations.iter().filter_map(|d| {
-            d.destroyed
-                .filter(|age| *age < 0.8)
-                .map(|age| (d.view, age))
-        })
+        self.decorations
+            .iter()
+            .filter_map(|d| {
+                d.destroyed
+                    .filter(|age| *age < 0.8)
+                    .map(|age| (d.view, age))
+            })
+            .chain(self.replica.iter().flat_map(|f| f.bursts.iter().copied()))
     }
     pub(super) fn sweep_decorations(&mut self, start: Vector, end: Vector, radius: f32) {
         let ray = Ray::new(start, end - start);
@@ -82,7 +92,7 @@ impl World {
             self.decorations[id].destroyed = Some(0.);
         }
     }
-    pub(super) fn update_decorations(&mut self) {
+    pub(super) fn update_decorations(&mut self, events: &mut Vec<Event>) {
         let tanks: Vec<_> = std::iter::once(self.launcher)
             .chain(
                 self.tanks
@@ -101,16 +111,28 @@ impl World {
         for d in &mut self.decorations {
             if let Some(age) = &mut d.destroyed {
                 *age += TICK_DT;
-                continue;
-            }
-            let shape = Cuboid::new(d.view.size * 0.5);
-            let pose = Pose::new(d.view.position, d.view.angle);
-            if tanks.iter().any(|h| {
-                let c = &self.physics.colliders[*h];
-                rapier2d::parry::query::intersection_test(&pose, &shape, c.position(), c.shape())
+            } else {
+                let shape = Cuboid::new(d.view.size * 0.5);
+                let pose = Pose::new(d.view.position, d.view.angle);
+                if tanks.iter().any(|h| {
+                    let c = &self.physics.colliders[*h];
+                    rapier2d::parry::query::intersection_test(
+                        &pose,
+                        &shape,
+                        c.position(),
+                        c.shape(),
+                    )
                     .unwrap_or(false)
-            }) {
-                d.destroyed = Some(0.);
+                }) {
+                    d.destroyed = Some(0.);
+                }
+            }
+            if d.destroyed.is_some() && !d.destruction_reported {
+                d.destruction_reported = true;
+                events.push(Event::DecorationDestroyed {
+                    position: d.view.position,
+                    kind: d.view.kind,
+                });
             }
         }
     }
@@ -148,7 +170,7 @@ mod tests {
         assert_eq!(w.physics.bodies.len(), baseline.physics.bodies.len());
         assert_eq!(w.physics.colliders.len(), baseline.physics.colliders.len());
         assert_eq!(w.decorations().count(), 1);
-        w.step(&[Command::Fire(Shot::new(
+        let mut events = w.step(&[Command::Fire(Shot::new(
             Ammunition::ArmorPiercing,
             Vector::new(10., 0.),
         ))]);
@@ -156,14 +178,27 @@ mod tests {
             if w.decorations().count() == 0 {
                 break;
             }
-            w.step(&[]);
+            events.extend(w.step(&[]));
         }
         assert_eq!(w.decorations().count(), 0);
         assert_eq!(w.decoration_bursts().count(), 1);
         assert_eq!(w.physics.bodies.len(), baseline.physics.bodies.len());
         for _ in 0..120 {
-            w.step(&[]);
+            events.extend(w.step(&[]));
         }
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(
+                    event,
+                    Event::DecorationDestroyed {
+                        kind: crate::DecorationKind::Crate,
+                        ..
+                    }
+                ))
+                .count(),
+            1
+        );
         assert_eq!(w.decoration_bursts().count(), 0);
         assert_eq!(w.stats().broken, 0);
     }
@@ -209,6 +244,59 @@ mod tests {
         );
         w.blast_decorations(Vector::new(-4., 0.), 5.);
         assert_eq!(w.decorations().count(), 1);
+    }
+    #[test]
+    fn each_decoration_reports_destruction_once_for_sweeps_blasts_and_tracks() {
+        for (preset, kind) in [
+            (crate::LibraryPreset::Shrub, crate::DecorationKind::Shrub),
+            (crate::LibraryPreset::Crate, crate::DecorationKind::Crate),
+            (crate::LibraryPreset::Timber, crate::DecorationKind::Timber),
+        ] {
+            for cause in 0..3 {
+                let mut level = map();
+                let LevelItem::Object { asset, .. } = &mut level.items[1] else {
+                    unreachable!()
+                };
+                **asset = preset.asset();
+                let mut world = World::from_level(&level, Team::Blue).unwrap();
+                assert!(
+                    !world
+                        .step(&[])
+                        .iter()
+                        .any(|e| matches!(e, Event::DecorationDestroyed { .. }))
+                );
+                match cause {
+                    0 => {
+                        world.sweep_decorations(Vector::new(-2.0, 0.0), Vector::new(2.0, 0.0), 0.1)
+                    }
+                    1 => world.blast_decorations(Vector::new(-2.0, 0.0), 3.0),
+                    _ => world
+                        .configure_test_tank(4500.0, Vector::ZERO, 0.0)
+                        .unwrap(),
+                }
+                let events = world.step(&[]);
+                let destroyed: Vec<_> = events
+                    .iter()
+                    .filter_map(|e| match e {
+                        Event::DecorationDestroyed { kind, position } => Some((*kind, *position)),
+                        _ => None,
+                    })
+                    .collect();
+                assert_eq!(
+                    destroyed,
+                    vec![(kind, Vector::ZERO)],
+                    "{preset:?}, cause {cause}"
+                );
+                for _ in 0..120 {
+                    assert!(
+                        !world
+                            .step(&[])
+                            .iter()
+                            .any(|e| matches!(e, Event::DecorationDestroyed { .. }))
+                    );
+                }
+            }
+        }
     }
     #[test]
     fn decorations_neither_carve_walls_nor_merge_and_eraser_removes_whole_prop() {

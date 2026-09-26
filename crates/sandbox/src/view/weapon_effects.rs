@@ -6,10 +6,10 @@ pub(crate) fn pickup_marker(pickup: &sim::PickupView, view: &Viewport, opacity: 
     let ready = pickup.remaining <= 0.0;
     let r = (view.scale * 0.6).max(8.0);
     let color = tint(
-        if pickup.weapon == sim::SpecialWeapon::Laser {
-            CYAN
-        } else {
-            PINK
+        match pickup.weapon {
+            sim::SpecialWeapon::Laser => CYAN,
+            sim::SpecialWeapon::Rocket => PINK,
+            sim::SpecialWeapon::Plasma => VIOLET,
         },
         opacity,
     );
@@ -31,7 +31,14 @@ pub(crate) fn pickup_marker(pickup: &sim::PickupView, view: &Viewport, opacity: 
         tint(color, if ready { 0.8 } else { 0.3 }),
     );
     if ready {
-        if pickup.weapon == sim::SpecialWeapon::Laser {
+        if pickup.weapon == sim::SpecialWeapon::Plasma {
+            draw_circle_lines(p.x, p.y, r * 0.48, 2.0, color);
+            draw_circle(p.x, p.y, r * 0.20, INK);
+            for i in 0..4 {
+                let axis = Vec2::from_angle(i as f32 * std::f32::consts::FRAC_PI_2);
+                glow(p + axis * r * 0.55, p + axis * r * 0.8, 1.5, color);
+            }
+        } else if pickup.weapon == sim::SpecialWeapon::Laser {
             let points = [
                 vec2(0.15, -0.6),
                 vec2(-0.3, 0.08),
@@ -138,4 +145,35 @@ pub(super) fn rocket(p: Vec2, direction: Vec2, scale: f32) {
         INK,
         true,
     );
+}
+
+/// A gathering muzzle orb, followed by a short fading discharge.
+pub(super) fn plasma_charge(p: Vec2, scale: f32, remaining: f32) {
+    let progress = (1.0 - remaining).clamp(0.0, 1.0);
+    let radius = scale * (0.12 + progress * 0.35);
+    draw_circle(p.x, p.y, radius * 2.0, tint(VIOLET, 0.10 + progress * 0.1));
+    draw_circle_lines(p.x, p.y, radius, 2.0, VIOLET);
+    draw_circle(p.x, p.y, radius * 0.5, tint(INK, 0.4 + progress * 0.6));
+    for i in 0..8 {
+        let axis = Vec2::from_angle(i as f32 * std::f32::consts::TAU / 8.0 + progress * 5.0);
+        let distance = radius + scale * (1.0 - (progress * 3.0 + i as f32 / 8.0).fract());
+        line(
+            p + axis * distance,
+            p + axis * (distance + scale * 0.15),
+            1.5,
+            tint(VIOLET, 0.8),
+        );
+    }
+}
+
+pub(super) fn plasma(start: Vec2, end: Vec2, scale: f32, remaining: f32) {
+    let fade = (remaining / 0.18).clamp(0.0, 1.0);
+    let width = (scale * 0.6).max(6.0);
+    line(start, end, width * 2.5, tint(VIOLET, fade * 0.18));
+    line(start, end, width, tint(VIOLET, fade));
+    line(start, end, width * 0.35, tint(INK, fade));
+    for p in [start, end] {
+        draw_circle_lines(p.x, p.y, width * (2.0 - fade), 2.0, tint(VIOLET, fade));
+        draw_circle(p.x, p.y, width * 0.6, tint(INK, fade));
+    }
 }

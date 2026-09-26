@@ -1,8 +1,10 @@
 use super::*;
 use std::collections::BTreeMap;
 
-// Bound both live simulation size and retained stable IDs. Rebuilding the scene
-// resets this budget. A source can refine a lineage only once, avoiding a
+// Bound retained runtime detail, including retired parents. Level geometry has
+// its own authoring budget and must not consume the subdivision allowance.
+// Material experiments retain their original total-record cap for replay.
+// A source can refine a lineage only once, avoiding a
 // recursive avalanche inside one impact or one pressure pulse.
 const MAX_CELL_RECORDS: usize = 8192;
 const MAX_GENERATIONS: u8 = 8;
@@ -10,6 +12,17 @@ const MAX_GENERATIONS: u8 = 8;
 pub const LASER_TILE_AREA: f32 = 0.0125;
 
 impl World {
+    fn refinement_budget_available(&self) -> bool {
+        let records = if self.scene == Scene::Level {
+            // Each subdivision appends four stable records; none are reused,
+            // even after their material is cut away or debris expires.
+            self.refinements * 4
+        } else {
+            self.pieces.len()
+        };
+        records + 4 <= MAX_CELL_RECORDS
+    }
+
     /// One pulse either adds detail at its first contact or removes one leaf.
     /// No load, impulse, crack energy or explosive ignition is synthesized.
     pub(super) fn laser_cut(&mut self, id: usize) -> bool {
@@ -18,7 +31,7 @@ impl World {
             return true; // Arena walls and fixtures shield anything behind them.
         }
         if p.shape.area() > LASER_TILE_AREA {
-            if p.refinement >= MAX_GENERATIONS || self.pieces.len() + 4 > MAX_CELL_RECORDS {
+            if p.refinement >= MAX_GENERATIONS || !self.refinement_budget_available() {
                 self.refinement_limited += 1;
                 return false; // Never erase a coarse cell to bypass a budget.
             }
@@ -89,8 +102,7 @@ impl World {
         }
         let mut changed = false;
         for (id, event) in candidates.into_iter().take(8) {
-            if self.pieces.len() + 4 > MAX_CELL_RECORDS
-                || self.pieces[id].refinement >= MAX_GENERATIONS
+            if !self.refinement_budget_available() || self.pieces[id].refinement >= MAX_GENERATIONS
             {
                 self.refinement_limited += 1;
                 continue;

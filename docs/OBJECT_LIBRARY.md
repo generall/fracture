@@ -69,7 +69,7 @@ The next iteration is calibration: repeated/oblique shots, pinned versus free cr
 
 `node tools/library-smoke.mjs` exercises the picker, component/color editing, saved copies, reload, invalid-save preservation, shell/barrel explosions and yard navigation through actual browser input. It uses the same local Chrome/server setup as the other smoke scripts and restores the original local stores afterward.
 
-**Older yield comparison:** [the ten-case direct link](http://127.0.0.1:8000/?experiment=barrels) opens ten reproducible tank/backstop trials. They vary plastic yield stress and hardening, with common geometry, mass and drive settings. Select a number, focus it, mark a favorite, then save or copy it into the editor. See [EXPERIMENTS.md](EXPERIMENTS.md) for the matrix and direct launch link.
+**Older yield comparison:** [the ten-case direct link](http://127.0.0.1:8000/sandbox.html?experiment=barrels) opens ten reproducible tank/backstop trials. They vary plastic yield stress and hardening, with common geometry, mass and drive settings. Select a number, focus it, mark a favorite, then save or copy it into the editor. See [EXPERIMENTS.md](EXPERIMENTS.md) for the matrix and direct launch link.
 
 **DEFORMATION / 6** opens six barrels with limits 0.4 / 0.8 / 1.2 / 1.6 / 2.2 / 3.0 under identical test settings. Yield 0.5 kPa, flow 2/s, hardening 0 and all other object properties match. The shared toolbar changes the test's speed, angle, offset, mass, duration and backstop at runtime. Use **FOCUS CASE → MATERIAL** to tune one barrel or **USE CASE IN OBJECT EDITOR** to save a library copy. The ordinary barrel starter now uses the selected case 6: yield 0.5 kPa, flow 2/s, hardening 0, limit 3. Explosive-barrel and generic plasticity defaults remain separate.
 

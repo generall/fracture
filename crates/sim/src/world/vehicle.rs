@@ -54,24 +54,34 @@ mod elevation_tests {
     }
 }
 
+/// Hull and track cuboids (offset, half extents), shared with replica sight.
+pub(super) fn tank_colliders() -> [(Vector, Vector); 3] {
+    [
+        (Vector::ZERO, Vector::new(0.95, 0.48)),
+        (Vector::new(0.0, -TRACK_OFFSET), Vector::new(1.08, 0.17)),
+        (Vector::new(0.0, TRACK_OFFSET), Vector::new(1.08, 0.17)),
+    ]
+}
+
 impl World {
     pub(super) fn add_tank(&mut self) -> usize {
         let position = Vector::new(-7.0, 0.0);
+        let [(_, hull), tracks @ ..] = tank_colliders();
         let (body, collider) = self.physics.insert(
             RigidBodyBuilder::dynamic()
                 .translation(position)
                 .ccd_enabled(true),
-            ColliderBuilder::cuboid(0.95, 0.48)
+            ColliderBuilder::cuboid(hull.x, hull.y)
                 .collision_groups(CollisionLayer::Tank.groups())
                 .mass(3_800.0)
                 .friction(0.8)
                 .restitution(0.0),
         );
-        for y in [-TRACK_OFFSET, TRACK_OFFSET] {
+        for (offset, half) in tracks {
             self.physics.insert_collider(
-                ColliderBuilder::cuboid(1.08, 0.17)
+                ColliderBuilder::cuboid(half.x, half.y)
                     .collision_groups(CollisionLayer::Tank.groups())
-                    .translation(Vector::new(0.0, y))
+                    .translation(offset)
                     .mass(350.0)
                     .friction(0.85)
                     .restitution(0.0),
@@ -100,6 +110,9 @@ impl World {
     }
 
     pub fn track_speeds(&self) -> [f32; 2] {
+        if let Some(frame) = &self.replica {
+            return frame.tracks;
+        }
         let body = &self.physics.bodies[self.pieces[self.launcher].body];
         let forward = *body.rotation() * Vector::X;
         [-TRACK_OFFSET, TRACK_OFFSET].map(|y| {
@@ -108,6 +121,7 @@ impl World {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn drive_tracks(&mut self, throttles: [f32; 2], dt: f32) {
         self.drive_tank(self.launcher, throttles, dt);
     }

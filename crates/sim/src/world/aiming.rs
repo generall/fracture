@@ -5,7 +5,7 @@ const MAX_SPREAD: f32 = 40.0_f32.to_radians();
 const PLAYER_TRAVERSE: f32 = 60.0_f32.to_radians();
 pub(super) const ENEMY_TRAVERSE: f32 = 40.0_f32.to_radians();
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AimView {
     pub angle: f32,
     pub previous_angle: f32,
@@ -71,14 +71,16 @@ impl AimState {
         let kick: f32 = match ammunition {
             Ammunition::HighExplosive | Ammunition::ArmorPiercing => 6.0,
             Ammunition::Rocket => 8.0,
-            Ammunition::Laser => 0.0,
+            Ammunition::Laser | Ammunition::Plasma => 0.0,
         };
         self.spread = (self.spread + kick.to_radians()).min(MAX_SPREAD);
     }
 }
 impl World {
     pub fn player_aim(&self) -> AimView {
-        self.player_aim.view()
+        self.replica
+            .as_ref()
+            .map_or_else(|| self.player_aim.view(), |f| f.aim)
     }
     pub(super) fn update_player_aim(&mut self, commands: &[Command]) {
         for command in commands {
@@ -142,7 +144,7 @@ impl World {
             // Scripted material trials without Aim commands retain their exact shot setup.
             return (requested, requested);
         };
-        let offset = if ammo == Ammunition::Laser {
+        let offset = if ammo.energy_beam() {
             0.0
         } else {
             state.shot_offset(id)
@@ -219,7 +221,9 @@ mod tests {
         let (position, velocity) = events
             .iter()
             .find_map(|e| match e {
-                Event::Fired { position, velocity } => Some((*position, *velocity)),
+                Event::Fired {
+                    position, velocity, ..
+                } => Some((*position, *velocity)),
                 _ => None,
             })
             .unwrap();
