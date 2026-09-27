@@ -171,7 +171,12 @@ impl Game {
                     "LOCAL MATCH / THE CLOCK IS PAUSED"
                 },
                 size.x * 0.5,
-                size.y * 0.5 - 40.0,
+                size.y * 0.5
+                    - if cfg!(target_arch = "wasm32") {
+                        40.0
+                    } else {
+                        64.0
+                    },
                 17.0,
                 MUTED,
             );
@@ -193,6 +198,8 @@ impl Game {
                     },
                     Action::Leave,
                 ),
+                #[cfg(not(target_arch = "wasm32"))]
+                ("EXIT GAME", Action::Exit),
             ]
             .into_iter()
             .enumerate()
@@ -203,7 +210,12 @@ impl Game {
                 if button(
                     Rect::new(
                         size.x * 0.5 - 220.0,
-                        size.y * 0.5 - 10.0 + i as f32 * 52.0,
+                        size.y * 0.5
+                            + if cfg!(target_arch = "wasm32") {
+                                -10.0 + i as f32 * 52.0
+                            } else {
+                                -34.0 + i as f32 * 48.0
+                            },
                         440.0,
                         40.0,
                     ),

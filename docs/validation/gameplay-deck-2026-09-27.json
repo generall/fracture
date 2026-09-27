@@ -1,0 +1,625 @@
+{
+  "date": "2026-09-27",
+  "hardware": "Steam Deck AMD Custom APU 0932, SteamOS 3.8.28",
+  "display": "Desktop Mode 1280x800, 90Hz, foreground, DPMS inhibited",
+  "power": "AC; existing powersave governor unchanged",
+  "audio": "FRACTURE_SILENT=1, separate temporary save directory",
+  "deployed_binary_sha256": "58a637c77ed47dc8ffbf5664e1ee252a99a6e10c08cc0f49d7ebf17248f1bc7f",
+  "runs": [
+    {
+      "run": "classic-frames-running",
+      "average_fps": 44.01926205988469,
+      "columns": [
+        "frame",
+        "input_audio",
+        "physics_effects",
+        "camera",
+        "vision",
+        "fog",
+        "draw_submit",
+        "ui"
+      ],
+      "frames": 1981,
+      "over_33ms": 175,
+      "over_50ms": 29,
+      "scenario": "classic",
+      "simulation_seconds": 44.983333333333334,
+      "stages": {
+        "camera": {
+          "max_ms": 0.02437,
+          "mean_ms": 0.0025533543664815776,
+          "p50_ms": 0.00249,
+          "p95_ms": 0.00317,
+          "p99_ms": 0.00423
+        },
+        "draw_submit": {
+          "max_ms": 1.12787,
+          "mean_ms": 0.682382740030287,
+          "p50_ms": 0.675202,
+          "p95_ms": 0.796124,
+          "p99_ms": 0.8746360000000001
+        },
+        "fog": {
+          "max_ms": 9.756115,
+          "mean_ms": 6.872670482584561,
+          "p50_ms": 6.969965,
+          "p95_ms": 7.7292380000000005,
+          "p99_ms": 8.175036
+        },
+        "frame": {
+          "max_ms": 77.771727,
+          "mean_ms": 22.71732766986367,
+          "p50_ms": 19.666464,
+          "p95_ms": 39.220005,
+          "p99_ms": 52.576184
+        },
+        "input_audio": {
+          "max_ms": 8.765946999999999,
+          "mean_ms": 0.6029941872791529,
+          "p50_ms": 0.520339,
+          "p95_ms": 0.596381,
+          "p99_ms": 1.0250789999999999
+        },
+        "physics_effects": {
+          "max_ms": 65.205591,
+          "mean_ms": 10.021546687026756,
+          "p50_ms": 7.010376,
+          "p95_ms": 26.344143,
+          "p99_ms": 39.939318
+        },
+        "ui": {
+          "max_ms": 0.465908,
+          "mean_ms": 0.017351496718828862,
+          "p50_ms": 0.01311,
+          "p95_ms": 0.02435,
+          "p99_ms": 0.034180999999999996
+        },
+        "vision": {
+          "max_ms": 5.888336,
+          "mean_ms": 3.9875813543664833,
+          "p50_ms": 3.9582310000000005,
+          "p95_ms": 4.413569,
+          "p99_ms": 4.8488869999999995
+        }
+      },
+      "stats": {
+        "ablated": 0,
+        "ablated_area": 0.0,
+        "awake": 48,
+        "bodies": 195,
+        "bonds": 7630,
+        "broken": 483,
+        "cells": 6154,
+        "chunks": 201,
+        "cleared": 165,
+        "cleared_area": 6.102604389190674,
+        "elastic_energy": 1.6833504506786533e-05,
+        "explosions": 38,
+        "fracture_work": 16647.725102186203,
+        "kinetic_energy": 329.94769287109375,
+        "peak_load": 47091.60546875,
+        "plastic_strain": 0.0009054707479663193,
+        "plastic_work": 4.6258724892977625,
+        "refinement_limited": 0,
+        "refinements": 31,
+        "shells": 0,
+        "shots": 38,
+        "structural_iterations": 44,
+        "structural_residual": 3.5107220918686356e-15,
+        "ticks": 5766,
+        "unconverged": 0
+      },
+      "wall_seconds": 45.003026114,
+      "warmup_seconds": 3
+    },
+    {
+      "run": "classic-frames-cached",
+      "average_fps": 74.72843188365408,
+      "columns": [
+        "frame",
+        "input_audio",
+        "physics_effects",
+        "camera",
+        "vision",
+        "fog",
+        "draw_submit",
+        "ui"
+      ],
+      "frames": 8968,
+      "over_33ms": 42,
+      "over_50ms": 13,
+      "physics_stages_total_ms": {
+        "ai_clearance": 3153.4916709999984,
+        "cleanup": 2017.4295770000622,
+        "contacts": 6292.414393000085,
+        "control": 11861.262696999958,
+        "driving": 950.6814610000002,
+        "fracture": 5981.248733997187,
+        "plasticity": 2.1553149999995664,
+        "projectiles": 798.3185690000424,
+        "rapier": 14849.2961530001,
+        "rebuild": 121.7726149999999,
+        "structural_solve": 3171.695970002036
+      },
+      "scenario": "classic",
+      "simulation_seconds": 120.00833333333334,
+      "stages": {
+        "camera": {
+          "max_ms": 0.043071,
+          "mean_ms": 0.002512679973238169,
+          "p50_ms": 0.0024200000000000003,
+          "p95_ms": 0.00318,
+          "p99_ms": 0.004030000000000001
+        },
+        "draw_submit": {
+          "max_ms": 1.274903,
+          "mean_ms": 0.6740233884924162,
+          "p50_ms": 0.676022,
+          "p95_ms": 0.860256,
+          "p99_ms": 0.9222469999999999
+        },
+        "fog": {
+          "max_ms": 6.285901,
+          "mean_ms": 3.1964753287243486,
+          "p50_ms": 3.1238360000000003,
+          "p95_ms": 4.2139050000000005,
+          "p99_ms": 4.713343
+        },
+        "frame": {
+          "max_ms": 90.762373,
+          "mean_ms": 13.381787557872437,
+          "p50_ms": 12.093584,
+          "p95_ms": 20.215597,
+          "p99_ms": 29.018292000000002
+        },
+        "input_audio": {
+          "max_ms": 9.150732,
+          "mean_ms": 0.6348106710526336,
+          "p50_ms": 0.54727,
+          "p95_ms": 0.7270220000000001,
+          "p99_ms": 1.034149
+        },
+        "physics_effects": {
+          "max_ms": 82.256892,
+          "mean_ms": 4.784658636039256,
+          "p50_ms": 3.586753,
+          "p95_ms": 11.495173,
+          "p99_ms": 20.043492999999998
+        },
+        "ui": {
+          "max_ms": 2.334971,
+          "mean_ms": 0.013841843108831452,
+          "p50_ms": 0.012320000000000001,
+          "p95_ms": 0.02078,
+          "p99_ms": 0.025451
+        },
+        "vision": {
+          "max_ms": 5.4689760000000005,
+          "mean_ms": 3.32887025724799,
+          "p50_ms": 3.298928,
+          "p95_ms": 3.824448,
+          "p99_ms": 4.443799
+        }
+      },
+      "stats": {
+        "ablated": 0,
+        "ablated_area": 0.0,
+        "awake": 45,
+        "bodies": 324,
+        "bonds": 7153,
+        "broken": 1075,
+        "cells": 5949,
+        "chunks": 326,
+        "cleared": 508,
+        "cleared_area": 18.814062118530273,
+        "elastic_energy": 3.7910443409586136e-05,
+        "explosions": 129,
+        "fracture_work": 40858.952768564224,
+        "kinetic_energy": 6340.640625,
+        "peak_load": 45550.91796875,
+        "plastic_strain": 0.21947172284126282,
+        "plastic_work": 1573.3910775184631,
+        "refinement_limited": 0,
+        "refinements": 77,
+        "shells": 0,
+        "shots": 129,
+        "structural_iterations": 22,
+        "structural_residual": 2.4428708616911687e-15,
+        "ticks": 14772,
+        "unconverged": 0
+      },
+      "viewport": [
+        1280.0,
+        800.0
+      ],
+      "wall_seconds": 120.007870819,
+      "warmup_seconds": 3
+    },
+    {
+      "run": "classic-frames-tail",
+      "average_fps": 75.605228153528,
+      "columns": [
+        "frame",
+        "input_audio",
+        "physics_effects",
+        "camera",
+        "vision",
+        "fog",
+        "draw_submit",
+        "ui"
+      ],
+      "frames": 9073,
+      "over_33ms": 53,
+      "over_50ms": 3,
+      "physics_stages_total_ms": {
+        "ai_clearance": 3364.4519499999965,
+        "ai_navigation": 483.7921339999999,
+        "ai_obstruction": 1508.422583000001,
+        "ai_sight": 5.370403000000001,
+        "cleanup": 2039.0896110000008,
+        "contacts": 6466.420323000012,
+        "control": 9518.037313999983,
+        "driving": 939.274027999997,
+        "fracture": 6560.500008999975,
+        "plasticity": 2.9454069999999457,
+        "projectiles": 651.1986500000041,
+        "rapier": 15444.950402000004,
+        "rebuild": 123.35412199999999,
+        "structural_solve": 3610.2146690000072
+      },
+      "scenario": "classic",
+      "simulation_seconds": 120.0,
+      "stages": {
+        "camera": {
+          "max_ms": 0.060591000000000006,
+          "mean_ms": 0.002482549322164653,
+          "p50_ms": 0.00239,
+          "p95_ms": 0.00321,
+          "p99_ms": 0.00388
+        },
+        "draw_submit": {
+          "max_ms": 1.12948,
+          "mean_ms": 0.6792102177890444,
+          "p50_ms": 0.6822119999999999,
+          "p95_ms": 0.828305,
+          "p99_ms": 0.919006
+        },
+        "fog": {
+          "max_ms": 6.525866,
+          "mean_ms": 3.267056778684007,
+          "p50_ms": 3.3114389999999996,
+          "p95_ms": 4.143123,
+          "p99_ms": 4.726364
+        },
+        "frame": {
+          "max_ms": 59.762909,
+          "mean_ms": 13.226598535875663,
+          "p50_ms": 11.902391,
+          "p95_ms": 20.589155,
+          "p99_ms": 31.042780999999998
+        },
+        "input_audio": {
+          "max_ms": 10.410625,
+          "mean_ms": 0.6337831491237721,
+          "p50_ms": 0.5439,
+          "p95_ms": 0.714603,
+          "p99_ms": 1.064039
+        },
+        "physics_effects": {
+          "max_ms": 51.587104000000004,
+          "mean_ms": 4.604929242477674,
+          "p50_ms": 3.39696,
+          "p95_ms": 11.404852,
+          "p99_ms": 22.591671
+        },
+        "ui": {
+          "max_ms": 0.49426899999999996,
+          "mean_ms": 0.015457049487490366,
+          "p50_ms": 0.01255,
+          "p95_ms": 0.023461000000000003,
+          "p99_ms": 0.02947
+        },
+        "vision": {
+          "max_ms": 5.761292,
+          "mean_ms": 3.308433395348845,
+          "p50_ms": 3.268718,
+          "p95_ms": 3.790117,
+          "p99_ms": 4.308346
+        }
+      },
+      "stats": {
+        "ablated": 0,
+        "ablated_area": 0.0,
+        "awake": 55,
+        "bodies": 322,
+        "bonds": 7149,
+        "broken": 1072,
+        "cells": 5936,
+        "chunks": 324,
+        "cleared": 524,
+        "cleared_area": 18.98896598815918,
+        "elastic_energy": 3.585583024224823e-08,
+        "explosions": 108,
+        "fracture_work": 40986.540127038956,
+        "kinetic_energy": 3201.753173828125,
+        "peak_load": 24940.64453125,
+        "plastic_strain": 0.028330523520708084,
+        "plastic_work": 4.785617006011307,
+        "refinement_limited": 0,
+        "refinements": 78,
+        "shells": 0,
+        "shots": 108,
+        "structural_iterations": 4,
+        "structural_residual": 3.2360739137391457e-15,
+        "ticks": 14769,
+        "unconverged": 0
+      },
+      "viewport": [
+        1280.0,
+        800.0
+      ],
+      "wall_seconds": 120.004928516,
+      "warmup_seconds": 3
+    },
+    {
+      "run": "river-frames-final",
+      "average_fps": 29.07230815106224,
+      "columns": [
+        "frame",
+        "input_audio",
+        "physics_effects",
+        "camera",
+        "vision",
+        "fog",
+        "draw_submit",
+        "ui"
+      ],
+      "frames": 3490,
+      "over_33ms": 856,
+      "over_50ms": 435,
+      "physics_stages_total_ms": {
+        "ai_clearance": 55.616744,
+        "ai_navigation": 962.8621370000003,
+        "ai_obstruction": 2074.8762230000016,
+        "ai_sight": 13353.638607999997,
+        "cleanup": 2972.8266539999977,
+        "contacts": 9441.905550999996,
+        "control": 19999.144415000013,
+        "driving": 1042.2983450000006,
+        "fracture": 8076.993672000001,
+        "plasticity": 140.5283520000004,
+        "projectiles": 1786.8519230000052,
+        "rapier": 16677.094362000018,
+        "rebuild": 171.843927,
+        "structural_solve": 4731.522021000006
+      },
+      "scenario": "river",
+      "simulation_seconds": 116.31666666666666,
+      "stages": {
+        "camera": {
+          "max_ms": 0.031881,
+          "mean_ms": 0.0023719375358166248,
+          "p50_ms": 0.00231,
+          "p95_ms": 0.00299,
+          "p99_ms": 0.00371
+        },
+        "draw_submit": {
+          "max_ms": 1.965344,
+          "mean_ms": 1.1121125587392566,
+          "p50_ms": 1.1269500000000001,
+          "p95_ms": 1.2533130000000001,
+          "p99_ms": 1.3534039999999998
+        },
+        "fog": {
+          "max_ms": 6.6752579999999995,
+          "mean_ms": 3.312892498567325,
+          "p50_ms": 3.197517,
+          "p95_ms": 4.408609,
+          "p99_ms": 5.0369
+        },
+        "frame": {
+          "max_ms": 158.962842,
+          "mean_ms": 34.396993689111675,
+          "p50_ms": 26.232066,
+          "p95_ms": 104.77134000000001,
+          "p99_ms": 131.100797
+        },
+        "input_audio": {
+          "max_ms": 9.395357,
+          "mean_ms": 0.7474447378223507,
+          "p50_ms": 0.6498320000000001,
+          "p95_ms": 0.857893,
+          "p99_ms": 1.2331919999999998
+        },
+        "physics_effects": {
+          "max_ms": 142.325486,
+          "mean_ms": 17.270540673065906,
+          "p50_ms": 8.925748,
+          "p95_ms": 86.942774,
+          "p99_ms": 113.99717
+        },
+        "ui": {
+          "max_ms": 0.675542,
+          "mean_ms": 0.02008244240687674,
+          "p50_ms": 0.013801,
+          "p95_ms": 0.033911000000000004,
+          "p99_ms": 0.045911
+        },
+        "vision": {
+          "max_ms": 16.159247,
+          "mean_ms": 11.075776559885387,
+          "p50_ms": 11.366502,
+          "p95_ms": 11.967513,
+          "p99_ms": 12.327729000000001
+        }
+      },
+      "stats": {
+        "ablated": 0,
+        "ablated_area": 0.0,
+        "awake": 24,
+        "bodies": 176,
+        "bonds": 10331,
+        "broken": 1099,
+        "cells": 7776,
+        "chunks": 242,
+        "cleared": 694,
+        "cleared_area": 23.781612396240234,
+        "elastic_energy": 0.00015869481735680067,
+        "explosions": 112,
+        "fracture_work": 31381.3786419034,
+        "kinetic_energy": 22905.0625,
+        "peak_load": 17945.443359375,
+        "plastic_strain": 0.0,
+        "plastic_work": 0.0,
+        "refinement_limited": 0,
+        "refinements": 31,
+        "shells": 0,
+        "shots": 112,
+        "structural_iterations": 4,
+        "structural_residual": 1.7287935609505157e-16,
+        "ticks": 14301,
+        "unconverged": 0
+      },
+      "viewport": [
+        1280.0,
+        800.0
+      ],
+      "wall_seconds": 120.045507975,
+      "warmup_seconds": 3
+    },
+    {
+      "run": "river-frames-grass",
+      "average_fps": 65.37048094791288,
+      "columns": [
+        "frame",
+        "input_audio",
+        "physics_effects",
+        "camera",
+        "vision",
+        "fog",
+        "draw_submit",
+        "ui"
+      ],
+      "frames": 7845,
+      "over_33ms": 299,
+      "over_50ms": 152,
+      "physics_stages_total_ms": {
+        "ai_clearance": 0.0,
+        "ai_navigation": 964.9950799999998,
+        "ai_obstruction": 2142.2202139999977,
+        "ai_sight": 1666.7895919999983,
+        "cleanup": 3074.3007310000157,
+        "contacts": 10935.733332000002,
+        "control": 8551.462847000013,
+        "driving": 1135.9325230000027,
+        "fracture": 8333.568637999986,
+        "plasticity": 153.06081600000078,
+        "projectiles": 2592.7403380000087,
+        "rapier": 20284.758107000012,
+        "rebuild": 185.81482299999993,
+        "structural_solve": 4606.837396000021
+      },
+      "scenario": "river",
+      "simulation_seconds": 119.44166666666666,
+      "stages": {
+        "camera": {
+          "max_ms": 0.02882,
+          "mean_ms": 0.002246069471000641,
+          "p50_ms": 0.00216,
+          "p95_ms": 0.00299,
+          "p99_ms": 0.00366
+        },
+        "draw_submit": {
+          "max_ms": 1.783818,
+          "mean_ms": 1.0472719643084782,
+          "p50_ms": 1.039747,
+          "p95_ms": 1.145079,
+          "p99_ms": 1.329551
+        },
+        "fog": {
+          "max_ms": 6.15977,
+          "mean_ms": 3.4654673499043867,
+          "p50_ms": 3.473576,
+          "p95_ms": 4.108097,
+          "p99_ms": 4.625795999999999
+        },
+        "frame": {
+          "max_ms": 149.445995,
+          "mean_ms": 15.297424548502237,
+          "p50_ms": 12.094954,
+          "p95_ms": 28.934708,
+          "p99_ms": 73.76416900000001
+        },
+        "input_audio": {
+          "max_ms": 9.608045,
+          "mean_ms": 0.7244336136392585,
+          "p50_ms": 0.62427,
+          "p95_ms": 0.877035,
+          "p99_ms": 1.209689
+        },
+        "physics_effects": {
+          "max_ms": 141.422067,
+          "mean_ms": 7.038790053027412,
+          "p50_ms": 3.9150340000000003,
+          "p95_ms": 20.595434,
+          "p99_ms": 65.260541
+        },
+        "ui": {
+          "max_ms": 0.522978,
+          "mean_ms": 0.015368509114085443,
+          "p50_ms": 0.01317,
+          "p95_ms": 0.02626,
+          "p99_ms": 0.03528
+        },
+        "vision": {
+          "max_ms": 3.933623,
+          "mean_ms": 1.9912332122370833,
+          "p50_ms": 1.8365799999999999,
+          "p95_ms": 2.702833,
+          "p99_ms": 2.940937
+        }
+      },
+      "stats": {
+        "ablated": 0,
+        "ablated_area": 0.0,
+        "awake": 77,
+        "bodies": 189,
+        "bonds": 10188,
+        "broken": 1235,
+        "cells": 7675,
+        "chunks": 250,
+        "cleared": 812,
+        "cleared_area": 23.034881591796875,
+        "elastic_energy": 0.0012439018585070937,
+        "explosions": 125,
+        "fracture_work": 36954.91401255131,
+        "kinetic_energy": 497.5007019042969,
+        "peak_load": 161636.578125,
+        "plastic_strain": 0.0,
+        "plastic_work": 0.0,
+        "refinement_limited": 0,
+        "refinements": 40,
+        "shells": 0,
+        "shots": 125,
+        "structural_iterations": 100,
+        "structural_residual": 1.9346695469299934e-08,
+        "ticks": 14691,
+        "unconverged": 0
+      },
+      "viewport": [
+        1280.0,
+        800.0
+      ],
+      "wall_seconds": 120.008295583,
+      "warmup_seconds": 3
+    }
+  ],
+  "notes": [
+    "classic-frames-running is an early valid 45-second capture before fog/AI optimizations.",
+    "classic-frames-cached and classic-frames-tail are repeat 120-second final functional Classic runs; tail adds diagnostics.",
+    "river-frames-final predates the grass cache; river-frames-grass is the final River measurement.",
+    "Final grass cache has no terrain geometry to change on Classic Tanks 2.",
+    "Frame schedule changes scripted shot timing: native runs are not identical deterministic traces.",
+    "Paused or DPMS-off exploratory captures are excluded."
+  ]
+}

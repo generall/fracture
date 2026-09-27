@@ -20,14 +20,30 @@ pub(super) struct Motion {
     energy: f64,
 }
 
+/// A sorted contiguous snapshot avoids allocating a tree node for every body
+/// on every microstep. Keep handle order for identical kinetic-energy sums.
+pub(super) struct Motions(Vec<((u32, u32), Motion)>);
+impl Motions {
+    fn get(&self, key: &(u32, u32)) -> Option<&Motion> {
+        self.0
+            .binary_search_by_key(key, |(h, _)| *h)
+            .ok()
+            .map(|i| &self.0[i].1)
+    }
+    fn values(&self) -> impl Iterator<Item = &Motion> {
+        self.0.iter().map(|(_, motion)| motion)
+    }
+}
+
 impl World {
     pub(super) fn next_impact(&mut self) -> u64 {
         self.impact_serial += 1;
         self.impact_serial
     }
 
-    pub(super) fn contact_velocities(&self) -> BTreeMap<(u32, u32), Motion> {
-        self.physics
+    pub(super) fn contact_velocities(&self) -> Motions {
+        let mut entries: Vec<_> = self
+            .physics
             .bodies
             .iter()
             .map(|(h, b)| {
@@ -41,14 +57,16 @@ impl World {
                     },
                 )
             })
-            .collect()
+            .collect();
+        entries.sort_unstable_by_key(|(key, _)| *key);
+        Motions(entries)
     }
 
     /// Return tank hull damage separately so both sides of a collision are
     /// evaluated before destruction disables either body.
     pub(super) fn collect_contact_loads(
         &mut self,
-        previous: &BTreeMap<(u32, u32), Motion>,
+        previous: &Motions,
         events: &mut Vec<Event>,
     ) -> Vec<(usize, f32, TankImpact)> {
         let event = self.next_impact();
@@ -218,7 +236,6 @@ impl World {
         // Re-equilibrate after each crack, with bounded rounds. This allows loads
         // to reach a distant neck, and redistributes them after local failure.
         for _ in 0..8 {
-            let groups = self.chunk_members();
             // Index loads and incident bonds once per topology round. A rubble
             // pile can contain hundreds of chunks; scanning the entire scene
             // separately for each one makes sustained contact unnecessarily costly.
@@ -227,26 +244,20 @@ impl World {
                 if self.components_for(load.piece).bending_torque.is_some() {
                     continue; // Section joints already resolve these contact loads.
                 }
-                let key = self.pieces[load.piece].body.into_raw_parts();
-                if groups
-                    .get(&key)
-                    .is_some_and(|members| members.binary_search(&load.piece).is_ok())
-                {
+                let piece = &self.pieces[load.piece];
+                let key = piece.body.into_raw_parts();
+                if piece.active && piece.destructible() {
                     loaded.entry(key).or_default().0.push(i);
                 }
             }
-            for (i, bond) in self.bonds.iter().enumerate().filter(|(_, b)| b.active) {
-                let mut previous = None;
-                for id in [bond.a, bond.b] {
-                    let piece = &self.pieces[id];
-                    let key = piece.body.into_raw_parts();
-                    if piece.active && piece.destructible() && previous != Some(key) {
-                        if let Some((_, edges)) = loaded.get_mut(&key) {
-                            edges.push(i);
-                        }
-                        previous = Some(key);
-                    }
-                }
+            if loaded.is_empty() {
+                break;
+            }
+            let mut groups = BTreeMap::new();
+            for (&key, (_, edges)) in &mut loaded {
+                let members = self.body_members(RigidBodyHandle::from_raw_parts(key.0, key.1));
+                *edges = self.member_bonds(&members);
+                groups.insert(key, members);
             }
             let mut failed = Vec::new();
             let mut shape_changed = false;
@@ -355,11 +366,12 @@ impl World {
                         }
                     })
                     .collect();
-                let solution = self
-                    .structural_cache
-                    .entry(handle.into_raw_parts())
-                    .or_insert_with(|| structure::System::new(&nodes, &interfaces))
-                    .solve(&nodes);
+                let solution = profile!(self, structural_solve, {
+                    self.structural_cache
+                        .entry(handle.into_raw_parts())
+                        .or_insert_with(|| structure::System::new(&nodes, &interfaces))
+                        .solve(&nodes)
+                });
                 self.structural_residual = self.structural_residual.max(solution.residual);
                 self.structural_iterations += solution.iterations;
                 self.elastic_energy = self
@@ -474,13 +486,24 @@ impl World {
                 touched.insert(self.pieces[b.a].body.into_raw_parts());
                 touched.insert(self.pieces[b.b].body.into_raw_parts());
             }
-            for b in self.bonds.iter().filter(|b| b.active) {
-                let a = self.pieces[b.a].body.into_raw_parts();
-                let z = self.pieces[b.b].body.into_raw_parts();
-                if touched.contains(&a) || touched.contains(&z) {
-                    self.structural_cache.remove(&a);
-                    self.structural_cache.remove(&z);
-                }
+            let mut affected: Vec<_> = touched
+                .iter()
+                .flat_map(|&(i, g)| self.body_members(RigidBodyHandle::from_raw_parts(i, g)))
+                .collect();
+            // Include support endpoints too: their other neighbours share the
+            // original cache invalidation rule even though supports never split.
+            affected.extend(failed.iter().flat_map(|&id| {
+                let bond = &self.bonds[id];
+                [bond.a, bond.b]
+            }));
+            affected.sort_unstable();
+            affected.dedup();
+            for id in self.member_bonds(&affected) {
+                let b = &self.bonds[id];
+                self.structural_cache
+                    .remove(&self.pieces[b.a].body.into_raw_parts());
+                self.structural_cache
+                    .remove(&self.pieces[b.b].body.into_raw_parts());
             }
             for id in failed {
                 self.fracture_ignition(id);
@@ -494,7 +517,7 @@ impl World {
                 self.broken += 1;
             }
             self.topology_changed = true;
-            self.rebuild_chunks();
+            self.rebuild_chunks_for(&affected);
         }
         for l in std::mem::take(&mut self.loads) {
             if !l.apply || !self.pieces[l.piece].active {

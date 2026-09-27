@@ -291,11 +291,20 @@ impl World {
     }
     pub(super) fn tank_pose_clear(&self, id: usize, pose: Pose) -> bool {
         let body = &self.physics.bodies[self.pieces[id].body];
-        for &handle in body.colliders() {
-            let own = &self.physics.colliders[handle];
-            let local = body.position().inverse() * *own.position();
-            let at = pose * local;
-            let bounds = own.shape().compute_aabb(&at);
+        let shapes: Vec<_> = body
+            .colliders()
+            .iter()
+            .map(|&handle| {
+                let own = &self.physics.colliders[handle];
+                let local = body.position().inverse() * *own.position();
+                let at = pose * local;
+                let bounds = own.shape().compute_aabb(&at);
+                (own, at, bounds)
+            })
+            .collect();
+        let mut tank_min = Vector::splat(f32::INFINITY);
+        let mut tank_max = Vector::splat(f32::NEG_INFINITY);
+        for (_, _, bounds) in &shapes {
             if bounds
                 .mins
                 .cmplt(-self.arena_size * 0.5 + Vector::splat(0.16))
@@ -307,18 +316,39 @@ impl World {
             {
                 return false;
             }
-            for (_, other) in self.physics.colliders.iter() {
-                if other.parent() == Some(self.pieces[id].body)
-                    || !other.is_enabled()
-                    || other
-                        .parent()
-                        .is_some_and(|h| !self.physics.bodies[h].is_enabled())
-                    || !own.collision_groups().test(other.collision_groups())
+            tank_min = tank_min.min(bounds.mins);
+            tank_max = tank_max.max(bounds.maxs);
+        }
+        tank_min -= Vector::splat(0.0001);
+        tank_max += Vector::splat(0.0001);
+        // Compute each obstacle's bounds once for the complete tank, then run
+        // precise hull/track overlap tests only on nearby compatible shapes.
+        for (_, other) in self.physics.colliders.iter() {
+            if other.parent() == Some(self.pieces[id].body)
+                || !other.is_enabled()
+                || other
+                    .parent()
+                    .is_some_and(|h| !self.physics.bodies[h].is_enabled())
+                || !shapes
+                    .iter()
+                    .any(|(own, _, _)| own.collision_groups().test(other.collision_groups()))
+            {
+                continue;
+            }
+            let other_bounds = other.compute_aabb();
+            if tank_min.cmpgt(other_bounds.maxs).any() || tank_max.cmplt(other_bounds.mins).any() {
+                continue;
+            }
+            for (own, at, bounds) in &shapes {
+                let bounds = bounds.loosened(0.0001);
+                if !own.collision_groups().test(other.collision_groups())
+                    || bounds.mins.cmpgt(other_bounds.maxs).any()
+                    || bounds.maxs.cmplt(other_bounds.mins).any()
                 {
                     continue;
                 }
                 if rapier2d::parry::query::intersection_test(
-                    &at,
+                    at,
                     own.shape(),
                     other.position(),
                     other.shape(),
@@ -337,6 +367,62 @@ impl World {
 mod tests {
     use super::*;
     use crate::level::{EnemyActivity, Level, LevelItem, rectangle};
+    #[test]
+    fn bounded_clearance_matches_exact_queries_for_rotated_tanks() {
+        let world = World::new(Scene::ObjectYard);
+        let id = world.launcher;
+        let body = &world.physics.bodies[world.pieces[id].body];
+        let exact = |pose: Pose| {
+            body.colliders().iter().all(|&h| {
+                let own = &world.physics.colliders[h];
+                let at = pose * (body.position().inverse() * *own.position());
+                let bounds = own.shape().compute_aabb(&at);
+                if bounds
+                    .mins
+                    .cmplt(-world.arena_size * 0.5 + Vector::splat(0.16))
+                    .any()
+                    || bounds
+                        .maxs
+                        .cmpgt(world.arena_size * 0.5 - Vector::splat(0.16))
+                        .any()
+                {
+                    return false;
+                }
+                world.physics.colliders.iter().all(|(_, other)| {
+                    other.parent() == Some(world.pieces[id].body)
+                        || !other.is_enabled()
+                        || other
+                            .parent()
+                            .is_some_and(|h| !world.physics.bodies[h].is_enabled())
+                        || !own.collision_groups().test(other.collision_groups())
+                        || !rapier2d::parry::query::intersection_test(
+                            &at,
+                            own.shape(),
+                            other.position(),
+                            other.shape(),
+                        )
+                        .unwrap_or(true)
+                })
+            })
+        };
+        let mut blocked = 0;
+        let mut clear = 0;
+        for x in -12..=12 {
+            for y in [-7.4, -3.3, 0.0, 3.5, 7.4] {
+                for angle in [0.0, 0.3, 1.2, 2.7] {
+                    let pose = Pose::new(Vector::new(x as f32 + 0.03, y), angle);
+                    let reference = exact(pose);
+                    assert_eq!(world.tank_pose_clear(id, pose), reference);
+                    if reference {
+                        clear += 1;
+                    } else {
+                        blocked += 1;
+                    }
+                }
+            }
+        }
+        assert!(blocked > 0 && clear > 0);
+    }
     #[test]
     fn destruction_event_preserves_shell_direction_pose_and_single_death() {
         for direction in [Vector::X, Vector::Y, -Vector::X, -Vector::Y] {

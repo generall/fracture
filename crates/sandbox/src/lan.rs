@@ -739,6 +739,10 @@ impl Game {
                 self.menu = false;
             }
             Action::Resume => self.menu = false,
+            Action::Exit => {
+                lan.disconnect();
+                self.exit_requested = true;
+            }
             _ => return false,
         }
         lab.pending.clear();

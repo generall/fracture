@@ -167,6 +167,14 @@ pub(super) struct Occluder {
     grass: bool,
     tank: bool,
 }
+// Painted terrain is static during play. Retain its resolved grass rectangles
+// across queries, checking the source so edits and replica maps cannot go stale.
+#[derive(Default)]
+pub(super) struct GrassCache {
+    terrain: Vec<crate::TerrainPatch>,
+    occluders: Vec<Occluder>,
+}
+
 // Adjacent collision triangles share internal edges. Only their exposed
 // outline corners affect visibility; mortar subdivisions need no extra rays.
 // Also reports which obstacles own an exposed edge: a ray from outside the
@@ -274,18 +282,23 @@ impl World {
         self.sight_cache = Some(self.sight_occluders(Vector::ZERO, None, f32::MAX));
     }
     fn sight_occluders(&self, origin: Vector, ignored: Option<usize>, range: f32) -> Vec<Occluder> {
+        self.sight_occluders_where(ignored, &|bounds| {
+            origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= range
+        })
+    }
+
+    fn sight_occluders_where(
+        &self,
+        ignored: Option<usize>,
+        nearby: &dyn Fn(Aabb) -> bool,
+    ) -> Vec<Occluder> {
         if let Some(cache) = &self.sight_cache {
             return cache
                 .iter()
-                .filter(|o| {
-                    (ignored.is_none() || o.source != ignored)
-                        && origin.clamp(o.bounds.mins, o.bounds.maxs).distance(origin) <= range
-                })
+                .filter(|o| (ignored.is_none() || o.source != ignored) && nearby(o.bounds))
                 .cloned()
                 .collect();
         }
-        let nearby =
-            |bounds: Aabb| origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= range;
         let mut out = vec![];
         if let Some(frame) = &self.replica {
             // Replicas rebuild the host's classified blockers from body geometry.
@@ -325,9 +338,9 @@ impl World {
                 }
             }
         } else {
-            self.collider_occluders(ignored, &nearby, &mut out);
+            self.collider_occluders(ignored, nearby, &mut out);
         }
-        self.grass_occluders(&nearby, &mut out);
+        self.grass_occluders(nearby, &mut out);
         out
     }
 
@@ -337,9 +350,22 @@ impl World {
         nearby: &dyn Fn(Aabb) -> bool,
         out: &mut Vec<Occluder>,
     ) {
-        let mut areas = std::collections::BTreeMap::<SightGroup, f32>::new();
+        // Active handles have unique arena indices. Dense scratch arrays avoid
+        // thousands of tree lookups for each AI ray / player sight region, with
+        // exactly the same cell order and f32 area accumulation.
+        let mut body_areas = Vec::new();
+        let mut object_areas = vec![0.0_f32; self.objects.len()];
         for piece in self.pieces.iter().filter(|p| p.active && !p.bridge_deck) {
-            *areas.entry(piece.sight_group()).or_default() += piece.shape.area();
+            match piece.sight_group() {
+                SightGroup::Chunk(index, _) => {
+                    let index = index as usize;
+                    if index >= body_areas.len() {
+                        body_areas.resize(index + 1, 0.0_f32);
+                    }
+                    body_areas[index] += piece.shape.area();
+                }
+                SightGroup::FixedObject(index) => object_areas[index] += piece.shape.area(),
+            }
         }
         for (_, collider) in self.physics.colliders.iter() {
             let Some(id) = self.weapon_target(collider) else {
@@ -355,7 +381,11 @@ impl World {
                 .unwrap_or(true);
             // Reject small props/debris before bounds, silhouette extraction or
             // ray tests. Splitting a chunk immediately changes its eligibility.
-            if !blocks || areas[&piece.sight_group()] < MIN_SIGHT_BLOCKER_AREA {
+            let area = match piece.sight_group() {
+                SightGroup::Chunk(index, _) => body_areas[index as usize],
+                SightGroup::FixedObject(index) => object_areas[index],
+            };
+            if !blocks || area < MIN_SIGHT_BLOCKER_AREA {
                 continue;
             }
             let bounds = collider.compute_aabb();
@@ -373,6 +403,16 @@ impl World {
     }
 
     fn grass_occluders(&self, nearby: &dyn Fn(Aabb) -> bool, out: &mut Vec<Occluder>) {
+        let mut cache = self.grass_cache.lock().unwrap();
+        if cache.terrain != self.terrain {
+            cache.occluders = self.build_grass_occluders();
+            cache.terrain.clone_from(&self.terrain);
+        }
+        out.extend(cache.occluders.iter().filter(|o| nearby(o.bounds)).cloned());
+    }
+
+    fn build_grass_occluders(&self) -> Vec<Occluder> {
+        let mut out = vec![];
         // Use painted terrain precedence, so painting ground over grass clears it.
         for (i, patch) in self
             .terrain
@@ -392,19 +432,18 @@ impl World {
             }
             for p in patches {
                 let bounds = Aabb::new(p.min, p.max);
-                if nearby(bounds) {
-                    let half = (p.max - p.min) * 0.5;
-                    out.push(Occluder {
-                        source: None,
-                        shape: SharedShape::cuboid(half.x, half.y),
-                        pose: Pose::new((p.min + p.max) * 0.5, 0.0),
-                        bounds,
-                        grass: true,
-                        tank: false,
-                    });
-                }
+                let half = (p.max - p.min) * 0.5;
+                out.push(Occluder {
+                    source: None,
+                    shape: SharedShape::cuboid(half.x, half.y),
+                    pose: Pose::new((p.min + p.max) * 0.5, 0.0),
+                    bounds,
+                    grass: true,
+                    tank: false,
+                });
             }
         }
+        out
     }
 
     /// Pieces currently classified as sight blockers, for network snapshots.
@@ -435,17 +474,22 @@ impl World {
             return true;
         }
         let ray = Ray::new(origin, (target - origin) / distance);
-        self.sight_occluders(origin, ignored, distance)
-            .iter()
-            .all(|o| {
-                if (ignore_grass && o.grass) || (o.tank && o.shape.contains_point(&o.pose, target))
-                {
-                    return true;
-                }
-                o.shape
-                    .cast_ray(&o.pose, &ray, distance, true)
-                    .is_none_or(|t| t >= distance - 0.05)
-            })
+        self.sight_occluders_where(ignored, &|bounds| {
+            origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= distance
+                && bounds
+                    .loosened(0.0001)
+                    .cast_local_ray(&ray, distance, true)
+                    .is_some()
+        })
+        .iter()
+        .all(|o| {
+            if (ignore_grass && o.grass) || (o.tank && o.shape.contains_point(&o.pose, target)) {
+                return true;
+            }
+            o.shape
+                .cast_ray(&o.pose, &ray, distance, true)
+                .is_none_or(|t| t >= distance - 0.05)
+        })
     }
 
     pub(super) fn reveal_firing_tank(&mut self, id: usize) {
@@ -753,6 +797,86 @@ impl World {
 mod tests {
     use super::*;
     use crate::level::{Level, LevelItem, Team, rectangle};
+    #[test]
+    fn grass_cache_tracks_paint_precedence_and_source_edits() {
+        let mut world = World::new(Scene::Custom);
+        world.terrain = vec![
+            crate::TerrainPatch {
+                kind: crate::TerrainKind::TallGrass,
+                min: Vector::splat(-4.0),
+                max: Vector::splat(4.0),
+            },
+            crate::TerrainPatch {
+                kind: crate::TerrainKind::Ground,
+                min: Vector::splat(-1.0),
+                max: Vector::splat(1.0),
+            },
+            crate::TerrainPatch {
+                kind: crate::TerrainKind::Water,
+                min: Vector::new(2.0, -4.0),
+                max: Vector::splat(4.0),
+            },
+        ];
+        for edit in 0..4 {
+            if edit == 1 {
+                world.terrain[1].max = Vector::splat(2.0);
+            }
+            if edit == 2 {
+                world.terrain.swap(0, 1);
+            }
+            if edit == 3 {
+                world.terrain.clear();
+            }
+            let expected = world.build_grass_occluders();
+            for _ in 0..2 {
+                let mut cached = vec![];
+                world.grass_occluders(&|_| true, &mut cached);
+                assert_eq!(cached.len(), expected.len());
+                for (a, b) in cached.iter().zip(&expected) {
+                    assert_eq!(a.bounds, b.bounds);
+                    assert_eq!(a.pose, b.pose);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ray_bounds_preserve_sight_through_fracture_and_moving_debris() {
+        let mut world = World::new(Scene::Terrain);
+        for tick in 0..240 {
+            world.step(&[Command::Fire(Shot::new(
+                Ammunition::HighExplosive,
+                Vector::new(3.0, 0.0),
+            ))]);
+            if tick % 30 != 0 {
+                continue;
+            }
+            for origin in [Vector::ZERO, Vector::new(3.0, 2.0), Vector::new(-7.0, -2.0)] {
+                for i in 0..32 {
+                    let distance = 2.0 + (i % 5) as f32 * 5.0;
+                    let ray = Ray::new(origin, Vector::from_angle(i as f32 * 0.618));
+                    let target = ray.point_at(distance);
+                    for ignore_grass in [false, true] {
+                        let reference =
+                            world
+                                .sight_occluders(origin, None, distance)
+                                .iter()
+                                .all(|o| {
+                                    (ignore_grass && o.grass)
+                                        || (o.tank && o.shape.contains_point(&o.pose, target))
+                                        || o.shape
+                                            .cast_ray(&o.pose, &ray, distance, true)
+                                            .is_none_or(|t| t >= distance - 0.05)
+                                });
+                        assert_eq!(
+                            world.sight_path_clear(origin, None, target, ignore_grass),
+                            reference
+                        );
+                    }
+                }
+            }
+        }
+    }
     #[test]
     fn elevation_extends_sight_without_blocking_shots() {
         let level = Level {

@@ -3,6 +3,14 @@ name = "sim"
 version.workspace = true
 edition.workspace = true
 
+[features]
+physics-profile = []
+parallel = ["rapier2d/parallel"]
+
+[[example]]
+name = "physics_benchmark"
+required-features = ["physics-profile"]
+
 [dependencies]
 rapier2d.workspace = true
 serde = { version = "=1.0.228", features = ["derive"] }

@@ -39,6 +39,15 @@ impl Game {
             ) {
                 return Some(Action::EnterLan);
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            if button(
+                Rect::new(36.0, 498.0, 430.0, 54.0),
+                "EXIT GAME",
+                mouse,
+                false,
+            ) {
+                return Some(Action::Exit);
+            }
             text(
                 prompt(
                     "WASD DRIVE / Q E AIM / SPACE FIRE / G SPECIAL",

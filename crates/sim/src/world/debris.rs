@@ -12,15 +12,35 @@ mod tests;
 
 impl World {
     pub(super) fn ground_resistance(&mut self, dt: f32) {
-        let mut visited = std::collections::BTreeSet::new();
-        for piece in &self.pieces {
-            if !piece.active || !visited.insert(piece.body.into_raw_parts()) {
+        if self.ground_members_dirty || self.ground_records != self.pieces.len() {
+            // Keep the first active cell of each body, in original cell order.
+            // Rebuild lazily after a topology batch, not for every crack round.
+            let mut visited = BTreeSet::new();
+            self.ground_members = self
+                .pieces
+                .iter()
+                .enumerate()
+                .filter_map(|(id, p)| {
+                    (p.active && visited.insert(p.body.into_raw_parts())).then_some(id)
+                })
+                .collect();
+            self.ground_records = self.pieces.len();
+            self.ground_members_dirty = false;
+        }
+        for &id in &self.ground_members {
+            let piece = &self.pieces[id];
+            if !piece.active {
                 continue;
             }
             let Some(body) = self.physics.bodies.get_mut(piece.body) else {
                 continue;
             };
-            if piece.material == Material::Launcher || !body.is_dynamic() || body.is_sleeping() {
+            // Preserve Rapier's original first-touch order, but only apply
+            // friction to moving chunks. Each body is visited once.
+            if !body.is_dynamic() || body.is_sleeping() {
+                continue;
+            }
+            if piece.material == Material::Launcher {
                 continue;
             }
             // Approximate Coulomb friction against the unmodeled horizontal floor.

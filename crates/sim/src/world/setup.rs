@@ -17,12 +17,19 @@ impl World {
             ..Default::default()
         };
         let mut world = Self {
+            #[cfg(feature = "physics-profile")]
+            profile: Default::default(),
             replica: None,
             sight_cache: None,
+            grass_cache: Default::default(),
             plastic_work: 0.0,
             physics,
             pieces: Vec::new(),
             bonds: Vec::new(),
+            incident_bonds: Vec::new(),
+            ground_members: Vec::new(),
+            ground_records: 0,
+            ground_members_dirty: true,
             bending_joints: Vec::new(),
             launcher: 0,
             tanks: vec![],

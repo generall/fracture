@@ -20,6 +20,8 @@ mod level_editor;
 mod level_storage;
 mod navigation;
 mod object_library;
+#[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+mod performance;
 mod terrain_view;
 mod track_marks;
 mod ui;
@@ -101,12 +103,24 @@ pub async fn run(application: Application) {
         _ => None,
     };
     let mut game = game::Game::new(application == Application::Sandbox);
+    #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+    let mut performance = performance::Run::from_environment(&mut game, &mut lab);
     let mut editing_comparison = false;
     let mut first_frame = true;
     let mut fullscreen = deck_mode();
     let handheld = deck_mode();
     let mut cursor_visible = true;
     loop {
+        #[cfg(not(target_arch = "wasm32"))]
+        if game.exit_requested {
+            break;
+        }
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance
+            && run.begin_frame(&mut lab)
+        {
+            break;
+        }
         // Loading and font initialization are not elapsed simulation time.
         let wall_dt = if first_frame {
             first_frame = false;
@@ -235,6 +249,12 @@ pub async fn run(application: Application) {
                     .is_some_and(|p| p.outcome.is_none())
             {
                 game.menu = !game.menu;
+            }
+            #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+            if performance.is_some() {
+                // The scripted fixture runs without manual resume after window
+                // activation; normal launches retain disconnect/suspend pauses.
+                game.menu = false;
             }
             game.advance(wall_dt, &mut lab);
         }
@@ -553,6 +573,14 @@ pub async fn run(application: Application) {
         } else {
             controls::tracks()
         };
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        let tracks = performance
+            .as_mut()
+            .map_or(tracks, |run| run.input(&mut lab));
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("input");
+        }
         if lab.world.is_replica() {
             #[cfg(not(target_arch = "wasm32"))]
             game.lan_input(&mut lab, accepts_input, tracks);
@@ -582,6 +610,10 @@ pub async fn run(application: Application) {
             }
         }
 
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("physics");
+        }
         let replica_alpha = {
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -626,14 +658,28 @@ pub async fn run(application: Application) {
             lab.aim = viewport.world(mouse);
         }
         lab.refresh_keyboard_aim();
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("camera");
+        }
         let fog_active = lab.fog_enabled && lab.world.scene() == Scene::Level;
         if fog_active {
             lab.vision = lab.world.player_vision(lab.world.player_aim().angle);
+        }
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("vision");
+        }
+        if fog_active {
             lab.fog.get_or_insert_with(fog::Fog::default).observe(
                 &lab.world,
                 &lab.vision,
                 get_time(),
             );
+        }
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("fog");
         }
         // One renderer and one screen-space scissor, with or without fog.
         let pixel_scale = scale * screen_dpi_scale();
@@ -663,6 +709,10 @@ pub async fn run(application: Application) {
         );
         unsafe {
             get_internal_gl().quad_gl.scissor(None);
+        }
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("draw");
         }
         let actions = if proper_match {
             if let Some(action) = game.draw_hud(size, mouse, &mut lab) {
@@ -755,6 +805,10 @@ pub async fn run(application: Application) {
         {
             audio.draw_controls(size, mouse, proper_match);
         }
+        #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
+        if let Some(run) = &mut performance {
+            run.mark("ui");
+        }
         set_default_camera();
         next_frame().await;
     }
@@ -779,6 +833,8 @@ fn apply_game_action(action: game::Action, game: &mut game::Game, lab: &mut Lab)
         game::Action::Start => game.start(lab),
         game::Action::Resume => game.menu = false,
         game::Action::Leave => game.return_to_lobby(lab),
+        #[cfg(not(target_arch = "wasm32"))]
+        game::Action::Exit => game.exit_requested = true,
     }
     lab.pending.clear();
     lab.firing = false;

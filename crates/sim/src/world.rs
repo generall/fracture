@@ -3,6 +3,10 @@
 use rapier2d::prelude::*;
 
 use crate::{Ammunition, Material};
+mod profiling;
+#[cfg(feature = "physics-profile")]
+pub use profiling::PhysicsProfile;
+use profiling::profile;
 
 pub const TICK_DT: f32 = 1.0 / 120.0;
 const SUBSTEPS: usize = 4;
@@ -207,12 +211,20 @@ struct Bond {
 }
 
 pub struct World {
+    #[cfg(feature = "physics-profile")]
+    profile: PhysicsProfile,
     replica: Option<Box<replica::Frame>>,
     sight_cache: Option<Vec<vision::Occluder>>,
+    grass_cache: std::sync::Mutex<vision::GrassCache>,
     plastic_work: f64,
     physics: PhysicsWorld,
     pieces: Vec<Piece>,
     bonds: Vec<Bond>,
+    // Bond endpoints and IDs are stable; refinement appends replacement bonds.
+    incident_bonds: Vec<Vec<usize>>,
+    ground_members: Vec<usize>,
+    ground_records: usize,
+    ground_members_dirty: bool,
     bending_joints: Vec<ImpulseJointHandle>,
     launcher: usize,
     tanks: Vec<combat::Tank>,
@@ -278,10 +290,13 @@ impl World {
             return Vec::new();
         }
         let mut events = Vec::new();
-        self.begin_tick(&mut events);
-        let tracks = self.control_player(commands, true, true, &mut events);
-        let mut drivers = vec![(self.launcher, tracks)];
-        drivers.extend(self.enemy_commands(&mut events));
+        let drivers = profile!(self, control, {
+            self.begin_tick(&mut events);
+            let tracks = self.control_player(commands, true, true, &mut events);
+            let mut drivers = vec![(self.launcher, tracks)];
+            drivers.extend(self.enemy_commands(&mut events));
+            drivers
+        });
         self.finish_tick(&drivers, &mut events);
         events
     }
@@ -369,36 +384,50 @@ impl World {
     fn finish_tick(&mut self, drivers: &[(usize, [f32; 2])], events: &mut Vec<Event>) {
         for _ in 0..SUBSTEPS {
             let dt = self.physics.integration_parameters.dt;
-            self.ground_resistance(dt);
-            for &(id, tracks) in drivers {
-                self.drive_tank(id, tracks, dt);
-            }
-            self.advance_shells(dt, events);
-            self.advance_blasts(dt);
-            self.process_loads(dt, events);
-            self.detonate_objects(events);
-            self.update_bridges(dt, events);
-            let velocities = self.contact_velocities();
-            self.physics
-                .step_with_events(&contacts::ReboundHooks(&self.pieces), &());
-            self.update_plastic_bends(events);
-            let ramming = self.collect_contact_loads(&velocities, events);
-            for (id, damage, impact) in ramming {
-                self.damage_tank_from(id, damage, impact, events);
-            }
-            self.process_loads(dt, events);
-            self.detonate_objects(events);
-            self.update_bridges(0.0, events);
-            self.capture_flags(events);
+            profile!(self, driving, {
+                self.ground_resistance(dt);
+                for &(id, tracks) in drivers {
+                    self.drive_tank(id, tracks, dt);
+                }
+            });
+            profile!(self, projectiles, {
+                self.advance_shells(dt, events);
+                self.advance_blasts(dt);
+            });
+            profile!(self, fracture, {
+                self.process_loads(dt, events);
+                self.detonate_objects(events);
+                self.update_bridges(dt, events);
+            });
+            let velocities = profile!(self, contacts, { self.contact_velocities() });
+            profile!(self, rapier, {
+                self.physics
+                    .step_with_events(&contacts::ReboundHooks(&self.pieces), &());
+            });
+            profile!(self, plasticity, { self.update_plastic_bends(events) });
+            profile!(self, contacts, {
+                let ramming = self.collect_contact_loads(&velocities, events);
+                for (id, damage, impact) in ramming {
+                    self.damage_tank_from(id, damage, impact, events);
+                }
+            });
+            profile!(self, fracture, {
+                self.process_loads(dt, events);
+                self.detonate_objects(events);
+                self.update_bridges(0.0, events);
+            });
+            profile!(self, cleanup, { self.capture_flags(events) });
             if self.winner.is_some() {
                 break;
             }
         }
-        if self.winner.is_none() {
-            self.update_stations();
-        }
-        self.update_decorations(events);
-        self.cleanup_debris();
+        profile!(self, cleanup, {
+            if self.winner.is_none() {
+                self.update_stations();
+            }
+            self.update_decorations(events);
+            self.cleanup_debris();
+        });
         self.tick += 1;
     }
 }

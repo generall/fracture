@@ -24,6 +24,8 @@ pub enum Action {
     Start,
     Resume,
     Leave,
+    #[cfg(not(target_arch = "wasm32"))]
+    Exit,
 }
 pub struct Game {
     #[cfg(not(target_arch = "wasm32"))]
@@ -33,6 +35,8 @@ pub struct Game {
     pub config: MatchConfig,
     pub countdown: f32,
     pub menu: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub exit_requested: bool,
     pub help: bool,
     pub status: String,
     custom: Option<Level>,
@@ -71,6 +75,8 @@ impl Game {
             config: MatchConfig::default(),
             countdown: 0.0,
             menu: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            exit_requested: false,
             help: false,
             status,
             custom: custom.ok().flatten(),

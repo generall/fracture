@@ -19,11 +19,22 @@ pub(super) struct Figure {
     pub polygons: Vec<Vec<Vec2>>,
     pub snapshot: Scene,
     // Stable material-cell IDs, including ancestors of refined cells.
-    pub lineage: BTreeSet<usize>,
+    pub lineage: Vec<usize>,
 }
 impl Figure {
-    fn visible(&self, vision: &Vision) -> bool {
-        self.polygons.iter().any(|p| vision.intersects_polygon(p))
+    fn visible(&self, vision: &Vision, regions: &[(Vec2, Vec2)]) -> bool {
+        self.polygons.iter().any(|p| {
+            let (min, max) = p.iter().fold(
+                (Vec2::splat(f32::INFINITY), Vec2::splat(f32::NEG_INFINITY)),
+                |(min, max), &v| (min.min(v), max.max(v)),
+            );
+            // Most wall cells are nowhere near any sight region. Reject their
+            // boxes before the exact polygon/ray tests, including fog memories.
+            regions
+                .iter()
+                .any(|&(lo, hi)| min.cmple(hi).all() && max.cmpge(lo).all())
+                && vision.intersects_polygon(p)
+        })
     }
 }
 #[derive(Default)]
@@ -63,7 +74,24 @@ impl Figures {
         self.observe(current, vision, now)
     }
     fn observe(&mut self, current: BTreeMap<Id, Figure>, vision: &Vision, now: f64) -> Frame {
-        let mut seen_cells = BTreeMap::new();
+        let regions: Vec<_> = vision
+            .regions()
+            .filter(|r| !r.boundary.is_empty())
+            .map(|r| {
+                let (min, max) = r
+                    .boundary
+                    .iter()
+                    .fold((r.origin, r.origin), |(min, max), &p| {
+                        (min.min(p), max.max(p))
+                    });
+                // Conservative padding includes the exact sight test's edge tolerance.
+                (min - Vec2::splat(0.0001), max + Vec2::splat(0.0001))
+            })
+            .collect();
+        // IDs in LAN snapshots can be sparse; bound storage by the number of
+        // remembered cells rather than the largest incoming ID. Iteration order
+        // is never used, so lookup-only hashing preserves observation ordering.
+        let mut seen_cells = std::collections::HashMap::new();
         for (id, figure) in &self.remembered {
             if let Some(&last) = self.last_seen.get(id)
                 && now - last < VISIBILITY_COOLDOWN
@@ -108,7 +136,7 @@ impl Figures {
                 self.last_seen.remove(&id);
                 continue;
             }
-            if tank_visibility.unwrap_or_else(|| figure.visible(vision)) {
+            if tank_visibility.unwrap_or_else(|| figure.visible(vision, &regions)) {
                 self.last_seen.insert(id, now);
             }
             // Keep live geometry during brief sight interruptions. Only actual
@@ -123,7 +151,7 @@ impl Figures {
             }
         }
         self.remembered.retain(|id, figure| {
-            if !frame.visible.contains(id) && figure.visible(vision) {
+            if !frame.visible.contains(id) && figure.visible(vision, &regions) {
                 // We can see the old location: discard its stale snapshot.
                 false
             } else {
@@ -176,7 +204,7 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
         let figure = result.entry(id).or_default();
         let mut ancestor = Some(body.id);
         while let Some(cell) = ancestor {
-            figure.lineage.insert(cell);
+            figure.lineage.push(cell);
             ancestor = world.fracture_parent(cell);
         }
         let polygon = polygon(body);
@@ -255,6 +283,10 @@ fn current(world: &World) -> BTreeMap<Id, Figure> {
                 ..Figure::default()
             },
         );
+    }
+    for figure in result.values_mut() {
+        figure.lineage.sort_unstable();
+        figure.lineage.dedup();
     }
     result
 }

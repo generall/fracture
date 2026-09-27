@@ -54,6 +54,15 @@ impl Settings {
         store(self.encode());
     }
     pub fn master_gain(self) -> f32 {
+        // Process-only silence for automated native tests; never persist it in
+        // the player's mixer settings. Browser tests mute Chrome's output.
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            static SILENT: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+            if *SILENT.get_or_init(|| std::env::var("FRACTURE_SILENT").as_deref() == Ok("1")) {
+                return 0.0;
+            }
+        }
         if self.muted {
             0.0
         } else {

@@ -1,5 +1,43 @@
 # Development handoff
 
+**Exit menu action (2026-09-27):** Native desktop/Deck main and pause menus
+include Exit Game through the shared pointer/controller button handling. Exiting
+leaves an active LAN session and finishes the application loop. Browser menus
+omit the action because ordinary tabs cannot be closed by the game. Native/WASM
+checks and Clippy passed; Deck captures verified both menu layouts and the
+pause-menu Exit closed the app. Deployed with the prior binary retained as
+`game.before-exit-menu`.
+
+**Wall-heavy Deck performance (2026-09-27):** Two foreground 1280×800 native
+Classic Tanks 2 runs averaged 74.7/75.6 FPS over two minutes, with p99 frame times
+29.0/31.0 ms and real-time simulation. Incident bond/body indexes, local chunk
+rebuilding, friction/contact caches, conservative fog/sight bounds and narrowed
+AI collision queries preserve the original physics parameters. River Valley's
+static grass visibility cache brings the tested average to 65.4 FPS; large
+bursts still cause hitches (p99 73.8 ms, 0.57 s lost over 120 s). These are active
+AI/driving/destruction workloads, not a guarantee of locked frame rate.
+All 61 replay fingerprints and four longer physics workload fingerprints match.
+274 workspace tests, 214 profile/parallel tests, Clippy, native/WASM builds and
+game/Deck browser checks passed. Final package deployed; running SHA256 verified,
+prior binary saved as `game.before-deck-performance`. Native test service remains
+silent without changing saved mixer settings. Full evidence and reproducible
+commands: [performance report](PHYSICS_PERFORMANCE.md).
+
+**Physics CPU optimization (2026-09-27):** Repeated headless Deck workloads measured
+21.8% lower mean physics CPU time on River Valley and 20.3% on Classic Tanks 2.
+Ground resistance skips fixed/sleeping bodies before visited-set bookkeeping;
+fracture processing collects members only for loaded chunks. All 61 regression
+fingerprints matched. Workspace tests (269), parallel/profile simulation tests
+(209), Clippy, native/WASM builds and game/Deck browser checks passed.
+Rapier worker pools were slower, so normal builds remain serial. Profiling and
+parallel features are opt-in. See [measurements and limits](PHYSICS_PERFORMANCE.md).
+Deployed to the Deck; the running binary hash was verified.
+
+**Silent internal testing:** Use `FRACTURE_SILENT=1` for native test launches and
+Chrome's `--mute-audio` for browser tests, as recorded in [AGENTS.md](../AGENTS.md).
+The native override never changes saved mixer settings. The current Deck test
+service uses it; ordinary launches retain normal audio. Audio unit checks passed.
+
 **Minimal match HUD (2026-09-27):** Game/LAN battles use the full viewport, with
 only a floating clock and an optional special-weapon charges/status indicator.
 Top/bottom panels and live HUD buttons are removed; Esc/Menu, H/X and F7/Y still

@@ -227,6 +227,7 @@ impl World {
         world.physics = PhysicsWorld::default();
         world.pieces.clear();
         world.bonds.clear();
+        world.incident_bonds.clear();
         world.arena_size = map.size;
         world.terrain = map.terrain;
         world.terrain_mask = map.mask;

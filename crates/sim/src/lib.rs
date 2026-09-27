@@ -29,4 +29,6 @@ pub use world::{
 
 pub use world::multiplayer;
 
+#[cfg(feature = "physics-profile")]
+pub use world::PhysicsProfile;
 pub use world::replica;

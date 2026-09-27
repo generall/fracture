@@ -2,6 +2,36 @@ use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 impl World {
+    /// Resolve a chunk from Rapier's existing collider ownership, retaining the
+    /// ascending cell order used by the fracture solver and replay recordings.
+    pub(super) fn body_members(&self, body: RigidBodyHandle) -> Vec<usize> {
+        let mut members: Vec<_> = self.physics.bodies[body]
+            .colliders()
+            .iter()
+            .filter_map(|&h| {
+                let id = self.physics.colliders[h].user_data.checked_sub(1)? as usize;
+                let p = self.pieces.get(id)?;
+                (p.active && p.destructible() && p.body == body).then_some(id)
+            })
+            .collect();
+        members.sort_unstable();
+        members.dedup();
+        members
+    }
+
+    pub(super) fn member_bonds(&self, members: &[usize]) -> Vec<usize> {
+        let mut bonds: Vec<_> = members
+            .iter()
+            .filter_map(|&id| self.incident_bonds.get(id))
+            .flatten()
+            .copied()
+            .filter(|&id| self.bonds[id].active)
+            .collect();
+        bonds.sort_unstable();
+        bonds.dedup();
+        bonds
+    }
+
     pub(super) fn piece_pose(&self, id: usize) -> Pose {
         *self.physics.bodies[self.pieces[id].body].position() * self.pieces[id].local_pose
     }
@@ -23,17 +53,20 @@ impl World {
     /// separate fixed colliders and fix any component still bonded to them.
     /// Internal cells have exact geometry and no pairwise collision constraints.
     pub(super) fn rebuild_chunks(&mut self) {
-        let mut adjacency = vec![Vec::new(); self.pieces.len()];
-        for b in self.bonds.iter().filter(|b| b.active) {
-            if self.bending_torque(b).is_some() {
-                continue;
-            }
-            adjacency[b.a].push(b.b);
-            adjacency[b.b].push(b.a);
-        }
+        let candidates: Vec<_> = (0..self.pieces.len()).collect();
+        self.rebuild_chunks_for(&candidates);
+    }
+
+    /// A broken bond can only split the chunks that owned its endpoints. The
+    /// caller supplies every member of those chunks before changing ownership.
+    pub(super) fn rebuild_chunks_for(&mut self, candidates: &[usize]) {
+        self.ground_members_dirty = true;
+        #[cfg(feature = "physics-profile")]
+        let started = std::time::Instant::now();
         let mut visited = vec![false; self.pieces.len()];
         let mut remove = BTreeSet::new();
-        for piece in &self.pieces {
+        for &id in candidates {
+            let piece = &self.pieces[id];
             if !piece.active
                 && piece.destructible()
                 && self.physics.bodies.get(piece.body).is_some()
@@ -41,7 +74,7 @@ impl World {
                 remove.insert(piece.body.into_raw_parts());
             }
         }
-        for start in 0..self.pieces.len() {
+        for &start in candidates {
             if visited[start] || !self.pieces[start].active || !self.pieces[start].destructible() {
                 continue;
             }
@@ -51,7 +84,13 @@ impl World {
             let mut cursor = 0;
             while cursor < members.len() {
                 fixed |= self.pieces[members[cursor]].ground_anchor.is_some();
-                for &other in &adjacency[members[cursor]] {
+                let id = members[cursor];
+                for &edge in self.incident_bonds.get(id).into_iter().flatten() {
+                    let bond = &self.bonds[edge];
+                    if !bond.active || self.bending_torque(bond).is_some() {
+                        continue;
+                    }
+                    let other = if bond.a == id { bond.b } else { bond.a };
                     if !self.pieces[other].active {
                         continue;
                     }
@@ -178,43 +217,123 @@ impl World {
         self.physics
             .bodies
             .propagate_modified_body_positions_to_colliders(&mut self.physics.colliders);
-        self.update_visible_edges();
+        self.update_visible_edges_for(candidates);
         self.rebuild_bending_joints();
+        #[cfg(feature = "physics-profile")]
+        {
+            self.profile.rebuild += started.elapsed().as_secs_f64() * 1000.0;
+        }
     }
 
     pub(super) fn update_visible_edges(&mut self) {
-        let mut covered = vec![[0.0_f32; 3]; self.pieces.len()];
-        for b in self.bonds.iter().filter(|b| b.active) {
-            if self.pieces[b.a].grain.is_none() || self.pieces[b.a].grain != self.pieces[b.b].grain
-            {
-                continue;
-            }
-            let face = self.piece_pose(b.a).transform_point(b.anchor_a);
-            for id in [b.a, b.b] {
-                let Shape::Triangle { vertices } = self.pieces[id].shape else {
-                    continue;
-                };
-                let p = self.piece_pose(id).inverse_transform_point(face);
-                for i in 0..3 {
-                    let a = vertices[i];
-                    let z = vertices[(i + 1) % 3];
-                    let edge = z - a;
-                    if edge.perp_dot(p - a).abs() < 1e-4 * edge.length()
-                        && (p - a).dot(p - z) <= 1e-5
+        let members: Vec<_> = (0..self.pieces.len()).collect();
+        self.update_visible_edges_for(&members);
+    }
+
+    fn update_visible_edges_for(&mut self, members: &[usize]) {
+        for &id in members {
+            let mut covered = [0.0_f32; 3];
+            if let Shape::Triangle { vertices } = self.pieces[id].shape {
+                for &edge in self.incident_bonds.get(id).into_iter().flatten() {
+                    let b = &self.bonds[edge];
+                    if !b.active
+                        || self.pieces[b.a].grain.is_none()
+                        || self.pieces[b.a].grain != self.pieces[b.b].grain
                     {
-                        covered[id][i] += b.width;
+                        continue;
+                    }
+                    let face = self.piece_pose(b.a).transform_point(b.anchor_a);
+                    let p = self.piece_pose(id).inverse_transform_point(face);
+                    for i in 0..3 {
+                        let a = vertices[i];
+                        let z = vertices[(i + 1) % 3];
+                        let edge = z - a;
+                        if edge.perp_dot(p - a).abs() < 1e-4 * edge.length()
+                            && (p - a).dot(p - z) <= 1e-5
+                        {
+                            covered[i] += b.width;
+                        }
                     }
                 }
+                self.pieces[id].edges = 7;
+                for i in 0..3 {
+                    if covered[i] >= vertices[i].distance(vertices[(i + 1) % 3]) - 1e-5 {
+                        self.pieces[id].edges &= !(1 << i);
+                    }
+                }
+            } else {
+                self.pieces[id].edges = 7;
             }
         }
-        for (id, p) in self.pieces.iter_mut().enumerate() {
-            p.edges = 7;
-            if let Shape::Triangle { vertices } = p.shape {
-                for i in 0..3 {
-                    if covered[id][i] >= vertices[i].distance(vertices[(i + 1) % 3]) - 1e-5 {
-                        p.edges &= !(1 << i);
-                    }
-                }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn indexed_chunks_and_bonds_match_scans_through_destruction() {
+        let mut world = World::new(Scene::Masonry);
+        for tick in 0..600 {
+            world.step(&[Command::Fire(Shot::new(
+                Ammunition::HighExplosive,
+                Vector::new(3.0, (tick / 120) as f32 * 0.4 - 0.8),
+            ))]);
+            if tick % 30 != 0 {
+                continue;
+            }
+            for (key, members) in world.chunk_members() {
+                assert_eq!(
+                    world.body_members(RigidBodyHandle::from_raw_parts(key.0, key.1)),
+                    members
+                );
+                let scanned: Vec<_> = world
+                    .bonds
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(id, b)| {
+                        (b.active
+                            && (members.binary_search(&b.a).is_ok()
+                                || members.binary_search(&b.b).is_ok()))
+                        .then_some(id)
+                    })
+                    .collect();
+                assert_eq!(world.member_bonds(&members), scanned);
+            }
+        }
+        assert!(world.refinements > 0);
+        assert!(world.broken > 0);
+        assert!(world.cleared > 0);
+    }
+
+    #[test]
+    fn local_splits_match_full_rebuilds_including_supports_and_visible_edges() {
+        for scene in [Scene::Masonry, Scene::Cantilever, Scene::BarrelRubble] {
+            let mut local = World::new(scene);
+            let mut full = World::new(scene);
+            for _ in 0..12 {
+                let Some(id) = local.bonds.iter().position(|b| b.active) else {
+                    break;
+                };
+                let bond = &local.bonds[id];
+                let mut affected: Vec<_> = [bond.a, bond.b]
+                    .into_iter()
+                    .flat_map(|id| local.body_members(local.pieces[id].body))
+                    .collect();
+                affected.extend([bond.a, bond.b]);
+                affected.sort_unstable();
+                affected.dedup();
+                local.bonds[id].active = false;
+                full.bonds[id].active = false;
+                local.structural_cache.clear();
+                full.structural_cache.clear();
+                local.rebuild_chunks_for(&affected);
+                full.rebuild_chunks();
+                assert_eq!(
+                    format!("{:?}", local.bodies().collect::<Vec<_>>()),
+                    format!("{:?}", full.bodies().collect::<Vec<_>>())
+                );
             }
         }
     }

@@ -209,6 +209,15 @@ impl Game {
         ) {
             return Some(Action::EnterLan);
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        if button(
+            Rect::new(80.0, 681.0, 440.0, 52.0),
+            "EXIT GAME",
+            mouse,
+            false,
+        ) {
+            return Some(Action::Exit);
+        }
         text(
             "One player. One AI rival. Your battlefield.",
             92.0,

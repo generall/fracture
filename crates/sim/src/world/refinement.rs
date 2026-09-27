@@ -30,6 +30,12 @@ impl World {
         if !p.active || !p.destructible() || !matches!(p.shape, Shape::Triangle { .. }) {
             return true; // Arena walls and fixtures shield anything behind them.
         }
+        let mut affected = self.body_members(p.body);
+        for edge in self.member_bonds(&affected) {
+            let bond = &self.bonds[edge];
+            affected.extend([bond.a, bond.b]);
+        }
+        let original_records = self.pieces.len();
         if p.shape.area() > LASER_TILE_AREA {
             if p.refinement >= MAX_GENERATIONS || !self.refinement_budget_available() {
                 self.refinement_limited += 1;
@@ -59,7 +65,10 @@ impl World {
             self.topology_changed = true;
         }
         self.structural_cache.clear();
-        self.rebuild_chunks();
+        affected.extend(original_records..self.pieces.len());
+        affected.sort_unstable();
+        affected.dedup();
+        self.rebuild_chunks_for(&affected);
         true
     }
 
@@ -101,17 +110,28 @@ impl World {
             }
         }
         let mut changed = false;
+        let mut affected = Vec::new();
+        let original_records = self.pieces.len();
         for (id, event) in candidates.into_iter().take(8) {
             if !self.refinement_budget_available() || self.pieces[id].refinement >= MAX_GENERATIONS
             {
                 self.refinement_limited += 1;
                 continue;
             }
+            let members = self.body_members(self.pieces[id].body);
+            for edge in self.member_bonds(&members) {
+                let bond = &self.bonds[edge];
+                affected.extend([bond.a, bond.b]);
+            }
+            affected.extend(members);
             self.subdivide_cell(id, event);
             changed = true;
         }
         if changed {
-            self.rebuild_chunks();
+            affected.extend(original_records..self.pieces.len());
+            affected.sort_unstable();
+            affected.dedup();
+            self.rebuild_chunks_for(&affected);
         }
     }
 

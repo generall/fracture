@@ -80,6 +80,13 @@ impl World {
             let hard = terrain_barrier
                 || piece.is_some_and(|i| !self.pieces[i].destructible())
                 || (massive && !breach);
+            let obstacle_cost = if hard {
+                u32::MAX
+            } else if massive {
+                100
+            } else {
+                35
+            };
             let clearance = if hard { 1.25 } else { 0.85 };
             let bounds = collider.compute_aabb();
             let lo = index(bounds.mins - Vector::splat(clearance));
@@ -87,7 +94,10 @@ impl World {
             for y in lo / width..=hi / width {
                 for x in lo % width..=hi % width {
                     let at = y * width + x;
-                    if costs[at] == u32::MAX {
+                    // Adjacent wall triangles cover the same routing cells.
+                    // Once a cell has an equal/higher cost this collider cannot
+                    // change it, so avoid another exact shape projection.
+                    if costs[at] >= obstacle_cost {
                         continue;
                     }
                     let point = center(at);
@@ -96,11 +106,7 @@ impl World {
                             .shape()
                             .project_point(collider.position(), point, true);
                     if projection.point.distance(point) <= clearance {
-                        costs[at] = if hard {
-                            u32::MAX
-                        } else {
-                            costs[at].max(if massive { 100 } else { 35 })
-                        };
+                        costs[at] = obstacle_cost;
                     }
                 }
             }

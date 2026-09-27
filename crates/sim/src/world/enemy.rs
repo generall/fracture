@@ -81,16 +81,18 @@ impl World {
             enemy.activity,
             EnemyActivity::Attack | EnemyActivity::Conquer
         );
-        let visible = hunts
-            && self.tank_alive()
-            && distance
-                < if enemy.activity == EnemyActivity::Conquer {
-                    12.0
-                } else {
-                    self.vision_range_at(position).max(30.0)
-                }
-            && self.detects_tank(id, self.launcher)
-            && self.tank_line_of_sight(id, enemy.observed);
+        let visible = profile!(self, ai_sight, {
+            hunts
+                && self.tank_alive()
+                && distance
+                    < if enemy.activity == EnemyActivity::Conquer {
+                        12.0
+                    } else {
+                        self.vision_range_at(position).max(30.0)
+                    }
+                && self.detects_tank(id, self.launcher)
+                && self.tank_line_of_sight(id, enemy.observed)
+        });
         enemy.visible_for = if visible {
             enemy.visible_for + TICK_DT
         } else {
@@ -98,43 +100,45 @@ impl World {
         };
         let stop_to_fire = enemy.activity == EnemyActivity::Attack && visible && distance < 8.0;
         if enemy.plan_in <= 0.0 {
-            enemy.plan_in = 1.0;
-            enemy.goal = match enemy.activity {
-                EnemyActivity::Conquer => self
-                    .flags
-                    .iter()
-                    .find(|f| f.team == self.team)
-                    .map_or(enemy.observed, |f| f.position),
-                EnemyActivity::Attack => enemy.observed,
-                _ => enemy.goal,
-            };
-            if enemy.activity == EnemyActivity::Driving
-                && (enemy.route.is_empty() || position.distance(enemy.goal) < 1.5)
-            {
-                // A reproducible patrol, selected from reachable points around the map.
-                for _ in 0..8 {
-                    let direction = Vector::from_angle(enemy.patrol as f32 * 2.399963);
-                    enemy.patrol += 1;
-                    let target = direction * self.arena_size * 0.32;
-                    let route = self.tank_route(id, position, target);
-                    if !route.is_empty() && target.distance(position) > 4.0 {
-                        enemy.goal = target;
-                        enemy.route = route;
-                        break;
+            profile!(self, ai_navigation, {
+                enemy.plan_in = 1.0;
+                enemy.goal = match enemy.activity {
+                    EnemyActivity::Conquer => self
+                        .flags
+                        .iter()
+                        .find(|f| f.team == self.team)
+                        .map_or(enemy.observed, |f| f.position),
+                    EnemyActivity::Attack => enemy.observed,
+                    _ => enemy.goal,
+                };
+                if enemy.activity == EnemyActivity::Driving
+                    && (enemy.route.is_empty() || position.distance(enemy.goal) < 1.5)
+                {
+                    // A reproducible patrol, selected from reachable points around the map.
+                    for _ in 0..8 {
+                        let direction = Vector::from_angle(enemy.patrol as f32 * 2.399963);
+                        enemy.patrol += 1;
+                        let target = direction * self.arena_size * 0.32;
+                        let route = self.tank_route(id, position, target);
+                        if !route.is_empty() && target.distance(position) > 4.0 {
+                            enemy.goal = target;
+                            enemy.route = route;
+                            break;
+                        }
+                    }
+                } else {
+                    enemy.route = self.tank_route(id, position, enemy.goal);
+                    if hunts
+                        && (enemy.route.is_empty()
+                            || enemy
+                                .route
+                                .last()
+                                .is_some_and(|p| p.distance(enemy.goal) > 2.0))
+                    {
+                        enemy.route = self.plan_tank_route(id, position, enemy.goal, true);
                     }
                 }
-            } else {
-                enemy.route = self.tank_route(id, position, enemy.goal);
-                if hunts
-                    && (enemy.route.is_empty()
-                        || enemy
-                            .route
-                            .last()
-                            .is_some_and(|p| p.distance(enemy.goal) > 2.0))
-                {
-                    enemy.route = self.plan_tank_route(id, position, enemy.goal, true);
-                }
-            }
+            });
         }
         while enemy
             .route
@@ -146,7 +150,9 @@ impl World {
         enemy.scan_in -= TICK_DT;
         if hunts && enemy.scan_in <= 0.0 {
             enemy.scan_in = 0.2;
-            enemy.obstruction = self.route_obstruction(id, &enemy.route);
+            enemy.obstruction = profile!(self, ai_obstruction, {
+                self.route_obstruction(id, &enemy.route)
+            });
         }
         if enemy
             .obstruction
@@ -215,7 +221,9 @@ impl World {
             // retreat footprint so backing up never deliberately drives into cover.
             if clearance < 3.3 {
                 let backwards = position - pose.rotation * Vector::X * 0.6;
-                if self.tank_pose_clear(id, Pose::new(backwards, pose.rotation.angle())) {
+                if profile!(self, ai_clearance, {
+                    self.tank_pose_clear(id, Pose::new(backwards, pose.rotation.angle()))
+                }) {
                     tracks = [-0.25; 2];
                 }
             }

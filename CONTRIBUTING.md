@@ -14,10 +14,14 @@ bash tools/check.sh --web           # also rebuild both browser binaries
 python3 tools/serve.py              # http://127.0.0.1:8000
 ```
 
-For browser interaction checks, use Node 22+ and an isolated Chrome profile:
+Internal tests must be silent. Launch native game/sandbox tests with
+`FRACTURE_SILENT=1` to mute playback without changing saved mixer settings.
+For audio-output assertions, mute the application output stream instead.
+
+For browser interaction checks, use Node 22+ and an isolated, muted Chrome profile:
 
 ```sh
-google-chrome --headless=new --remote-debugging-port=9227 \
+google-chrome --headless=new --mute-audio --remote-debugging-port=9227 \
   --user-data-dir=/tmp/fracture-browser-test \
   --use-angle=swiftshader --enable-unsafe-swiftshader about:blank
 
@@ -28,6 +32,10 @@ bash tools/check-browser.sh                     # all suites, sequentially
 Start the server and browser in separate terminals. `GAME_URL` (default `/`), `SANDBOX_URL` (default `/sandbox.html`) and `CHROME_DEBUG_URL` override their addresses. Use an isolated profile because the suites exercise real local storage and import/export. Suites preserve the original stores in their cleanup handlers. Run them sequentially; they share that browser's storage. Screenshots go to `target/screenshots/`. Chromium executable names vary by installation.
 
 For desktop LAN changes, run `bash tools/check-lan-headless.sh`. It includes real-socket tests and a six-client benchmark; see [LAN validation](docs/LAN_HEADLESS_TESTS.md).
+
+For physics and frame-time changes, use the opt-in profilers and replay comparisons
+in [the Deck performance guide](docs/PHYSICS_PERFORMANCE.md). Headless physics
+timings alone do not establish gameplay FPS.
 
 ## Code map
 

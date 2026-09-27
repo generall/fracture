@@ -295,6 +295,10 @@ impl World {
         self.structural_cache.clear();
         let pose = self.piece_pose(a);
         let solid = Solid::new(material);
+        self.incident_bonds.resize_with(self.pieces.len(), Vec::new);
+        let id = self.bonds.len();
+        self.incident_bonds[a].push(id);
+        self.incident_bonds[b].push(id);
         self.bonds.push(Bond {
             active: true,
             a,
