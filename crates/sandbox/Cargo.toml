@@ -11,5 +11,6 @@ sim = { path = "../sim" }
 macroquad.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+libloading = "=0.8.9"
 tinyfiledialogs = "=3.9.1"
 tank-net = { path = "../net" }

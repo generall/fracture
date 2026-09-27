@@ -4,17 +4,16 @@ Run `cargo run --release --locked -p game` or open `/` in the browser for the Fr
 
 ## Lobby
 
-- Choose **Quarry Crossing**, **River Valley**, the existing **Editor Draft**, or **Your Map**. The preview shows the selected battlefield.
-- **Create Map** opens a fresh map builder with both teams' spawns and flags. **Edit Selected Map** opens a copy of the selected recipe. **Use Map** or **M / Lobby** returns to setup; neither action starts gameplay.
-- **Import JSON** accepts existing level files. The builder's File menu can export maps.
+- Choose **River Valley** (`levels/dota-level.json`) or **Classic Tanks 2** (`levels/classic-tanks-2.json`). These are the two bundled game maps; the preview shows the selected battlefield.
+- **Import Map** accepts existing level JSON files and adds an **Imported Map** slot. Create and export maps in the separate sandbox application; the game lobby has no map editor.
 - Choose **Blue / Red**, **5 minutes / 10 minutes / Unlimited**, and an AI that **captures the flag** or **hunts the player**.
 - **Start Match** checks the map, both flags, and both teams' physical spawn clearance. Invalid setups stay in the lobby with an error.
 
-Your custom match map saves separately from the sandbox draft: `fracture.match-map.v1` in browser local storage, or `levels/match-map.json` on desktop. The lobby currently has one custom-map slot; export additional maps as JSON. Choosing a built-in map or editing a copy never overwrites the sandbox's `fracture.level.v1` / `levels/draft.json`.
+Your custom match map saves separately from the sandbox draft: `fracture.match-map.v1` in browser local storage, or `levels/match-map.json` on desktop. The lobby currently has one custom-map slot; export additional maps as JSON. Selecting or importing a match map never overwrites the sandbox's `fracture.level.v1` / `levels/draft.json`.
 
 ## Match
 
-A three-second countdown precedes simulation and firing. Drive with **WASD**, aim with the **mouse** or rotate the turret left/right with **Q / E** or **J / K**, fire with **Space / left-click / F**, switch HE/AP with **5 / 6 / B**, and use collected specials with **G / right-click**. **H** shows controls. The HUD shows hull condition, ammunition, special charges/charge-up, the match clock, and each team's tanks lost. Fog of war is always enabled.
+A three-second countdown precedes simulation and firing. Drive with **WASD**, aim with the **mouse** or rotate the turret left/right with **Q / E** or **J / K**, fire with **Space / left-click / F**, switch HE/AP with **5 / 6 / B**, and use collected specials with **G / right-click**. **H** shows controls. The battlefield fills the screen. A small timer sits at the top, and a special-weapon overlay appears only while carrying or using a special: charges, readiness, reload or active/charge-up time. Main-gun reload stays on the aiming indicator; controls and losses appear in help and match menus. Fog of war is always enabled.
 
 Touch the enemy flag to win. Tank destruction uses the existing three-second respawn; it does not end a match. A time-limited match ends in a draw if neither flag is captured. The clock advances with simulation ticks and stops during the countdown, pause, and results. A capture on the final tick takes precedence over the time limit.
 
@@ -32,4 +31,4 @@ Both executables use the shared `fracture_client` library in `crates/sandbox/src
 
 `sim::matchplay` owns validated match configuration, fixed-tick timing, results and losses. `sandbox/game` owns the local lobby, map preview, countdown, menus and HUD. `Lab` continues to own the simulation and transient effects. Session rules contain no window, browser, UI or transport calls and are also used by the authoritative host in `crates/net`.
 
-Run `node tools/game-smoke.mjs` with the local server and isolated Chrome setup described in CONTRIBUTING.md. It exercises creation and separate persistence, configuration, countdown/input gating, disabled sandbox shortcuts, pause/resume, invalid maps, actual flag captures, victory/defeat, rematches and saved-map restoration. Existing browser suites load the separate sandbox page.
+Run `node tools/game-smoke.mjs` with the local server and isolated Chrome setup described in CONTRIBUTING.md. It exercises bundled map selection, imports and separate persistence, configuration, countdown/input gating, disabled sandbox shortcuts, pause/resume, invalid maps, actual flag captures, victory/defeat, rematches and saved-map restoration. Existing browser suites load the separate sandbox page.

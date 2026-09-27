@@ -547,8 +547,16 @@ impl Audio {
             return;
         }
         let settings = Rect::new(size.x - 260.0, size.y - 38.0, 240.0, 34.0);
-        if crate::ui::button(settings, "SOUND SETTINGS / F7", mouse, false) {
+        if crate::ui::button(
+            settings,
+            crate::controller_ui::prompt("SOUND SETTINGS / F7", "SOUND SETTINGS / Y"),
+            mouse,
+            false,
+        ) {
             self.panel_open = true;
+        }
+        if crate::controller_ui::active() || size.x < 1400.0 {
+            return;
         }
         let labels = [
             format!(

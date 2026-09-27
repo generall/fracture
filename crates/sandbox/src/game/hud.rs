@@ -1,8 +1,8 @@
 use super::Action;
 use super::*;
+use crate::ui::VIOLET;
 use crate::ui::*;
-use crate::ui::{PINK, VIOLET};
-use sim::{Ammunition, level::Team, matchplay::Outcome};
+use sim::{SpecialWeapon, matchplay::Outcome};
 
 fn clock(seconds: f32) -> String {
     let seconds = seconds.ceil() as u32;
@@ -11,6 +11,29 @@ fn clock(seconds: f32) -> String {
 fn center_text(label: &str, x: f32, y: f32, size: f32, color: Color) {
     let width = measure_text(label, None, size as u16, 1.0).width;
     text(label, x - width * 0.5, y, size, color);
+}
+// Keep the final charge visible for the lifetime of an active energy weapon.
+fn special_status(world: &sim::World) -> Option<(SpecialWeapon, String)> {
+    if world.plasma_remaining() > 0.0 {
+        Some((
+            SpecialWeapon::Plasma,
+            format!("CHARGING {:.1}s", world.plasma_remaining()),
+        ))
+    } else if world.laser_remaining() > 0.0 {
+        Some((
+            SpecialWeapon::Laser,
+            format!("ACTIVE {:.1}s", world.laser_remaining()),
+        ))
+    } else {
+        world.carried_special().map(|weapon| {
+            let status = if world.special_cooldown() > 0.0 {
+                format!("RELOAD {:.1}s", world.special_cooldown())
+            } else {
+                "READY".into()
+            };
+            (weapon, status)
+        })
+    }
 }
 impl Game {
     pub fn captures(&self, mouse: Vec2) -> bool {
@@ -25,124 +48,47 @@ impl Game {
         let losses = progress.tanks_lost;
         let elapsed = progress.elapsed_seconds();
         let time = progress.remaining_seconds().unwrap_or(elapsed);
-        let team_color = if team == Team::Blue { CYAN } else { PINK };
         let modal = self.menu || outcome.is_some() || self.countdown > 0.0;
-        draw_rectangle(0.0, 0.0, size.x, 80.0, PAPER);
-        draw_line(24.0, 79.0, size.x - 24.0, 79.0, 1.0, RULE);
-        text("F R A C T U R E", 32.0, 36.0, 25.0, INK);
-        text(
-            &format!("{} TEAM / CAPTURE THE FLAG", team.label()),
-            32.0,
-            62.0,
-            15.0,
-            team_color,
-        );
-        center_text(&clock(time), size.x * 0.5, 43.0, 32.0, INK);
-        center_text("FIRST CAPTURE WINS", size.x * 0.5, 66.0, 13.0, MUTED);
-        if !modal
-            && button(
-                Rect::new(size.x - 190.0, 23.0, 166.0, 38.0),
-                "ESC  MENU",
-                mouse,
-                false,
-            )
-        {
-            self.menu = true;
-        }
-        let y = size.y - 97.0;
-        draw_rectangle(0.0, y, size.x, 97.0, PAPER);
-        draw_line(24.0, y, size.x - 24.0, y, 1.0, RULE);
-        let health = lab
-            .world
-            .tanks()
-            .find(|t| t.id == lab.world.player_tank_id())
-            .map_or(0.0, |t| t.health);
-        text(
-            &format!("HULL {:03.0}", health),
-            32.0,
-            y + 32.0,
-            21.0,
-            team_color,
-        );
-        draw_rectangle(32.0, y + 45.0, 180.0, 7.0, RULE);
-        draw_rectangle(32.0, y + 45.0, 180.0 * health / 100.0, 7.0, team_color);
-        text("WASD DRIVE / H HELP", 32.0, y + 79.0, 15.0, MUTED);
-        text("SPACE FIRE / G SPECIAL", 265.0, y + 32.0, 17.0, INK);
-        text("5 / 6 / B CHANGE ROUND", 265.0, y + 65.0, 16.0, MUTED);
-        text(
-            &format!("TANKS LOST  BLUE {} / RED {}", losses[0], losses[1]),
-            size.x * 0.44,
-            y + 32.0,
-            16.0,
-            MUTED,
-        );
-        let special = if lab.world.plasma_remaining() > 0.0 {
-            format!("PLASMA / CHARGING {:.1}s", lab.world.plasma_remaining())
-        } else if lab.world.laser_remaining() > 0.0 {
-            format!("LASER / {:.1}s", lab.world.laser_remaining())
-        } else if let Some(weapon) = lab.world.carried_special() {
-            if lab.world.special_cooldown() > 0.0 {
-                format!(
-                    "{} x{} / {:.1}s",
-                    weapon.label(),
-                    lab.world.special_charges(),
-                    lab.world.special_cooldown()
-                )
-            } else {
-                format!(
-                    "{} x{} / READY",
-                    weapon.label(),
-                    lab.world.special_charges()
-                )
-            }
-        } else {
-            "SPECIAL / FIND A PICKUP".into()
-        };
-        text(&special, size.x * 0.44, y + 65.0, 16.0, VIOLET);
-        for (i, ammo) in Ammunition::MAIN.into_iter().enumerate() {
-            let rect = Rect::new(size.x - 275.0 + i as f32 * 120.0, y + 10.0, 110.0, 36.0);
-            if !modal {
-                if button(rect, ammo.label(), mouse, lab.inspector.ammunition == ammo) {
-                    lab.select_ammunition(ammo);
-                }
-            } else {
-                text(
-                    ammo.label(),
-                    rect.x + 12.0,
-                    rect.y + 26.0,
-                    18.0,
-                    if lab.inspector.ammunition == ammo {
-                        CYAN
-                    } else {
-                        MUTED
-                    },
-                );
+        // Small, non-interactive overlays leave the battlefield and aiming intact.
+        if !self.menu && outcome.is_none() {
+            let timer = clock(time);
+            let width = measure_text(&timer, None, 26, 1.0).width + 28.0;
+            let x = (size.x - width) * 0.5;
+            draw_rectangle(x, 16.0, width, 42.0, Color { a: 0.72, ..PAPER });
+            center_text(&timer, size.x * 0.5, 45.0, 26.0, INK);
+            if let Some((weapon, status)) = special_status(&lab.world) {
+                let charges = format!("{} x{}", weapon.label(), lab.world.special_charges());
+                let width = measure_text(&charges, None, 21, 1.0)
+                    .width
+                    .max(measure_text(&status, None, 17, 1.0).width)
+                    + 28.0;
+                let x = size.x - width - 16.0;
+                draw_rectangle(x, 16.0, width, 66.0, Color { a: 0.72, ..PAPER });
+                text(&charges, x + 14.0, 43.0, 21.0, VIOLET);
+                text(&status, x + 14.0, 67.0, 17.0, INK);
             }
         }
-        right_text(
-            if !lab.world.tank_alive() {
-                "TANK DESTROYED"
-            } else if lab.world.special_active() {
-                "SPECIAL ACTIVE"
-            } else if lab.world.reload_remaining() > 0.0 {
-                "RELOADING"
-            } else {
-                "MAIN GUN READY"
-            },
-            size.x - 40.0,
-            y + 76.0,
-            17.0,
-            CYAN,
-        );
         if self.help && !modal {
             draw_rectangle(24.0, 104.0, 500.0, 204.0, PAPER);
             draw_rectangle_lines(24.0, 104.0, 500.0, 204.0, 1.0, RULE);
             for (i, line) in [
-                "WASD / MOVE & STEER",
-                "MOUSE / Q E / J K / AIM TURRET",
-                "SPACE/LMB/F FIRE / G/RMB SPECIAL",
-                "5 / 6 / B / CHANGE MAIN-GUN ROUND",
-                "WHEEL / ZOOM     ESC / MATCH MENU",
+                crate::controller_ui::prompt("WASD / MOVE & STEER", "LEFT STICK / MOVE & STEER"),
+                crate::controller_ui::prompt(
+                    "MOUSE / Q E / J K / AIM TURRET",
+                    "RIGHT STICK / AIM TURRET",
+                ),
+                crate::controller_ui::prompt(
+                    "SPACE/LMB/F FIRE / G/RMB SPECIAL",
+                    "RT / FIRE     LT / SPECIAL",
+                ),
+                crate::controller_ui::prompt(
+                    "5 / 6 / B / CHANGE MAIN-GUN ROUND",
+                    "RB / CHANGE MAIN-GUN ROUND",
+                ),
+                crate::controller_ui::prompt(
+                    "WHEEL / ZOOM     ESC / MATCH MENU",
+                    "D-PAD UP/DOWN ZOOM / MENU PAUSE",
+                ),
                 "TOUCH THE ENEMY FLAG TO WIN",
             ]
             .into_iter()
@@ -287,13 +233,7 @@ impl Game {
         None
     }
     fn panel(&self, size: Vec2, title: &str) {
-        draw_rectangle(
-            0.0,
-            80.0,
-            size.x,
-            size.y - 177.0,
-            Color::new(0.01, 0.02, 0.04, 0.8),
-        );
+        draw_rectangle(0.0, 0.0, size.x, size.y, Color::new(0.01, 0.02, 0.04, 0.8));
         let rect = Rect::new(size.x * 0.5 - 320.0, size.y * 0.5 - 175.0, 640.0, 340.0);
         draw_rectangle(rect.x, rect.y, rect.w, rect.h, PAPER);
         draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, CYAN);

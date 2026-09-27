@@ -63,25 +63,13 @@ async function screenshot(name) {
 }
 const stats = () => evaluate('({ticks: wasm_exports.lab_ticks(), broken: wasm_exports.lab_broken(), shots: wasm_exports.lab_shots(), bodies: wasm_exports.lab_bodies(), shells: wasm_exports.lab_shells(), explosions: wasm_exports.lab_explosions(), cleared: wasm_exports.lab_cleared(), clearedArea: wasm_exports.lab_cleared_area(), cells: wasm_exports.lab_cells(), chunks: wasm_exports.lab_chunks(), refined: wasm_exports.lab_refinements(), unconverged: wasm_exports.lab_unconverged(), x: wasm_exports.lab_tank_x(), y: wasm_exports.lab_tank_y(), angle: wasm_exports.lab_tank_angle()})');
 
-const map = () => evaluate('JSON.parse(localStorage.getItem("fracture.level.v1"))');
-const mapCamera = () => evaluate('({scale:wasm_exports.level_editor_scale(),x:wasm_exports.level_editor_origin_x(),y:wasm_exports.level_editor_origin_y()})');
-async function at(x,y) {const c=await mapCamera();return [c.x+x*c.scale,c.y+y*c.scale];}
-async function mapClick(x,y) {await click(...await at(x,y));}
-async function dragPoints(a,b,modifiers=0,cancel=false) {
-  await cdp('Input.dispatchMouseEvent',{type:'mouseMoved',x:a[0],y:a[1]});await delay(30);
-  await cdp('Input.dispatchMouseEvent',{type:'mousePressed',x:a[0],y:a[1],button:'left',clickCount:1,modifiers});await delay(35);
-  for(let i=1;i<=8;i++){await cdp('Input.dispatchMouseEvent',{type:'mouseMoved',x:a[0]+(b[0]-a[0])*i/8,y:a[1]+(b[1]-a[1])*i/8,buttons:1,modifiers});await delay(30);}
-  if(cancel) await key('Escape','Escape',27);
-  await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',x:b[0],y:b[1],button:'left',clickCount:1,modifiers});await delay(150);
-}
-async function mapDrag(a,b){await dragPoints(await at(...a),await at(...b));}
-async function field(x,y,value){await click(x,y);for(const ch of String(value)) await cdp('Input.dispatchKeyEvent',{type:'char',text:ch,key:ch});await delay(80);await key('Enter','Enter',13);}
 async function importMap(level){const json=JSON.stringify(level);await evaluate(`(()=>{const bytes=new TextEncoder().encode(${JSON.stringify(json)});const ptr=wasm_exports.level_import_buffer(bytes.length);new Uint8Array(wasm_memory.buffer,ptr,bytes.length).set(bytes);wasm_exports.level_import_commit();})()`);await delay(200);}
 
 let originalStores;
 try {
   await mkdir('target/screenshots',{recursive:true});
   await cdp('Runtime.enable'); await cdp('Page.enable');
+  await cdp('Network.enable'); await cdp('Network.setCacheDisabled',{cacheDisabled:true});
   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
   await cdp('Page.reload');
   await until('typeof wasm_exports!=="undefined" && wasm_exports?.game_ready?.()===1','game startup');
@@ -92,14 +80,19 @@ try {
   await click(260,512);
   await until('wasm_exports.game_screen()===1','lobby');
   await screenshot('game-lobby');
-  await click(170,489);
-  await until('wasm_exports.game_screen()===2 && wasm_exports.level_editor_active()===1','map builder');
-  await click(75,525); await mapClick(0,4);
-  await screenshot('game-map-builder');
-  await click(1135,40);
-  await until('wasm_exports.game_screen()===1','use map returns to lobby');
-  const created=await evaluate('JSON.parse(localStorage.getItem("fracture.match-map.v1"))');
-  assert.ok(created.items.length>4,'builder adds an actual object');
+  await click(170,286);
+  await screenshot('game-classic-tanks-2');
+  for(const [code,name,n] of [['KeyM','m',77],['KeyO','o',79]]) await key(code,name,n);
+  assert.equal(await evaluate('wasm_exports.game_screen()'),1,'lobby has no map editor');
+  assert.equal(await evaluate('wasm_exports.level_editor_active()'),0);
+  const imported={version:1,name:'Imported arena',size:[48,30],enemy_activity:'static',items:[
+    {kind:'spawn',team:'blue',position:[-18,0],angle:0},
+    {kind:'spawn',team:'red',position:[18,0],angle:Math.PI},
+    {kind:'flag',team:'blue',position:[-21,0]},
+    {kind:'flag',team:'red',position:[21,0]}
+  ]};
+  await importMap(imported);
+  assert.equal(await evaluate('JSON.parse(localStorage.getItem("fracture.match-map.v1")).name'),imported.name);
   assert.equal(await evaluate('localStorage.getItem("fracture.level.v1")'),originalStores['fracture.level.v1'],'sandbox draft preserved');
   // Choose red and change the time/opponent settings before starting.
   await click(220,714);
@@ -121,6 +114,13 @@ try {
   await key('Space',' ',32);
   assert.ok((await stats()).shots>0,'Space fires the main gun in a match');
   assert.equal(await evaluate('wasm_exports.game_phase()'),2,'Space does not open the pause menu');
+  for(const [x,y] of [[20,20],[20,880]]) {
+    await until('wasm_exports.lab_reload()===0','main gun ready before edge click');
+    const shots=(await stats()).shots;
+    await click(x,y);
+    assert.ok((await stats()).shots>shots,'former HUD bands now accept battlefield input');
+    assert.equal(await evaluate('wasm_exports.game_phase()'),2,'edge click keeps playing');
+  }
   await screenshot('game-match');
   await key('Escape','Escape',27);
   await until('wasm_exports.game_phase()===3','pause menu');
@@ -172,8 +172,8 @@ try {
   await until('wasm_exports.game_screen()===1','leave defeat');
   await importMap(quick);
   await cdp('Page.reload');
-  await until('wasm_exports?.game_ready?.()===1 && wasm_exports.game_screen()===0','reload to home');
-  await click(260,512); await click(185,407);
+  await until('typeof wasm_exports!=="undefined" && wasm_exports?.game_ready?.()===1 && wasm_exports.game_screen()===0','reload to home');
+  await click(260,512); await click(185,345);
   await screenshot('game-saved-map');
   assert.equal(await evaluate('JSON.parse(localStorage.getItem("fracture.match-map.v1")).name'),quick.name);
   assert.equal(await evaluate('localStorage.getItem("fracture.level.v1")'),originalStores['fracture.level.v1']);
@@ -188,7 +188,7 @@ try {
   await key('KeyM','m',77);
   await until('wasm_exports.level_editor_active()===1','sandbox editor still works');
   assert.deepEqual(errors,[]);
-  console.log('PASS: home, lobby, map creation/persistence, config, countdown, gameplay, sandbox isolation, pause, validation, capture, results, rematch, saved-map reload and sandbox access');
+  console.log('PASS: home, lobby, bundled maps, import/persistence, config, countdown, gameplay, sandbox isolation, pause, validation, capture, results, rematch, saved-map reload and sandbox access');
 } finally {
   if(originalStores) await evaluate(`Object.entries(${JSON.stringify(originalStores)}).forEach(([k,v])=>v===null?localStorage.removeItem(k):localStorage.setItem(k,v))`);
   await fetch(`${debugUrl}/json/close/${page.id}`); ws.close();

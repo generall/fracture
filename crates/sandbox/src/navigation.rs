@@ -10,6 +10,7 @@ pub struct Navigation {
     look_direction: Vec2,
     follow_position: Option<Vec2>,
     game_camera_range: Option<f32>,
+    expanded_game_view: bool,
 }
 
 impl Default for Navigation {
@@ -23,11 +24,26 @@ impl Default for Navigation {
             look_direction: Vec2::ZERO,
             follow_position: None,
             game_camera_range: None,
+            expanded_game_view: false,
         }
     }
 }
 
 impl Navigation {
+    /// Reveal the space formerly occupied by the HUD without enlarging the tank.
+    /// A new match resets navigation, so this adjustment is applied once per match.
+    pub fn expand_game_view(&mut self, rect: Rect) {
+        if self.expanded_game_view {
+            return;
+        }
+        let previous = Rect::new(rect.x, rect.y + 80.0, rect.w, rect.h - 177.0);
+        let ratio = Viewport::new(previous, Vec2::ZERO, 1.0).scale
+            / Viewport::new(rect, Vec2::ZERO, 1.0).scale;
+        self.zoom *= ratio;
+        self.target_zoom *= ratio;
+        self.expanded_game_view = true;
+    }
+
     pub fn fitted(center: Vec2, zoom: f32) -> Self {
         Self {
             center,
@@ -38,6 +54,7 @@ impl Navigation {
             look_direction: Vec2::ZERO,
             follow_position: None,
             game_camera_range: None,
+            expanded_game_view: false,
         }
     }
 
@@ -152,6 +169,30 @@ impl Navigation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn full_game_view_reveals_more_world_without_changing_tank_scale() {
+        for size in [
+            vec2(1440.0, 900.0),
+            vec2(1280.0, 800.0),
+            vec2(1280.0, 720.0),
+        ] {
+            let full = Rect::new(0.0, 0.0, size.x, size.y);
+            let old = Rect::new(0.0, 80.0, size.x, size.y - 177.0);
+            let before = Viewport::new(old, Vec2::ZERO, 1.0);
+            let mut camera = Navigation::default();
+            camera.expand_game_view(full);
+            camera.advance_game_zoom(0.0, full, 24.0, false);
+            let after = Viewport::new(full, Vec2::ZERO, camera.zoom);
+            assert!((after.scale - before.scale).abs() < 0.0001);
+            assert!(after.rect.h / after.scale > before.rect.h / before.scale);
+            let zoom = camera.zoom;
+            camera.expand_game_view(full);
+            assert_eq!(
+                camera.zoom, zoom,
+                "subsequent frames must not zoom out again"
+            );
+        }
+    }
 
     #[test]
     fn zoom_eases_without_moving_the_cursor_anchor() {

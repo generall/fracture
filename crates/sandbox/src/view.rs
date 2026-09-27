@@ -298,7 +298,7 @@ fn draw_bridges(scene: &Scene, viewport: &Viewport) {
 pub fn draw_world(
     world: &World,
     viewport: &Viewport,
-    aim: Vec2,
+    aim: Option<Vec2>,
     alpha: f32,
     overlay: bool,
     sparks: &[Spark],
@@ -702,8 +702,7 @@ fn draw_effects(
     }
 }
 
-pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Vec2, alpha: f32) {
-    let p = viewport.screen(aim);
+pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Option<Vec2>, alpha: f32) {
     let color = if world.reload_remaining() > 0.0 {
         PINK
     } else {
@@ -741,6 +740,8 @@ pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Vec2, alph
             band(split, state.spread, tint(PINK, 0.18));
         }
     }
+    let Some(aim) = aim else { return };
+    let p = viewport.screen(aim);
     for axis in [Vec2::X, Vec2::Y] {
         for sign in [-1.0, 1.0] {
             line(

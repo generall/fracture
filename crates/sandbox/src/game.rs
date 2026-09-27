@@ -1,5 +1,7 @@
 //! Local lobby and match presentation. The simulation owns match rules/results.
+mod compact;
 mod hud;
+mod maps;
 mod menus;
 use crate::{game_storage, lab::Lab};
 use macroquad::prelude::*;
@@ -10,8 +12,7 @@ use sim::{level::Level, matchplay::MatchConfig};
 pub enum Screen {
     Home,
     Lobby,
-    Workshop,
-    Match,
+    Match = 3,
     Sandbox,
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     Lan,
@@ -20,8 +21,6 @@ pub enum Action {
     EnterLobby,
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     EnterLan,
-    CreateMap,
-    EditMap,
     Start,
     Resume,
     Leave,
@@ -37,7 +36,6 @@ pub struct Game {
     pub help: bool,
     pub status: String,
     custom: Option<Level>,
-    draft: Option<Level>,
     source: usize,
     terrain: Vec<sim::TerrainPatch>,
 }
@@ -56,14 +54,7 @@ impl Game {
     pub fn new(sandbox: bool) -> Self {
         let custom =
             game_storage::restore().and_then(|j| j.map(|j| Level::from_json(&j)).transpose());
-        let draft = crate::level_storage::restore()
-            .and_then(|j| j.map(|j| Level::from_json(&j)).transpose());
-        let status = custom
-            .as_ref()
-            .err()
-            .or_else(|| draft.as_ref().err())
-            .cloned()
-            .unwrap_or_default();
+        let status = custom.as_ref().err().cloned().unwrap_or_default();
         let mut game = Self {
             #[cfg(not(target_arch = "wasm32"))]
             lan: None,
@@ -72,14 +63,17 @@ impl Game {
             } else {
                 Screen::Home
             },
-            map: Level::demo(),
+            map: if sandbox {
+                Level::default()
+            } else {
+                maps::load(0)
+            },
             config: MatchConfig::default(),
             countdown: 0.0,
             menu: false,
             help: false,
             status,
             custom: custom.ok().flatten(),
-            draft: draft.ok().flatten(),
             source: 0,
             terrain: vec![],
         };
@@ -105,10 +99,9 @@ impl Game {
     }
     pub(crate) fn select_map(&mut self, source: usize) {
         let map = match source {
-            0 => Some(Level::demo()),
-            1 => Some(Level::river_valley()),
-            2 => self.draft.clone(),
-            _ => self.custom.clone(),
+            0..=1 => Some(maps::load(source)),
+            2 => self.custom.clone(),
+            _ => None,
         };
         if let Some(map) = map {
             self.map = map;
@@ -118,22 +111,23 @@ impl Game {
         }
     }
     pub fn enter_lobby(&mut self) {
-        match crate::level_storage::restore()
-            .and_then(|j| j.map(|j| Level::from_json(&j)).transpose())
-        {
-            Ok(draft) => self.draft = draft,
-            Err(e) => self.status = e,
-        }
         self.screen = Screen::Lobby;
+    }
+    pub(crate) fn map_choices(&self) -> Vec<&'static str> {
+        let mut choices: Vec<_> = maps::MAPS.iter().map(|(label, _, _)| *label).collect();
+        if self.custom.is_some() {
+            choices.push("IMPORTED MAP");
+        }
+        choices
     }
     pub fn accept_map(&mut self, map: Level) {
         match map.to_json().and_then(|json| game_storage::persist(&json)) {
-            Ok(()) => self.status = "Your map is saved on this device.".into(),
+            Ok(()) => self.status = "Imported map saved on this device.".into(),
             Err(e) => self.status = e,
         }
         self.map = map;
         self.custom = Some(self.map.clone());
-        self.source = 3;
+        self.source = maps::MAPS.len();
         self.refresh_preview();
         self.screen = Screen::Lobby;
     }
@@ -245,6 +239,32 @@ pub use diagnostics::publish;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn lobby_only_offers_bundled_maps_and_an_optional_import() {
+        let mut game = Game::new(false);
+        game.custom = None;
+        assert_eq!(game.map_choices(), ["RIVER VALLEY", "CLASSIC TANKS 2"]);
+        assert_eq!(game.map.name, "River Valley");
+        game.select_map(1);
+        assert_eq!(game.map.name, "Classic Tanks 2");
+        game.select_map(2);
+        assert_eq!(game.source, 1);
+        let imported = Level {
+            name: "Imported battlefield".into(),
+            ..Level::default()
+        };
+        game.custom = Some(imported);
+        assert_eq!(
+            game.map_choices(),
+            ["RIVER VALLEY", "CLASSIC TANKS 2", "IMPORTED MAP"]
+        );
+        game.select_map(2);
+        assert_eq!(game.map.name, "Imported battlefield");
+        game.select_map(0);
+        assert_eq!(game.map.name, "River Valley");
+        game.select_map(2);
+        assert_eq!(game.map.name, "Imported battlefield");
+    }
     #[test]
     fn countdown_pause_results_and_rematch_gate_gameplay() {
         let mut game = Game::new(false);

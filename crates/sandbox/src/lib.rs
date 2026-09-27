@@ -1,6 +1,8 @@
 mod audio;
 mod comparison;
 mod comparison_storage;
+mod controller;
+mod controller_ui;
 mod controls;
 #[cfg(target_arch = "wasm32")]
 mod diagnostics;
@@ -44,21 +46,45 @@ pub fn window_conf(application: Application) -> Conf {
             Application::Sandbox => "Fracture — sandbox & editors",
         }
         .into(),
-        window_width: 1440,
-        window_height: 900,
+        window_width: if deck_mode() { 1280 } else { 1440 },
+        window_height: if deck_mode() { 800 } else { 900 },
+        fullscreen: deck_mode(),
         high_dpi: true,
         sample_count: 4,
         ..Default::default()
     }
 }
 
+fn deck_mode() -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::env::var("SteamDeck").as_deref() == Ok("1") || std::env::args().any(|a| a == "--deck")
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Browser preview/test of the explicitly selected handheld controls.
+        #[link(wasm_import_module = "env")]
+        unsafe extern "C" {
+            fn controller_handheld_mode() -> u32;
+        }
+        unsafe { controller_handheld_mode() != 0 }
+    }
+}
+
 pub async fn run(application: Application) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(directory) = std::env::var_os("FRACTURE_DATA_DIR") {
+        let directory = std::path::PathBuf::from(directory);
+        std::fs::create_dir_all(&directory).expect("create game save directory");
+        std::env::set_current_dir(&directory).expect("open game save directory");
+    }
     let mut font = load_ttf_font_from_bytes(include_bytes!("../assets/LiberationMono-Bold.ttf"))
         .expect("bundled UI font");
     font.set_filter(FilterMode::Linear);
     macroquad::text::set_default_font(font);
     let mut audio = audio::Audio::load().await;
     let mut lab = Lab::new();
+    let mut controller = controller::Controller::new();
     let mut editor = editor::Editor::new();
     let mut map_editor = level_editor::LevelEditor::new();
     let mut comparison = match if application == Application::Sandbox {
@@ -75,9 +101,11 @@ pub async fn run(application: Application) {
         _ => None,
     };
     let mut game = game::Game::new(application == Application::Sandbox);
-    let mut lobby_editor = level_editor::LevelEditor::new();
     let mut editing_comparison = false;
     let mut first_frame = true;
+    let mut fullscreen = deck_mode();
+    let handheld = deck_mode();
+    let mut cursor_visible = true;
     loop {
         // Loading and font initialization are not elapsed simulation time.
         let wall_dt = if first_frame {
@@ -86,11 +114,37 @@ pub async fn run(application: Application) {
         } else {
             get_frame_time().min(0.25)
         };
-        let scale = (screen_width() / 1440.0)
-            .min(screen_height() / 900.0)
-            .max(0.25);
+        let pad = controller.poll(wall_dt, handheld);
+        if is_key_pressed(KeyCode::F11) {
+            fullscreen = !fullscreen;
+            set_fullscreen(fullscreen);
+        }
+        let game_ui = game.screen != game::Screen::Sandbox;
+        let scale = if game_ui && (screen_width() < 1440.0 || screen_height() < 900.0) {
+            (screen_width() / 1280.0)
+                .min(screen_height() / 720.0)
+                .clamp(0.25, 1.0)
+        } else {
+            (screen_width() / 1440.0)
+                .min(screen_height() / 900.0)
+                .max(0.25)
+        };
         let size = vec2(screen_width() / scale, screen_height() / scale);
-        let mouse = Vec2::from(mouse_position()) / scale;
+        let pointer_editor =
+            editor.active || map_editor.active || comparison.as_ref().is_some_and(|c| c.active);
+        let pointer_enabled = !handheld || !controller.active || pointer_editor;
+        let pointer_activated = !cursor_visible && pointer_enabled;
+        if cursor_visible != pointer_enabled {
+            show_mouse(pointer_enabled);
+            cursor_visible = pointer_enabled;
+        }
+        // A hidden pointer cannot hover UI, steer the camera or aim/fire.
+        let raw_mouse = Vec2::from(mouse_position()) / scale;
+        let mouse = if pointer_enabled {
+            raw_mouse
+        } else {
+            Vec2::splat(f32::MIN)
+        };
         #[cfg(not(target_arch = "wasm32"))]
         game.poll_lan(&mut lab, wall_dt);
         let gameplay = game.screen == game::Screen::Match
@@ -98,7 +152,36 @@ pub async fn run(application: Application) {
                 && !map_editor.active
                 && !editor.active
                 && !comparison.as_ref().is_some_and(|c| c.active));
-        let sound_settings = audio.settings_frame();
+        if game.screen == game::Screen::Match && (pad.disconnected || get_frame_time() > 1.0) {
+            game.menu = true;
+            lab.pending.clear();
+            lab.firing = false;
+        }
+        let sound_settings = audio.settings_frame(pad);
+        let outcome = lab
+            .match_progress
+            .as_ref()
+            .is_some_and(|p| p.outcome.is_some());
+        let context = game.screen as u64 * 16
+            + u64::from(game.menu)
+            + u64::from(outcome) * 2
+            + u64::from(sound_settings) * 4;
+        let menu_navigation = sound_settings
+            || matches!(
+                game.screen,
+                game::Screen::Home | game::Screen::Lobby | game::Screen::Lan
+            )
+            || (game.screen == game::Screen::Match && (game.menu || outcome));
+        controller_ui::begin(
+            context,
+            controller.active,
+            if handheld {
+                menu_navigation
+            } else {
+                game_ui || sound_settings
+            },
+            pad,
+        );
         audio.update(wall_dt, &mut lab, &game, gameplay);
         if sound_settings {
             #[cfg(not(target_arch = "wasm32"))]
@@ -119,7 +202,7 @@ pub async fn run(application: Application) {
         game::publish(&game, &lab);
         if matches!(
             game.screen,
-            game::Screen::Home | game::Screen::Lobby | game::Screen::Workshop | game::Screen::Lan
+            game::Screen::Home | game::Screen::Lobby | game::Screen::Lan
         ) {
             editor::publish_closed();
             comparison::publish_closed();
@@ -128,34 +211,24 @@ pub async fn run(application: Application) {
             let mut camera = Camera2D::from_display_rect(Rect::new(0.0, 0.0, size.x, size.y));
             camera.zoom.y = -camera.zoom.y;
             set_camera(&camera);
-            if game.screen == game::Screen::Workshop {
-                if let Some(action) =
-                    lobby_editor.draw(size, mouse, wall_dt, scale * screen_dpi_scale())
-                {
-                    let map = match action {
-                        level_editor::Action::Play(map, _) => *map,
-                        level_editor::Action::Close => lobby_editor.lobby_map(),
-                    };
-                    game.accept_map(map);
-                    #[cfg(not(target_arch = "wasm32"))]
-                    game.lan_map_changed();
-                    lobby_editor.active = false;
-                }
-            } else if let Some(action) = game.draw_menu(size, mouse) {
-                apply_game_action(action, &mut game, &mut lab, &mut lobby_editor);
+            if let Some(action) = game.draw_menu(size, mouse) {
+                apply_game_action(action, &mut game, &mut lab);
             }
             audio.draw_controls(
                 size,
                 mouse,
                 matches!(game.screen, game::Screen::Home | game::Screen::Lobby),
             );
+            controller_ui::draw_keyboard(size, mouse);
             set_default_camera();
             next_frame().await;
             continue;
         }
         let proper_match = game.screen == game::Screen::Match;
         if proper_match {
-            if is_key_pressed(KeyCode::Escape)
+            if (is_key_pressed(KeyCode::Escape)
+                || pad.pressed(controller::MENU)
+                || (game.menu && pad.pressed(controller::BACK)))
                 && lab
                     .match_progress
                     .as_ref()
@@ -314,9 +387,15 @@ pub async fn run(application: Application) {
             continue;
         }
         editor::publish_closed();
-        let chamber = Rect::new(0.0, 80.0, size.x, size.y - 177.0);
+        let chamber = if proper_match {
+            let full = Rect::new(0.0, 0.0, size.x, size.y);
+            lab.navigation.expand_game_view(full);
+            full
+        } else {
+            Rect::new(0.0, 80.0, size.x, size.y - 177.0)
+        };
         let mut viewport;
-        if is_key_pressed(KeyCode::H) {
+        if is_key_pressed(KeyCode::H) || pad.pressed(controller::HELP) {
             if proper_match {
                 game.help = !game.help;
             } else {
@@ -350,6 +429,18 @@ pub async fn run(application: Application) {
                     lab.navigation.scroll(wheel, mouse, chamber);
                 }
             }
+        }
+        if accepts_input
+            && game_camera
+            && pad.navigation.y != 0.0
+            && (pad.held(controller::UP) || pad.held(controller::DOWN))
+        {
+            lab.navigation.scroll_game(
+                -pad.navigation.y,
+                chamber,
+                lab.world.player_sight_range(),
+                lab.world.player_in_radar_zone(),
+            );
         }
         if game_camera {
             lab.navigation.advance_game_zoom(
@@ -394,7 +485,7 @@ pub async fn run(application: Application) {
                 lab.select_ammunition(ammunition);
             }
         }
-        if accepts_input && is_key_pressed(KeyCode::B) {
+        if accepts_input && (is_key_pressed(KeyCode::B) || pad.pressed(controller::AMMO)) {
             lab.select_ammunition(lab.inspector.ammunition.next());
         }
         if accepts_input {
@@ -405,30 +496,38 @@ pub async fn run(application: Application) {
             };
             lab.keyboard_aim.update(
                 controls::turret_turn(),
-                in_chamber && mouse != lab.last_mouse,
+                in_chamber && (pointer_activated || mouse != lab.last_mouse) && !controller.active,
                 lab.world.player_aim().angle,
                 aim_dt,
             );
+            if controller.active && !lab.keyboard_aim.active() {
+                lab.keyboard_aim
+                    .point_stick(Vec2::from_angle(lab.world.player_aim().angle));
+            }
+            lab.keyboard_aim.point_stick(pad.aim);
         }
         if in_chamber && !lab.keyboard_aim.active() {
             lab.aim = viewport.world(mouse);
         }
         lab.refresh_keyboard_aim();
-        lab.last_mouse = mouse;
+        lab.last_mouse = raw_mouse;
         lab.firing = accepts_input
             && ((in_chamber && is_mouse_button_down(MouseButton::Left))
                 || is_key_down(KeyCode::F)
-                || is_key_down(KeyCode::Space));
+                || is_key_down(KeyCode::Space)
+                || pad.held(controller::FIRE));
         if accepts_input
             && ((in_chamber && is_mouse_button_pressed(MouseButton::Left))
                 || is_key_pressed(KeyCode::F)
-                || is_key_pressed(KeyCode::Space))
+                || is_key_pressed(KeyCode::Space)
+                || pad.pressed(controller::FIRE))
         {
             lab.fire();
         }
         if accepts_input
             && ((in_chamber && is_mouse_button_pressed(MouseButton::Right))
-                || is_key_pressed(KeyCode::G))
+                || is_key_pressed(KeyCode::G)
+                || pad.pressed(controller::SPECIAL))
         {
             lab.pending
                 .retain(|c| !matches!(c, sim::Command::ActivateSpecial));
@@ -442,7 +541,18 @@ pub async fn run(application: Application) {
         // Our world and UI both use screen coordinates with positive Y downward.
         camera.zoom.y = -camera.zoom.y;
         set_camera(&camera);
-        let tracks = controls::tracks();
+        let tracks = if !accepts_input {
+            [0.0; 2]
+        } else if pad.drive != Vec2::ZERO {
+            lab.world
+                .bodies()
+                .find(|b| b.id == lab.world.player_tank_id())
+                .map_or([0.0; 2], |tank| {
+                    controls::stick_tracks(pad.drive, tank.angle)
+                })
+        } else {
+            controls::tracks()
+        };
         if lab.world.is_replica() {
             #[cfg(not(target_arch = "wasm32"))]
             game.lan_input(&mut lab, accepts_input, tracks);
@@ -538,7 +648,7 @@ pub async fn run(application: Application) {
         view::draw_world(
             &lab.world,
             &viewport,
-            lab.aim,
+            pointer_enabled.then_some(lab.aim),
             alpha,
             lab.overlay,
             &lab.sparks,
@@ -556,7 +666,7 @@ pub async fn run(application: Application) {
         }
         let actions = if proper_match {
             if let Some(action) = game.draw_hud(size, mouse, &mut lab) {
-                apply_game_action(action, &mut game, &mut lab, &mut lobby_editor);
+                apply_game_action(action, &mut game, &mut lab);
             }
             vec![]
         } else {
@@ -636,27 +746,21 @@ pub async fn run(application: Application) {
             diagnostics::publish_camera(&lab.navigation);
             diagnostics::publish_ammunition(lab.inspector.ammunition);
         }
-        audio.draw_controls(
-            size,
-            mouse,
-            proper_match
-                && (game.menu
-                    || lab
-                        .match_progress
-                        .as_ref()
-                        .is_some_and(|p| p.outcome.is_some())),
-        );
+        if !proper_match
+            || game.menu
+            || lab
+                .match_progress
+                .as_ref()
+                .is_some_and(|p| p.outcome.is_some())
+        {
+            audio.draw_controls(size, mouse, proper_match);
+        }
         set_default_camera();
         next_frame().await;
     }
 }
 
-fn apply_game_action(
-    action: game::Action,
-    game: &mut game::Game,
-    lab: &mut Lab,
-    editor: &mut level_editor::LevelEditor,
-) {
+fn apply_game_action(action: game::Action, game: &mut game::Game, lab: &mut Lab) {
     #[cfg(not(target_arch = "wasm32"))]
     if game.lan_action(&action, lab) {
         return;
@@ -672,18 +776,6 @@ fn apply_game_action(
             }
         }
         game::Action::EnterLobby => game.enter_lobby(),
-        game::Action::CreateMap | game::Action::EditMap => {
-            let level = if matches!(action, game::Action::CreateMap) {
-                sim::level::Level {
-                    name: "My battlefield".into(),
-                    ..Default::default()
-                }
-            } else {
-                game.map.clone()
-            };
-            editor.open_for_lobby(level);
-            game.screen = game::Screen::Workshop;
-        }
         game::Action::Start => game.start(lab),
         game::Action::Resume => game.menu = false,
         game::Action::Leave => game.return_to_lobby(lab),

@@ -1,5 +1,52 @@
 # Development handoff
 
+**Minimal match HUD (2026-09-27):** Game/LAN battles use the full viewport, with
+only a floating clock and an optional special-weapon charges/status indicator.
+Top/bottom panels and live HUD buttons are removed; Esc/Menu, H/X and F7/Y still
+open menus/help/settings. Main reload remains on the aiming arc. Initial camera
+scale is preserved so the reclaimed vertical space shows more battlefield.
+Sandbox panels and editor layouts are unchanged. All 269 workspace tests, Clippy,
+native/WASM builds and game/Deck/audio browser checks passed; screenshots cover
+ready, active, cooldown, last charge and empty special states. Deployed to the Deck.
+
+**Deck text entry (2026-09-27):** Tapping or clicking the LAN name/IP fields opens
+the in-game keyboard in Deck mode, alongside existing A activation. The opening
+click cannot type a key underneath it; the modal blocks underlying field clicks.
+Ordinary desktop mouse entry keeps using the physical keyboard. Native Deck
+checks confirmed name/IP click activation, no accidental opening character,
+Done, Delete and Cancel; original values were restored. Keyboard unit tests,
+Clippy and native/WASM builds passed. The fix is deployed on the Deck.
+
+**Game map catalog (2026-09-27):** Local and LAN lobbies offer only River Valley
+(`levels/dota-level.json`) and Classic Tanks 2 (`levels/classic-tanks-2.json`), plus
+an optional imported map saved separately from sandbox drafts. Game map creation
+and editing routes are removed; authoring stays in the separate sandbox.
+
+**Deck input follow-up (2026-09-27):** Only in `--deck` / `SteamDeck=1` mode,
+live-match HUD buttons no longer accept
+controller focus/navigation; the left stick navigates only open menus. Controller
+mode hides the system pointer and aim crosshair and ignores emulated mouse motion.
+A mouse click or keyboard input restores pointer controls; editors retain a visible
+cursor. Ordinary desktop launches keep their previous behavior. Browser checks
+cover driving without HUD activation, paused menu navigation, mouse-motion
+isolation, cursor visibility, deliberate mouse handoff and desktop compatibility.
+
+**Physical Steam Deck smoke test (2026-09-27):** Installed the native package at
+`~/Games/fracture` on SteamOS 3.8.28, added a desktop launcher and launched in
+Desktop Mode at 1280×800. SDL detected `Steam Deck Controller`; captured local
+matches showed controller prompts, destruction and respawns. A 90-second
+MangoHud sample averaged 90.4 reported FPS, with brief dips (lowest sample 21.4).
+See [device-test details and limits](STEAM_DECK.md#physical-device-smoke-test-2026-09-27).
+Player confirmation of each control/audio, Gaming Mode and sleep/wake remain open.
+
+**Steam Deck groundwork (2026-09-26):** SDL2 desktop and standard browser
+gamepads share analog drive/aim, triggers, ammunition, help and pause actions.
+Game menus use directional button focus; LAN text fields have an on-screen
+keyboard. Compact home/lobby/HUD layouts support 1280×800 and 1280×720.
+`tools/build-linux.sh` packages the native game with a launcher using an XDG
+save directory. See [Deck controls and validation](STEAM_DECK.md). Editors
+remain pointer-based; physical Deck performance and suspend/resume are unverified.
+
 **Debris budget (2026-09-26):** Levels now target 8,192 active pieces by retiring
 small, distant disposable chunks at 4 Hz. All tank sight ranges, flag lookouts
 and owned radar coverage receive an 8 m protection margin. Whole chunks retire

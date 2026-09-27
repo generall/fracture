@@ -39,6 +39,6 @@ pub fn persist(json: &str) -> Result<(), String> {
     if unsafe { game_map_store(json.as_ptr(), json.len()) } == 0 {
         Ok(())
     } else {
-        Err("Your map could not be saved. Export a JSON copy from the map builder.".into())
+        Err("Imported map could not be saved. Keep the original JSON file.".into())
     }
 }

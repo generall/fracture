@@ -14,13 +14,20 @@ impl Game {
             return action;
         }
         if self.screen == Screen::Home {
-            return self.home(size, mouse);
+            return if super::compact::needed(size) {
+                self.compact_menu(size, mouse)
+            } else {
+                self.home(size, mouse)
+            };
         }
         if let Some(import) = crate::level_storage::take_import() {
             match import.and_then(|json| Level::from_json(&json)) {
                 Ok(map) => self.accept_map(map),
                 Err(e) => self.status = e,
             }
+        }
+        if super::compact::needed(size) {
+            return self.compact_menu(size, mouse);
         }
         text("FRACTURE / LOCAL LOBBY", 64.0, 68.0, 30.0, INK);
         text("You + one AI opponent", 64.0, 103.0, 18.0, MUTED);
@@ -29,67 +36,32 @@ impl Game {
             "BACK",
             mouse,
             false,
-        ) || is_key_pressed(KeyCode::Escape)
+        ) || crate::controller_ui::back()
         {
             self.screen = Screen::Home;
             return None;
         }
         draw_line(64.0, 130.0, size.x - 64.0, 130.0, 1.0, RULE);
         text("BATTLEFIELD", 64.0, 177.0, 18.0, CYAN);
-        for (i, (label, available)) in [
-            ("QUARRY CROSSING", true),
-            ("RIVER VALLEY", true),
-            ("EDITOR DRAFT", self.draft.is_some()),
-            ("YOUR MAP", self.custom.is_some()),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (i, label) in self.map_choices().into_iter().enumerate() {
             let rect = Rect::new(64.0, 200.0 + i as f32 * 62.0, 338.0, 48.0);
-            draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, RULE);
-            if available {
-                if button(rect, label, mouse, self.source == i) {
-                    self.select_map(i);
-                }
-            } else {
-                text(
-                    &format!("{label} / NONE"),
-                    rect.x + 12.0,
-                    rect.y + 27.0,
-                    16.0,
-                    MUTED,
-                );
+            if button(rect, label, mouse, self.source == i) {
+                self.select_map(i);
             }
         }
         if button(
-            Rect::new(64.0, 470.0, 160.0, 38.0),
-            "CREATE MAP",
-            mouse,
-            false,
-        ) {
-            return Some(Action::CreateMap);
-        }
-        if button(
-            Rect::new(232.0, 470.0, 170.0, 38.0),
-            "IMPORT JSON",
+            Rect::new(64.0, 408.0, 338.0, 44.0),
+            "IMPORT MAP",
             mouse,
             false,
         ) && let Err(e) = crate::level_storage::pick_import()
         {
             self.status = e;
         }
-        if button(
-            Rect::new(64.0, 516.0, 338.0, 38.0),
-            "EDIT SELECTED MAP",
-            mouse,
-            false,
-        ) {
-            return Some(Action::EditMap);
-        }
         wrapped(
-            "Create a battlefield or bring in a map from the editor. Your editor draft stays separate.",
+            "Choose a battlefield or import a map exported from the sandbox.",
             76.0,
-            580.0,
+            494.0,
             310.0,
             17.0,
             MUTED,
@@ -253,7 +225,10 @@ impl Game {
             RULE,
         );
         text(
-            "WASD DRIVE / Q E AIM / SPACE FIRE / G SPECIAL",
+            crate::controller_ui::prompt(
+                "WASD DRIVE / Q E AIM / SPACE FIRE / G SPECIAL",
+                "LS DRIVE / RS AIM / RT FIRE / LT SPECIAL",
+            ),
             80.0,
             size.y - 62.0,
             17.0,
@@ -261,7 +236,7 @@ impl Game {
         );
         None
     }
-    fn preview(&self, rect: Rect) {
+    pub(super) fn preview(&self, rect: Rect) {
         draw_rectangle(
             rect.x,
             rect.y,

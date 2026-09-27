@@ -83,8 +83,19 @@ pub fn field_text(value: &str, rect: Rect, baseline: f32, size: f32, active: boo
     }
 }
 pub fn button(rect: Rect, label: &str, mouse: Vec2, selected: bool) -> bool {
+    let (focused, activated) = crate::controller_ui::interact(rect, label, selected);
     let hover = rect.contains(mouse);
-    if hover || selected {
+    if focused {
+        draw_rectangle_lines(
+            rect.x - 3.0,
+            rect.y - 3.0,
+            rect.w + 6.0,
+            rect.h + 6.0,
+            2.0,
+            CYAN,
+        );
+    }
+    if hover || selected || focused {
         draw_rectangle(
             rect.x,
             rect.y,
@@ -106,9 +117,16 @@ pub fn button(rect: Rect, label: &str, mouse: Vec2, selected: bool) -> bool {
         rect.x + 12.0,
         rect.y + 26.0,
         18.0,
-        if selected || hover { CYAN } else { MUTED },
+        if selected || hover || focused {
+            CYAN
+        } else {
+            MUTED
+        },
     );
-    hover && is_mouse_button_pressed(MouseButton::Left)
+    activated
+        || (hover
+            && is_mouse_button_pressed(MouseButton::Left)
+            && crate::controller_ui::pointer_allowed())
 }
 impl Inspector {
     pub fn captures(&self, mouse: Vec2, size: Vec2) -> bool {

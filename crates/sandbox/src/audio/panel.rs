@@ -1,12 +1,16 @@
 use super::*;
 impl Audio {
     /// A dedicated input frame prevents clicks/keys passing through into play.
-    pub(crate) fn settings_frame(&mut self) -> bool {
-        let frame = self.panel_open || is_key_pressed(KeyCode::F7);
-        if is_key_pressed(KeyCode::F7) {
+    pub(crate) fn settings_frame(&mut self, pad: crate::controller::Actions) -> bool {
+        let toggle = is_key_pressed(KeyCode::F7)
+            || (pad.pressed(crate::controller::SETTINGS) && !crate::controller_ui::keyboard_open());
+        let frame = self.panel_open || toggle;
+        if toggle {
             self.panel_open = !self.panel_open;
         }
-        if self.panel_open && is_key_pressed(KeyCode::Escape) {
+        if self.panel_open
+            && (is_key_pressed(KeyCode::Escape) || pad.pressed(crate::controller::BACK))
+        {
             self.panel_open = false;
         }
         frame
@@ -109,14 +113,17 @@ impl Audio {
         }
         if button(
             Rect::new(x + 495.0, y + 435.0, 145.0, 40.0),
-            "DONE / ESC",
+            crate::controller_ui::prompt("DONE / ESC", "DONE / B"),
             mouse,
             false,
         ) {
             self.panel_open = false;
         }
         text(
-            "F7 SETTINGS   F8 MUTE   F9 MUSIC   F10 EFFECTS",
+            crate::controller_ui::prompt(
+                "F7 SETTINGS   F8 MUTE   F9 MUSIC   F10 EFFECTS",
+                "D-PAD / SELECT    A / CHANGE    B / BACK",
+            ),
             x,
             y + 510.0,
             15.0,

@@ -38,10 +38,28 @@ pub const SCENES: &[SceneBinding] = &[
 pub fn tracks() -> [f32; 2] {
     let throttle = (is_key_down(KeyCode::W) as i32 - is_key_down(KeyCode::S) as i32) as f32;
     let steer = (is_key_down(KeyCode::D) as i32 - is_key_down(KeyCode::A) as i32) as f32;
+    mix_tracks(throttle, steer)
+}
+
+pub fn mix_tracks(throttle: f32, steer: f32) -> [f32; 2] {
     let mut tracks = [throttle + steer, throttle - steer];
     let maximum = tracks[0].abs().max(tracks[1].abs()).max(1.0);
     tracks = tracks.map(|t| t / maximum);
     tracks
+}
+
+/// Stick drive in world directions: turn the nearer hull end toward the stick,
+/// pivoting in place when it points sideways and reversing when it points behind.
+pub fn stick_tracks(stick: Vec2, heading: f32) -> [f32; 2] {
+    use std::f32::consts::{FRAC_PI_2, PI, TAU};
+    let error = (stick.to_angle() - heading + PI).rem_euclid(TAU) - PI;
+    let nearer_end = if error.abs() > FRAC_PI_2 {
+        error - PI.copysign(error)
+    } else {
+        error
+    };
+    let steer = (nearer_end / 30.0_f32.to_radians()).clamp(-1.0, 1.0);
+    mix_tracks(error.cos(), steer).map(|t| t * stick.length())
 }
 
 pub fn turret_turn() -> Option<f32> {
@@ -66,6 +84,12 @@ impl KeyboardAim {
         }
     }
 
+    pub fn point_stick(&mut self, direction: Vec2) {
+        if direction.length_squared() > 0.0 {
+            self.angle = Some(direction.to_angle());
+        }
+    }
+
     pub fn active(&self) -> bool {
         self.angle.is_some()
     }
@@ -79,6 +103,30 @@ impl KeyboardAim {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stick_drives_toward_its_world_direction() {
+        let [l, r] = stick_tracks(Vec2::X, 0.0);
+        assert!(l > 0.99 && (l - r).abs() < 0.001, "aligned: straight ahead");
+        let [l, r] = stick_tracks(-Vec2::X, 0.0);
+        assert!(
+            l < -0.99 && (l - r).abs() < 0.001,
+            "behind: straight reverse"
+        );
+        // Positive steer (left track faster) increases the heading angle.
+        let [l, r] = stick_tracks(Vec2::Y, 0.0);
+        assert!(
+            l > 0.0 && (l + r).abs() < 0.001,
+            "sideways: pivot toward it"
+        );
+        let [l, r] = stick_tracks(Vec2::from_angle(-0.2), 0.0);
+        assert!(
+            l > 0.0 && r > 0.0 && r > l,
+            "slightly left: forward and turn left"
+        );
+        let [l, r] = stick_tracks(Vec2::from_angle(0.2) * 0.5, 0.0);
+        assert!(l <= 0.5 + 0.001 && r > 0.0, "half stick: half speed");
+    }
 
     #[test]
     fn keyboard_aim_survives_release_and_tank_movement() {

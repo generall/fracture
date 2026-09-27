@@ -17,9 +17,8 @@ lobby**; guests choose the discovered lobby or enter the host computer's IPv4
 address and choose **Join by IP**. `127.0.0.1` is useful only for another instance
 on the same computer. A direct address may include `:port`.
 
-The host selects Quarry Crossing, River Valley, an editor draft or an imported
-map, and can create or edit a map in the existing editor. The host chooses the
-match duration. Everyone chooses a team and marks themselves ready. Both teams
+The host selects River Valley, Classic Tanks 2 or an imported JSON map, and
+chooses the match duration. Map creation is available in the separate sandbox. Everyone chooses a team and marks themselves ready. Both teams
 need a player; the host starts after all players are ready. Changing the map or
 match settings clears readiness. Changing a player's team clears that player's
 readiness.

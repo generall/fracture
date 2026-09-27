@@ -4,12 +4,12 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 if [[ $# -eq 0 ]]; then
-    set -- audio game controls browser editor comparison library plasticity barrel crush barrel-shot ammunition terrain level level-improvements demo
+    set -- audio game controls deck browser editor comparison library plasticity barrel crush barrel-shot ammunition terrain level level-improvements demo
 fi
 # Validate the whole list before opening any tabs.
 for suite in "$@"; do
     case "$suite" in
-        audio|game|controls|browser|editor|comparison|library|plasticity|barrel|crush|barrel-shot|ammunition|terrain|level|level-improvements|demo) ;;
+        audio|game|controls|deck|browser|editor|comparison|library|plasticity|barrel|crush|barrel-shot|ammunition|terrain|level|level-improvements|demo) ;;
         *) printf 'Unknown browser suite: %s\n' "$suite" >&2; exit 2 ;;
     esac
 done

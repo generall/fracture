@@ -318,6 +318,7 @@ impl Lan {
         }));
     }
     pub fn draw(&mut self, game: &mut Game, size: Vec2, mouse: Vec2) -> Option<Action> {
+        let compact = size.x < 1400.0 || size.y < 860.0;
         text("FRACTURE / LOCAL NETWORK", 64.0, 68.0, 30.0, INK);
         text(
             "UP TO SIX PLAYERS / CAPTURE THE FLAG",
@@ -335,7 +336,7 @@ impl Lan {
             },
             mouse,
             false,
-        ) || is_key_pressed(KeyCode::Escape)
+        ) || crate::controller_ui::back()
         {
             self.disconnect();
             game.screen = Screen::Home;
@@ -368,8 +369,19 @@ impl Lan {
                 MUTED,
             );
             for (i, p) in lobby.players.iter().enumerate() {
-                let y = 290.0 + i as f32 * 57.0;
-                draw_rectangle_lines(64.0, y - 26.0, size.x - 128.0, 49.0, 1.0, RULE);
+                let y = if compact {
+                    270.0 + i as f32 * 35.0
+                } else {
+                    290.0 + i as f32 * 57.0
+                };
+                draw_rectangle_lines(
+                    64.0,
+                    y - 26.0,
+                    size.x - 128.0,
+                    if compact { 33.0 } else { 49.0 },
+                    1.0,
+                    RULE,
+                );
                 text(
                     &format!(
                         "{}{}{}",
@@ -403,7 +415,12 @@ impl Lan {
             }
             if let Some(player) = lobby.players.iter().find(|p| Some(p.slot) == self.slot) {
                 if button(
-                    Rect::new(64.0, 650.0, 260.0, 42.0),
+                    Rect::new(
+                        64.0,
+                        if compact { size.y - 250.0 } else { 650.0 },
+                        260.0,
+                        42.0,
+                    ),
                     "CHANGE TEAM",
                     mouse,
                     false,
@@ -411,7 +428,12 @@ impl Lan {
                     self.send(ClientMessage::Team(player.team.other()));
                 }
                 if button(
-                    Rect::new(340.0, 650.0, 260.0, 42.0),
+                    Rect::new(
+                        340.0,
+                        if compact { size.y - 250.0 } else { 650.0 },
+                        260.0,
+                        42.0,
+                    ),
                     if player.ready { "UNREADY" } else { "READY" },
                     mouse,
                     player.ready,
@@ -423,35 +445,29 @@ impl Lan {
                 }
             }
             if self.is_host() {
-                if button(
-                    Rect::new(64.0, 710.0, 240.0, 38.0),
-                    "QUARRY CROSSING",
-                    mouse,
-                    false,
-                ) {
-                    game.select_map(0);
-                    self.configure(game);
+                for (index, label) in game.map_choices().into_iter().enumerate() {
+                    if button(
+                        Rect::new(
+                            64.0 + index as f32 * 264.0,
+                            if compact { size.y - 194.0 } else { 710.0 },
+                            250.0,
+                            38.0,
+                        ),
+                        label,
+                        mouse,
+                        false,
+                    ) {
+                        game.select_map(index);
+                        self.configure(game);
+                    }
                 }
                 if button(
-                    Rect::new(318.0, 710.0, 220.0, 38.0),
-                    "RIVER VALLEY",
-                    mouse,
-                    false,
-                ) {
-                    game.select_map(1);
-                    self.configure(game);
-                }
-                if button(
-                    Rect::new(552.0, 710.0, 190.0, 38.0),
-                    "EDITOR DRAFT",
-                    mouse,
-                    false,
-                ) {
-                    game.select_map(2);
-                    self.configure(game);
-                }
-                if button(
-                    Rect::new(756.0, 710.0, 190.0, 38.0),
+                    Rect::new(
+                        size.x - 320.0,
+                        if compact { size.y - 194.0 } else { 710.0 },
+                        256.0,
+                        38.0,
+                    ),
                     "MATCH TIME",
                     mouse,
                     false,
@@ -464,23 +480,12 @@ impl Lan {
                     self.configure(game);
                 }
                 if button(
-                    Rect::new(64.0, 760.0, 240.0, 38.0),
-                    "CREATE MAP",
-                    mouse,
-                    false,
-                ) {
-                    return Some(Action::CreateMap);
-                }
-                if button(
-                    Rect::new(318.0, 760.0, 220.0, 38.0),
-                    "EDIT MAP",
-                    mouse,
-                    false,
-                ) {
-                    return Some(Action::EditMap);
-                }
-                if button(
-                    Rect::new(552.0, 760.0, 190.0, 38.0),
+                    Rect::new(
+                        64.0,
+                        if compact { size.y - 144.0 } else { 760.0 },
+                        250.0,
+                        38.0,
+                    ),
                     "IMPORT MAP",
                     mouse,
                     false,
@@ -499,7 +504,12 @@ impl Lan {
                     }
                 }
                 if button(
-                    Rect::new(size.x - 320.0, 760.0, 256.0, 46.0),
+                    Rect::new(
+                        size.x - 320.0,
+                        if compact { size.y - 144.0 } else { 760.0 },
+                        256.0,
+                        46.0,
+                    ),
                     "START MATCH  >",
                     mouse,
                     lobby.can_start(),
@@ -510,7 +520,7 @@ impl Lan {
                 text(
                     "The host chooses the map and starts when everyone is ready.",
                     64.0,
-                    740.0,
+                    if compact { size.y - 175.0 } else { 740.0 },
                     18.0,
                     MUTED,
                 );
@@ -598,7 +608,10 @@ impl Lan {
                     MUTED,
                 );
             }
-            if self.client.is_none() && self.connecting.is_none() {
+            if self.client.is_none()
+                && self.connecting.is_none()
+                && !crate::controller_ui::keyboard_open()
+            {
                 let value = if self.focus == 0 {
                     &mut self.name
                 } else {
@@ -649,8 +662,47 @@ impl Lan {
             20.0,
             self.focus == index && self.client.is_none() && self.connecting.is_none(),
         );
-        if is_mouse_button_pressed(MouseButton::Left) && rect.contains(mouse) {
+        let editable = self.client.is_none() && self.connecting.is_none();
+        let (focused, activated) = if editable {
+            crate::controller_ui::interact(rect, label, false)
+        } else {
+            (false, false)
+        };
+        if focused {
+            draw_rectangle_lines(
+                rect.x - 3.0,
+                rect.y - 3.0,
+                rect.w + 6.0,
+                rect.h + 6.0,
+                2.0,
+                CYAN,
+            );
+        }
+        let pointer_clicked = editable
+            && crate::controller_ui::pointer_allowed()
+            && is_mouse_button_pressed(MouseButton::Left)
+            && rect.contains(mouse);
+        if pointer_clicked {
             self.focus = index;
+        }
+        if activated || (pointer_clicked && crate::deck_mode()) {
+            self.focus = index;
+            crate::controller_ui::edit_text(
+                index,
+                if index == 0 {
+                    &self.name
+                } else {
+                    &self.address
+                },
+                if index == 0 { 32 } else { 64 },
+            );
+        }
+        if let Some(value) = crate::controller_ui::take_text(index) {
+            if index == 0 {
+                self.name = value;
+            } else {
+                self.address = value;
+            }
         }
     }
 }
@@ -664,15 +716,6 @@ impl Game {
     pub fn lan_input(&mut self, lab: &mut Lab, enabled: bool, tracks: [f32; 2]) {
         if let Some(lan) = &mut self.lan {
             lan.input(lab, enabled, tracks);
-        }
-    }
-    pub fn lan_map_changed(&mut self) {
-        if let Some(mut lan) = self.lan.take() {
-            if lan.is_host() {
-                lan.configure(self);
-                self.screen = Screen::Lan;
-            }
-            self.lan = Some(lan);
         }
     }
     pub fn lan_action(&mut self, action: &Action, lab: &mut Lab) -> bool {
