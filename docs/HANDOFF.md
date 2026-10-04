@@ -1,5 +1,61 @@
 # Development handoff
 
+**Bridge repair (2026-10-04):** Capture either ruined outpost by keeping a living
+tank's center within 1 m for 15 simulated seconds. Leaving resets progress;
+opposing teams in the same area pause it. The whole bridge returns for everyone,
+with overlapping tanks moved to clear positions (restoration waits if blocked).
+Rendering shows the radius, countdown and contested status. Original cells and
+bonds are reused across repairs, including after shell damage/refinement.
+State is shared once per world tick and replicated; LAN protocol is now 5.
+Regression coverage includes exact timing, multiplayer timing, radius/death,
+contesting, repeated destruction/repair, crossing, orientations and wire updates.
+See [TERRAIN.md](TERRAIN.md).
+
+**Bridge rendering (2026-10-04):** Intact bridges render as solid road decks with
+subtle center dashes, broad side guardrails, open entrances, shadows and filled
+support booths. Normal rendering suppresses the deck's physical mesh seams;
+the sandbox stress overlay can still show them. Sinking fragments have filled
+surfaces. Deck classification is replicated with body definitions (LAN protocol
+4) so local and LAN clients render the same bridge. Bridge physics and wire
+round-trip tests, native/WASM checks and strict Clippy passed.
+Muted browser checks verified the intact deck, crossing, support destruction,
+collapse, sinking and rebuild; captures are in `target/screenshots/terrain-*.png`.
+
+**Battlefield awareness (2026-10-04):** Screen-edge arrows indicate living enemy
+tanks and available weapon pickups in the live visible scene, plus the enemy
+flag regardless of fog. Hidden memories, respawning pickups and targets inside
+the viewport get no arrows. Nearby markers spread along the edge. Public
+airdrops share the edge system and retain their countdown. An actual enemy shot
+reveals the firing tank for one second anywhere within the observer's current
+sight radius, including behind the turret; solid cover still blocks it. This is
+separate from the existing five-second grass reveal. Shot-only observations
+neither reveal scenery nor create lingering tank ghosts. Captured repair
+stations provide a three-metre circular lookout for their owning team, ignoring
+their own building but respecting other sight blockers. Host snapshots carry
+shot detections; replicas reconstruct station sight from ownership. Unit tests
+cover off-screen filtering, reveal expiry, replica presentation and ownership
+changes. All 286 workspace library tests, the LAN socket rematch test, strict
+Clippy and Linux/browser release builds passed. Muted 1280×800 browser captures
+verified the flag arrow and airdrop edge marker; the real-time airdrop check
+passed its three-minute spawn and 30-second expiry assertions.
+
+**Match airdrops (2026-10-04):** Enabled by default, with an Airdrops On/Off
+setting in desktop, compact/Deck and LAN lobbies. Every 180 seconds of match
+simulation, the authority samples a clear landing site with a route from a team
+spawn; water, cliffs and occupied tank footprints are rejected. A bounded search
+skips a drop if no suitable site is found. Each drop contains one charge of a
+random laser, rocket or plasma weapon, expires after exactly 30 seconds, and is
+removed immediately when one living player with an empty special slot drives
+over it. Existing inventory is preserved. Match creation seeds a separate random
+stream; sandbox worlds have no periodic drops. The public snapshot includes the
+drop outside fog, with a countdown/parachute marker and off-screen direction
+arrow. All LAN participants need the updated build.
+Unit tests cover timing, settings, landing sites on both game maps, occupied/dead
+tanks, competing collectors and public wire replication. The socket rematch test
+checks settings shared by clients. `tools/airdrop-smoke.mjs` checks both lobby
+layouts and waits through the real three-minute spawn and 30-second expiry; run
+its isolated Chrome with `--mute-audio`.
+
 **Exit menu action (2026-09-27):** Native desktop/Deck main and pause menus
 include Exit Game through the shared pointer/controller button handling. Exiting
 leaves an active LAN session and finishes the application loop. Browser menus

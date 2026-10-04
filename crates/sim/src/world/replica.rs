@@ -31,6 +31,7 @@ pub struct Bridge {
     pub intact: bool,
     pub fall_progress: f32,
     pub fragments: Vec<BodyView>,
+    pub repairs: [crate::BridgeRepairView; 2],
 }
 impl Bridge {
     pub fn view(&self) -> BridgeView<'_> {
@@ -40,6 +41,7 @@ impl Bridge {
             intact: self.intact,
             fall_progress: self.fall_progress,
             fragments: &self.fragments,
+            repairs: self.repairs,
         }
     }
 }
@@ -65,6 +67,7 @@ pub struct Frame {
     pub decorations: Vec<DecorationView>,
     pub bursts: Vec<(DecorationView, f32)>,
     pub pickups: Vec<PickupView>,
+    pub airdrop: Option<AirdropView>,
     pub stations: Vec<StationView>,
     pub stats: Stats,
     pub player: usize,
@@ -119,11 +122,13 @@ impl Frame {
                     intact: b.intact,
                     fall_progress: b.fall_progress,
                     fragments: b.fragments.to_vec(),
+                    repairs: b.repairs,
                 })
                 .collect(),
             decorations: world.decorations().collect(),
             bursts: world.decoration_bursts().collect(),
             pickups: world.pickups().collect(),
+            airdrop: world.airdrop(),
             stations: world.stations().collect(),
             stats: world.stats(),
             player: world.player_tank_id(),

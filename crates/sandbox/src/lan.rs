@@ -357,11 +357,12 @@ impl Lan {
             );
             text(
                 &format!(
-                    "TIME / {}",
+                    "TIME / {}    AIRDROPS / {}",
                     lobby
                         .config
                         .time_limit_seconds
-                        .map_or("UNLIMITED".into(), |s| format!("{} MIN", s / 60))
+                        .map_or("UNLIMITED".into(), |s| format!("{} MIN", s / 60)),
+                    if lobby.config.airdrops { "ON" } else { "OFF" }
                 ),
                 64.0,
                 243.0,
@@ -492,6 +493,24 @@ impl Lan {
                 ) && let Err(e) = crate::level_storage::pick_import()
                 {
                     self.status = e;
+                }
+                if button(
+                    Rect::new(
+                        328.0,
+                        if compact { size.y - 144.0 } else { 760.0 },
+                        250.0,
+                        38.0,
+                    ),
+                    if game.config.airdrops {
+                        "AIRDROPS / ON"
+                    } else {
+                        "AIRDROPS / OFF"
+                    },
+                    mouse,
+                    game.config.airdrops,
+                ) {
+                    game.config.airdrops = !game.config.airdrops;
+                    self.configure(game);
                 }
                 if let Some(import) = crate::level_storage::take_import() {
                     match import.and_then(|s| sim::level::Level::from_json(&s)) {

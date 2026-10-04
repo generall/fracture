@@ -185,13 +185,41 @@ pub fn draw(patches: &[TerrainPatch], view: &Viewport) {
                 }
             }
         }
-        for &(kind, a, b) in &cache.edges {
+        // Draw blocked boundaries last so adjacent traversable terrain cannot
+        // cover their stronger outline with its subdued border.
+        for &(kind, a, b) in cache
+            .edges
+            .iter()
+            .filter(|(kind, _, _)| !kind.blocks_tanks())
+            .chain(
+                cache
+                    .edges
+                    .iter()
+                    .filter(|(kind, _, _)| kind.blocks_tanks()),
+            )
+        {
             let a = view.screen(vec2(a.x, a.y));
             let b = view.screen(vec2(b.x, b.y));
             if kind == Kind::Cliff {
                 draw_line(a.x, a.y, b.x, b.y, 5.0, Color::from_rgba(65, 55, 46, 255));
             }
-            draw_line(a.x, a.y, b.x, b.y, 1.5, colors(kind).0);
+            let (accent, fill) = colors(kind);
+            let (width, border) = if kind.blocks_tanks() {
+                (1.5, accent)
+            } else {
+                // Keep terrain identity, but reserve high contrast for barriers.
+                // An opaque blend also avoids brightening shared, repeated edges.
+                (
+                    1.0,
+                    Color::new(
+                        fill.r + (accent.r - fill.r) * 0.3,
+                        fill.g + (accent.g - fill.g) * 0.3,
+                        fill.b + (accent.b - fill.b) * 0.3,
+                        1.0,
+                    ),
+                )
+            };
+            draw_line(a.x, a.y, b.x, b.y, width, border);
         }
     });
 }

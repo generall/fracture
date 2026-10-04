@@ -79,6 +79,7 @@ impl World {
                 max: Vector::new(3.4, 1.5),
             },
             [Vector::new(3.0, 2.05), Vector::new(-3.0, 2.05)],
+            terrain::repair::Blueprint::capture(self, object),
         ));
         self.rebuild_terrain_barriers();
     }

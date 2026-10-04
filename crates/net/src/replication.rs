@@ -39,6 +39,7 @@ pub fn visible_events(events: &[sim::Event], vision: &Vision, player: usize) -> 
 }
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Definition {
+    bridge_deck: bool,
     id: u32,
     object: Option<usize>,
     chunk: u32,
@@ -55,6 +56,7 @@ pub struct Definition {
 impl Definition {
     fn capture(b: &BodyView) -> Self {
         Self {
+            bridge_deck: b.bridge_deck,
             id: b.id as u32,
             object: b.object,
             chunk: b.chunk,
@@ -73,6 +75,7 @@ impl Definition {
         let position = Vec2::new(m.position[0] as f32, m.position[1] as f32) * 0.001;
         let angle = m.angle as f32 * std::f32::consts::PI / 32767.0;
         BodyView {
+            bridge_deck: self.bridge_deck,
             id: self.id as usize,
             object: self.object,
             chunk: self.chunk,
@@ -266,6 +269,102 @@ mod tests {
         let (delta, _) = crate::codec::decode::<Delta>(&bytes).unwrap().unwrap();
         let frame = Decoder::default().decode(delta).unwrap();
         World::from_replica(sim::replica::Map::capture(world), frame)
+    }
+    #[test]
+    fn bridge_deck_rendering_tag_survives_wire_without_hiding_supports() {
+        let world = World::new(sim::Scene::Terrain);
+        let client = through_wire(&world);
+        let deck: Vec<_> = world.bodies().filter(|b| b.bridge_deck).collect();
+        assert!(!deck.is_empty());
+        let object = deck[0].object;
+        assert!(world.bodies().any(|b| b.object == object && !b.bridge_deck));
+        let received: BTreeMap<_, _> = client.bodies().map(|b| (b.id, b.bridge_deck)).collect();
+        for body in world.bodies() {
+            assert_eq!(received.get(&body.id), Some(&body.bridge_deck));
+        }
+    }
+    #[test]
+    fn bridge_repair_progress_and_completion_survive_wire_updates() {
+        let world = World::new(sim::Scene::Terrain);
+        let mut frame = Frame::capture(&world);
+        let mut encoder = Encoder::default();
+        let mut decoder = Decoder::default();
+        for progress in [0.0, 0.5, 1.0] {
+            frame.bridges[0].intact = progress == 1.0;
+            frame.bridges[0].repairs[1] = sim::BridgeRepairView {
+                team: Some(Team::Red),
+                progress,
+                contested: progress == 0.5,
+            };
+            let bytes = crate::codec::encode(&encoder.encode_frame(frame.clone())).unwrap();
+            let (delta, _) = crate::codec::decode::<Delta>(&bytes).unwrap().unwrap();
+            let received = decoder.decode(delta).unwrap();
+            assert_eq!(received.bridges[0].repairs, frame.bridges[0].repairs);
+            assert_eq!(received.bridges[0].intact, progress == 1.0);
+        }
+    }
+    #[test]
+    fn public_airdrop_and_removal_survive_wire_updates() {
+        let world = World::from_level(&Level::default(), Team::Blue).unwrap();
+        let mut frame = Frame::capture(&world);
+        let drop = sim::AirdropView {
+            position: Vec2::new(15.0, 9.0),
+            weapon: sim::SpecialWeapon::Rocket,
+            remaining: 30.0,
+        };
+        assert!(
+            !frame.vision.contains(drop.position),
+            "drop is outside player's vision"
+        );
+        let mut encoder = Encoder::default();
+        let mut decoder = Decoder::default();
+        for expected in [Some(drop), None] {
+            frame.airdrop = expected;
+            strip_diagnostics(&mut frame);
+            let bytes = crate::codec::encode(&encoder.encode_frame(frame.clone())).unwrap();
+            let (delta, _) = crate::codec::decode::<Delta>(&bytes).unwrap().unwrap();
+            let received = decoder.decode(delta).unwrap();
+            let client = World::from_replica(sim::replica::Map::capture(&world), received);
+            assert_eq!(client.airdrop(), expected);
+        }
+    }
+
+    #[test]
+    fn rear_shot_detection_survives_wire_and_expires_on_clients() {
+        use sim::{
+            level::LevelItem,
+            multiplayer::{MultiplayerWorld, PlayerInput},
+        };
+        let mut level = Level::default();
+        if let LevelItem::Spawn { position, .. } = &mut level.items[0] {
+            *position = [0.0, 0.0];
+        }
+        if let LevelItem::Spawn { position, .. } = &mut level.items[1] {
+            *position = [-8.0, 0.0];
+        }
+        let mut game = MultiplayerWorld::new(&level, &[Team::Blue, Team::Red]).unwrap();
+        let enemy = game.tank_id(1).unwrap();
+        let mut inputs = [
+            PlayerInput {
+                aim: Vec2::new(20.0, 0.0),
+                ..Default::default()
+            },
+            PlayerInput {
+                aim: Vec2::new(-20.0, 0.0),
+                fire: true,
+                ..Default::default()
+            },
+        ];
+        game.step(&inputs);
+        let client = through_wire(game.for_player(0).unwrap());
+        assert!(client.player_vision(0.0).firing_tank_visible(enemy));
+        assert!(!client.player_vision(0.0).contains(Vec2::new(-8.0, 0.0)));
+        inputs[1].fire = false;
+        for _ in 0..119 {
+            game.step(&inputs);
+        }
+        let client = through_wire(game.for_player(0).unwrap());
+        assert!(!client.player_vision(0.0).firing_tank_visible(enemy));
     }
     #[test]
     fn client_vision_from_wire_matches_host_including_cover() {

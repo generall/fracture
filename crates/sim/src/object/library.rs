@@ -49,7 +49,7 @@ pub struct Explosive {
 impl Default for Explosive {
     fn default() -> Self {
         Self {
-            energy: 600_000.0,
+            energy: 1_200_000.0,
             radius: 3.0,
         }
     }

@@ -101,7 +101,7 @@ impl Game {
             19.0,
             MUTED,
         );
-        let width = (size.x - 96.0) / 3.0;
+        let width = (size.x - 108.0) / 4.0;
         let y = size.y - 206.0;
         if button(
             Rect::new(36.0, y, width, 48.0),
@@ -148,6 +148,18 @@ impl Game {
             } else {
                 EnemyActivity::Conquer
             };
+        }
+        if button(
+            Rect::new(72.0 + width * 3.0, y, width, 48.0),
+            if self.config.airdrops {
+                "AIRDROPS / ON"
+            } else {
+                "AIRDROPS / OFF"
+            },
+            mouse,
+            self.config.airdrops,
+        ) {
+            self.config.airdrops = !self.config.airdrops;
         }
         wrapped(
             if self.status.is_empty() {

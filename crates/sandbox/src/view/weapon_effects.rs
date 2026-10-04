@@ -1,6 +1,39 @@
 //! Weapon markers and effects use the normal world renderer.
 use super::*;
 
+pub(super) fn airdrop_marker(drop: &sim::AirdropView, view: &Viewport) {
+    let target = view.screen(v(drop.position));
+    let rect = view.rect;
+    if !rect.contains(target) {
+        return; // The shared edge indicator handles off-screen drops.
+    }
+    let p = target;
+    let r = 13.0;
+    let color = if drop.remaining <= 5.0 { PINK } else { CYAN };
+    draw_circle(p.x, p.y, 22.0, tint(PAPER, 0.9));
+    draw_rectangle_lines(p.x - r * 0.6, p.y - 2.0, r * 1.2, r, 2.0, color);
+    line(p + vec2(0.0, -2.0), p + vec2(0.0, r - 2.0), 1.0, color);
+    let canopy = [
+        vec2(-r, -8.0),
+        vec2(-r * 0.6, -16.0),
+        vec2(r * 0.6, -16.0),
+        vec2(r, -8.0),
+    ];
+    outline(&canopy.map(|q| p + q), 1.5, color, true);
+    line(p + canopy[0], p + vec2(-r * 0.6, -2.0), 1.0, color);
+    line(p + canopy[3], p + vec2(r * 0.6, -2.0), 1.0, color);
+    let label = format!(
+        "AIRDROP / {} / {:.0}s",
+        drop.weapon.label(),
+        drop.remaining.ceil()
+    );
+    let font_size = 15.0;
+    let width = measure_text(&label, None, font_size as u16, 1.0).width;
+    let x = (p.x - width * 0.5).clamp(rect.x + 8.0, (rect.right() - width - 8.0).max(rect.x + 8.0));
+    draw_rectangle(x - 4.0, p.y + 23.0, width + 8.0, 21.0, tint(PAPER, 0.9));
+    crate::ui::text(&label, x, p.y + 39.0, font_size, color);
+}
+
 pub(crate) fn pickup_marker(pickup: &sim::PickupView, view: &Viewport, opacity: f32) {
     let p = view.screen(v(pickup.position));
     let ready = pickup.remaining <= 0.0;

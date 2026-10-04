@@ -342,6 +342,7 @@ fn ready_and_start(host: &Host, clients: &mut [TestClient]) {
 fn time_limit_then_map_change_and_capture_rematch_reach_every_client() {
     let config = MatchConfig {
         time_limit_seconds: Some(1),
+        airdrops: false,
         ..Default::default()
     };
     let (host, mut clients) = connect_players(Level::default(), config, 2);
@@ -353,6 +354,8 @@ fn time_limit_then_map_change_and_capture_rematch_reach_every_client() {
     });
     for c in &clients {
         assert_eq!(c.progress.as_ref().unwrap().elapsed_ticks, 120);
+        assert!(!c.lobby.as_ref().unwrap().config.airdrops);
+        assert!(!c.progress.as_ref().unwrap().config.airdrops);
     }
     host.command(HostCommand::ReturnToLobby).unwrap();
     wait(&mut clients, Duration::from_secs(2), |c| {
@@ -383,6 +386,8 @@ fn time_limit_then_map_change_and_capture_rematch_reach_every_client() {
     });
     for c in &clients {
         assert_eq!(c.starts, 2);
+        assert!(c.lobby.as_ref().unwrap().config.airdrops);
+        assert!(c.progress.as_ref().unwrap().config.airdrops);
         assert_eq!(c.progress.as_ref().unwrap().elapsed_ticks, 1);
         assert!(c.events.iter().any(|e| matches!(
             e,

@@ -188,6 +188,9 @@ pub struct TankFragment {
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BodyView {
+    /// Elevated bridge mesh, drawn as a continuous deck during normal play.
+    #[serde(default)]
+    pub bridge_deck: bool,
     pub id: usize,
     /// Authored object shared by its material cells, including fixed polygons.
     pub object: Option<usize>,

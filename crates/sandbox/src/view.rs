@@ -1,4 +1,5 @@
 pub(crate) mod decorations;
+mod indicators;
 pub(crate) mod scene;
 pub(crate) mod tank_parts;
 mod weapon_effects;
@@ -199,40 +200,102 @@ fn draw_terrain(world: &World, viewport: &Viewport) {
 }
 
 fn draw_bridges(scene: &Scene, viewport: &Viewport) {
-    let rectangle = |min: sim::Vec2, max: sim::Vec2, fill, edge| {
-        let a = viewport.screen(v(min));
-        let b = viewport.screen(v(max));
-        draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, fill);
-        draw_rectangle_lines(a.x, a.y, b.x - a.x, b.y - a.y, 1.5, edge);
-    };
     for bridge in &scene.bridges {
         let water = tint(Color::from_rgba(91, 171, 227, 255), bridge.opacity);
         let bridge_color = tint(Color::from_rgba(218, 223, 191, 255), bridge.opacity);
+        let deck_color = Color::from_rgba(48, 57, 62, 255);
         if bridge.intact {
-            rectangle(bridge.deck.min, bridge.deck.max, PAPER, bridge_color);
             let vertical = (bridge.controls[1] - bridge.controls[0]).y.abs()
                 > (bridge.controls[1] - bridge.controls[0]).x.abs();
-            for side in [0.14, -0.14] {
-                let (a, b) = if vertical {
-                    let x = if side > 0.0 {
-                        bridge.deck.min.x + side
-                    } else {
-                        bridge.deck.max.x + side
-                    };
-                    (vec2(x, bridge.deck.min.y), vec2(x, bridge.deck.max.y))
+            let size = bridge.deck.max - bridge.deck.min;
+            let (length, width) = if vertical {
+                (size.y, size.x)
+            } else {
+                (size.x, size.y)
+            };
+            let point = |along: f32, across: f32| {
+                viewport.screen(
+                    v(bridge.deck.min)
+                        + if vertical {
+                            vec2(across, along)
+                        } else {
+                            vec2(along, across)
+                        },
+                )
+            };
+            let strip = |along, across, length, width, color| {
+                let a = point(along, across);
+                let b = point(along + length, across + width);
+                draw_rectangle(a.x, a.y, b.x - a.x, b.y - a.y, tint(color, bridge.opacity));
+            };
+            let a = point(0.0, 0.0);
+            let b = point(length, width);
+            let shadow = (viewport.scale * 0.12).clamp(1.0, 5.0);
+            draw_rectangle(
+                a.x + shadow,
+                a.y + shadow,
+                b.x - a.x,
+                b.y - a.y,
+                tint(BLACK, 0.3 * bridge.opacity),
+            );
+            strip(0.0, 0.0, length, width, deck_color);
+            // Broad guardrails identify the water-facing edges. The entrances
+            // stay open and subdued, continuous with the drivable roadway.
+            for across in [0.0, width - 0.18] {
+                strip(
+                    0.0,
+                    across,
+                    length,
+                    0.18,
+                    Color::from_rgba(119, 134, 138, 255),
+                );
+                strip(
+                    0.0,
+                    across + 0.05,
+                    length,
+                    0.04,
+                    Color::from_rgba(181, 193, 186, 255),
+                );
+            }
+            for across in [0.18, width - 0.28] {
+                strip(0.0, across, length, 0.1, Color::from_rgba(26, 34, 39, 255));
+            }
+            for along in [0.0, length - 0.25] {
+                strip(
+                    along,
+                    0.28,
+                    0.25,
+                    width - 0.56,
+                    Color::from_rgba(65, 74, 77, 255),
+                );
+            }
+            let mut along = 0.65;
+            let spacing = 2.0_f32.max(18.0 / viewport.scale);
+            while along < length - 0.5 {
+                strip(
+                    along,
+                    width * 0.5 - 0.045,
+                    0.75_f32.min(length - 0.5 - along),
+                    0.09,
+                    Color::from_rgba(155, 149, 112, 255),
+                );
+                along += spacing;
+            }
+            // Solid caps separate the destructible support booths from the deck.
+            for control in &bridge.controls {
+                let half = if vertical {
+                    vec2(0.55, 0.4)
                 } else {
-                    let y = if side > 0.0 {
-                        bridge.deck.min.y + side
-                    } else {
-                        bridge.deck.max.y + side
-                    };
-                    (vec2(bridge.deck.min.x, y), vec2(bridge.deck.max.x, y))
+                    vec2(0.4, 0.55)
                 };
-                line(
-                    viewport.screen(a),
-                    viewport.screen(b),
-                    1.4,
-                    tint(bridge_color, 0.5),
+                let lo = viewport.screen(v(*control) - half);
+                let hi = viewport.screen(v(*control) + half);
+                draw_rectangle(
+                    lo.x,
+                    lo.y,
+                    hi.x - lo.x,
+                    hi.y - lo.y,
+                    tint(Color::from_rgba(78, 79, 67, 255), bridge.opacity),
                 );
             }
         } else {
@@ -252,6 +315,12 @@ fn draw_bridges(scene: &Scene, viewport: &Viewport) {
                     Vec2::from_angle(body.angle + ((body.id % 5) as f32 - 2.0) * t * 0.1);
                 let points = vertices
                     .map(|p| viewport.screen(center + rotation.rotate(v(p)) * (1.0 - t * 0.25)));
+                draw_triangle(
+                    points[0],
+                    points[1],
+                    points[2],
+                    tint(deck_color, bridge.opacity * (1.0 - t).powi(2)),
+                );
                 for i in 0..3 {
                     if body.edges & (1 << i) != 0 {
                         line(
@@ -281,13 +350,51 @@ fn draw_bridges(scene: &Scene, viewport: &Viewport) {
             let color = if bridge.intact {
                 bridge_color
             } else {
-                tint(PINK, bridge.opacity)
+                let repair = bridge.repairs[i];
+                let color = match repair.team {
+                    Some(sim::level::Team::Blue) => CYAN,
+                    Some(sim::level::Team::Red) => PINK,
+                    None => MUTED,
+                };
+                let color = tint(color, bridge.opacity);
+                let radius = viewport.scale * sim::BRIDGE_REPAIR_RADIUS;
+                draw_circle(p.x, p.y, radius, tint(color, 0.06));
+                draw_circle_lines(p.x, p.y, radius, 1.0, tint(color, 0.45));
+                let mut previous = p - vec2(0.0, radius);
+                for step in 1..=40 {
+                    let angle = -std::f32::consts::FRAC_PI_2
+                        + std::f32::consts::TAU * repair.progress * step as f32 / 40.0;
+                    let next = p + Vec2::from_angle(angle) * radius;
+                    line(previous, next, 2.5, color);
+                    previous = next;
+                }
+                let label = if repair.contested {
+                    "CONTESTED".to_owned()
+                } else if repair.progress >= 1.0 {
+                    "CLEAR OUTPOST".to_owned()
+                } else {
+                    format!(
+                        "REPAIR / {:.0}s",
+                        ((1.0 - repair.progress) * sim::BRIDGE_REPAIR_SECONDS).ceil()
+                    )
+                };
+                let width = measure_text(&label, None, 14, 1.0).width;
+                let y = p.y - radius - 8.0;
+                draw_rectangle(
+                    p.x - width * 0.5 - 4.0,
+                    y - 14.0,
+                    width + 8.0,
+                    18.0,
+                    tint(PAPER, bridge.opacity * 0.9),
+                );
+                crate::ui::text(&label, p.x - width * 0.5, y, 14.0, color);
+                color
             };
             draw_circle_lines(p.x, p.y, viewport.scale * 0.3, 1.8, color);
             let label = if bridge.intact {
                 if i == 0 { "B" } else { "A" }
             } else {
-                "X"
+                "+"
             };
             draw_text(label, p.x - 5.0, p.y + 5.0, 17.0, color);
         }
@@ -350,6 +457,11 @@ pub fn draw_world(
     }
     draw_effects(world, viewport, alpha, sparks, blasts, vision);
     draw_crosshair(world, viewport, aim, alpha);
+    // Supply drops are public objectives, independent of fog memory.
+    if let Some(drop) = world.airdrop() {
+        weapon_effects::airdrop_marker(&drop, viewport);
+    }
+    indicators::draw(world, scene, viewport);
 }
 
 // Ordinary screen-space geometry only; objects never pass through a texture/mask.
@@ -423,7 +535,7 @@ fn draw_objects(scene: &Scene, viewport: &Viewport, alpha: f32, overlay: bool) {
         );
     }
     for body in &scene.bodies {
-        if body.material == Material::Launcher {
+        if body.material == Material::Launcher || (body.bridge_deck && !overlay) {
             continue;
         }
         let center = viewport.screen(v(body.previous_position).lerp(v(body.position), alpha));

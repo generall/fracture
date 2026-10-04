@@ -20,11 +20,15 @@ pub use object::{
     ObjectAsset, ObjectLibrary, ObjectMesh, ObjectPreset, Plasticity, SoftBounce, Surface,
 };
 pub use rapier2d::math::Vector as Vec2;
-pub use terrain::{BridgeView, TerrainKind, TerrainPatch};
+pub use terrain::{
+    BRIDGE_REPAIR_RADIUS, BRIDGE_REPAIR_SECONDS, BridgeRepairView, BridgeView, TerrainKind,
+    TerrainPatch,
+};
 pub use world::{
-    AimView, BodyView, BondView, Command, DestructionCause, Event, LaserBeam, NEAR_VISION,
-    PickupView, Scene, Shape, Shell, Shot, StationView, Stats, TICK_DT, TankDestruction,
-    TankFragment, TankImpact, TankView, VISION_HALF_ANGLE, VISION_RANGE, Vision, World,
+    AimView, AirdropView, BodyView, BondView, Command, DestructionCause, Event, LaserBeam,
+    NEAR_VISION, PickupView, Scene, Shape, Shell, Shot, StationView, Stats, TICK_DT,
+    TankDestruction, TankFragment, TankImpact, TankView, VISION_HALF_ANGLE, VISION_RANGE, Vision,
+    World,
 };
 
 pub use world::multiplayer;

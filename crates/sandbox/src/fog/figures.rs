@@ -42,6 +42,7 @@ pub(super) struct Figures {
     remembered: BTreeMap<Id, Figure>,
     last_seen: BTreeMap<Id, f64>,
     initialized: bool,
+    shot_only: BTreeSet<Id>,
 }
 pub(super) struct Frame {
     pub visible: BTreeSet<Id>,
@@ -74,6 +75,12 @@ impl Figures {
         self.observe(current, vision, now)
     }
     fn observe(&mut self, current: BTreeMap<Id, Figure>, vision: &Vision, now: f64) -> Frame {
+        // Brief shot detections do not become persistent ghosts or inherit the
+        // scenery grace period. Normal sight can still observe them below.
+        for id in std::mem::take(&mut self.shot_only) {
+            self.remembered.remove(&id);
+            self.last_seen.remove(&id);
+        }
         let regions: Vec<_> = vision
             .regions()
             .filter(|r| !r.boundary.is_empty())
@@ -125,18 +132,31 @@ impl Figures {
             scene: Scene::default(),
         };
         for (id, figure) in current {
+            let shot_visible = figure
+                .snapshot
+                .tanks
+                .first()
+                .is_some_and(|tank| vision.firing_tank_visible(tank.id));
             let tank_visibility = figure
                 .snapshot
                 .tanks
                 .first()
                 .and_then(|tank| vision.tank_visibility(tank.id));
+            let normally_visible =
+                tank_visibility.unwrap_or_else(|| figure.visible(vision, &regions));
+            if shot_visible && !normally_visible {
+                frame.visible.insert(id);
+                self.shot_only.insert(id);
+                self.remembered.insert(id, figure);
+                continue;
+            }
             if tank_visibility == Some(false) {
                 // Entering cover and the five-second reveal deadline must not
                 // inherit the ordinary scenery visibility cooldown.
                 self.last_seen.remove(&id);
                 continue;
             }
-            if tank_visibility.unwrap_or_else(|| figure.visible(vision, &regions)) {
+            if normally_visible {
                 self.last_seen.insert(id, now);
             }
             // Keep live geometry during brief sight interruptions. Only actual
@@ -339,6 +359,58 @@ mod tests {
         );
         let unseen = Figures::default().update(&covered, &vision, 0.0);
         assert!(!unseen.scene.tanks.iter().any(|t| t.id == enemy));
+    }
+
+    #[test]
+    fn rear_shot_expires_without_a_memory_or_extra_visibility_cooldown() {
+        use sim::{
+            level::{Level, LevelItem, Team},
+            multiplayer::{MultiplayerWorld, PlayerInput},
+        };
+        let mut level = Level::default();
+        if let LevelItem::Spawn { position, .. } = &mut level.items[0] {
+            *position = [0.0, 0.0];
+        }
+        if let LevelItem::Spawn { position, .. } = &mut level.items[1] {
+            *position = [-8.0, 0.0];
+        }
+        let mut game = MultiplayerWorld::new(&level, &[Team::Blue, Team::Red]).unwrap();
+        let enemy = game.tank_id(1).unwrap();
+        let mut inputs = [
+            PlayerInput {
+                aim: Vec2::new(20.0, 0.0),
+                ..Default::default()
+            },
+            PlayerInput {
+                aim: Vec2::new(-20.0, 0.0),
+                fire: true,
+                ..Default::default()
+            },
+        ];
+        let mut memory = Figures::default();
+        game.step(&inputs);
+        let world = game.for_player(0).unwrap();
+        let client = World::from_replica(
+            sim::replica::Map::capture(world),
+            sim::replica::Frame::capture(world),
+        );
+        let seen = memory.update(&client, &client.player_vision(0.0), 0.0);
+        assert!(seen.scene.tanks.iter().any(|t| t.id == enemy));
+        inputs[1].fire = false;
+        for _ in 0..119 {
+            game.step(&inputs);
+        }
+        let world = game.for_player(0).unwrap();
+        let client = World::from_replica(
+            sim::replica::Map::capture(world),
+            sim::replica::Frame::capture(world),
+        );
+        let hidden = memory.update(&client, &client.player_vision(0.0), 0.99);
+        assert!(!hidden.scene.tanks.iter().any(|t| t.id == enemy));
+        assert!(
+            !hidden.scene.bodies.iter().any(|b| b.id == enemy),
+            "no ghost remains"
+        );
     }
     #[test]
     fn stations_share_the_building_figure_and_remember_last_seen_ownership() {

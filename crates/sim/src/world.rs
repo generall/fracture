@@ -12,9 +12,11 @@ pub const TICK_DT: f32 = 1.0 / 120.0;
 const SUBSTEPS: usize = 4;
 const DEPTH: f32 = 0.25;
 mod aiming;
+mod airdrops;
 pub mod multiplayer;
 pub mod replica;
 mod specials;
+pub use airdrops::AirdropView;
 pub use specials::PickupView;
 mod api;
 pub use aiming::AimView;
@@ -83,6 +85,7 @@ impl Solid {
     }
 }
 
+#[derive(Clone)]
 struct Piece {
     reference_area: f32,
     /// Authored triangle edge lengths, retained as the deformable frame bends.
@@ -248,6 +251,7 @@ pub struct World {
     special_interval: f32,
     special_reload: f32,
     pickups: Vec<specials::Pickup>,
+    airdrops: airdrops::Airdrops,
     decorations: Vec<decorations::Decoration>,
     laser_remaining: f32,
     plasma_remaining: f32,
@@ -322,6 +326,7 @@ impl World {
             bond.load *= 0.965;
         }
         self.update_tanks(events);
+        self.advance_airdrops();
         for shell in &mut self.shells {
             shell.previous_position = shell.position;
         }
@@ -424,6 +429,7 @@ impl World {
         profile!(self, cleanup, {
             if self.winner.is_none() {
                 self.update_stations();
+                self.update_bridge_repairs();
             }
             self.update_decorations(events);
             self.cleanup_debris();

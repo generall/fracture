@@ -56,6 +56,7 @@ impl World {
                 let body = self.physics.bodies.get(piece.body)?;
                 let pose = *body.position() * piece.local_pose;
                 Some(BodyView {
+                    bridge_deck: piece.bridge_deck,
                     id,
                     object: piece.object,
                     chunk: piece.body.into_raw_parts().0,

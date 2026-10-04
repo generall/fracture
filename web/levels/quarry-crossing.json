@@ -1027,7 +1027,7 @@
             "resistance": 0.0001
           },
           "explosive": {
-            "energy": 600000.0,
+            "energy": 1200000.0,
             "radius": 3.0
           },
           "plasticity": {
@@ -1156,7 +1156,7 @@
             "resistance": 0.0001
           },
           "explosive": {
-            "energy": 600000.0,
+            "energy": 1200000.0,
             "radius": 3.0
           },
           "plasticity": {
@@ -2251,7 +2251,7 @@
             "resistance": 0.0001
           },
           "explosive": {
-            "energy": 600000.0,
+            "energy": 1200000.0,
             "radius": 3.0
           },
           "plasticity": {
@@ -2380,7 +2380,7 @@
             "resistance": 0.0001
           },
           "explosive": {
-            "energy": 600000.0,
+            "energy": 1200000.0,
             "radius": 3.0
           },
           "plasticity": {

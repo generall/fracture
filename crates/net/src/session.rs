@@ -395,6 +395,11 @@ impl Server {
                         return;
                     }
                 };
+                let seed = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos() as u64;
+                game.configure_airdrops(self.lobby.config.airdrops, seed);
                 let map = Map::capture(game.world());
                 self.progress = MatchProgress::new(self.lobby.config);
                 for (index, slot) in self.lobby.players.iter().map(|p| p.slot).enumerate() {

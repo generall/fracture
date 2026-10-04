@@ -53,6 +53,7 @@ impl World {
             special_interval: 0.0,
             special_reload: 0.0,
             pickups: vec![],
+            airdrops: Default::default(),
             decorations: vec![],
             laser_remaining: 0.0,
             plasma_remaining: 0.0,

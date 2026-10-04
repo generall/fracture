@@ -197,6 +197,9 @@ impl MultiplayerWorld {
     pub fn player_count(&self) -> usize {
         self.players.len()
     }
+    pub fn configure_airdrops(&mut self, enabled: bool, seed: u64) {
+        self.world.configure_airdrops(enabled, seed);
+    }
     pub fn shots(&self, player: usize) -> usize {
         self.players.get(player).map_or(0, |p| p.shots)
     }
@@ -314,6 +317,111 @@ impl MultiplayerWorld {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn bridge_repair_takes_fifteen_seconds_with_multiple_players() {
+        let mut level = Level::default();
+        level.items.push(LevelItem::Bridge {
+            min: [-3.0, -3.0],
+            max: [3.0, 3.0],
+            vertical: false,
+            flipped: false,
+        });
+        let mut game = MultiplayerWorld::new(&level, &[Team::Blue, Team::Red]).unwrap();
+        let object = game.world.bodies().find(|b| b.bridge_deck).unwrap().object;
+        for bond in &mut game.world.bonds {
+            if game.world.pieces[bond.a].object == object
+                || game.world.pieces[bond.b].object == object
+            {
+                bond.active = false;
+            }
+        }
+        game.world.update_bridges(0.0, &mut vec![]);
+        let control = game.world.bridges().next().unwrap().controls[0];
+        let id = game.players[0].id;
+        let pose = (0..64)
+            .find_map(|n| {
+                let p =
+                    control + Vector::from_angle(n as f32 * std::f32::consts::TAU / 64.0) * 0.98;
+                let pose = Pose::new(p, 0.0);
+                game.world.tank_pose_clear(id, pose).then_some(pose)
+            })
+            .unwrap();
+        let body = game.world.pieces[id].body;
+        game.world.physics.bodies[body].set_position(pose, true);
+        for _ in 0..1799 {
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        assert!(!game.world.bridges().next().unwrap().intact);
+        assert!(game.world.bridges().next().unwrap().repairs[0].progress > 0.99);
+        game.step(&[PlayerInput::default(); 2]);
+        for player in 0..2 {
+            assert!(
+                game.for_player(player)
+                    .unwrap()
+                    .bridges()
+                    .next()
+                    .unwrap()
+                    .intact
+            );
+        }
+    }
+    #[test]
+    fn airdrop_is_shared_and_only_one_player_can_collect_it() {
+        let mut game = MultiplayerWorld::new(&Level::default(), &[Team::Blue, Team::Red]).unwrap();
+        game.configure_airdrops(true, 12);
+        game.world.tick = 180 * 120 - 1;
+        game.step(&[PlayerInput::default(); 2]);
+        let drop = game.world.airdrop().unwrap();
+        assert!(
+            (drop.remaining - 30.0).abs() < 0.001,
+            "timer advances once, not per player"
+        );
+        for player in 0..2 {
+            let world = game.for_player(player).unwrap();
+            let frame = replica::Frame::capture(world);
+            assert_eq!(frame.airdrop, Some(drop));
+            let client = World::from_replica(replica::Map::capture(world), frame);
+            assert_eq!(client.airdrop(), Some(drop));
+        }
+        // Both tanks overlap the same pickup before this tick's physics step.
+        for player in &game.players {
+            let body = game.world.pieces[player.id].body;
+            game.world.physics.bodies[body].set_position(Pose::new(drop.position, 0.0), true);
+        }
+        game.step(&[PlayerInput::default(); 2]);
+        assert_eq!(
+            game.players
+                .iter()
+                .filter(|p| p.weapons.charges == 1)
+                .count(),
+            1
+        );
+        for player in 0..2 {
+            assert!(
+                replica::Frame::capture(game.for_player(player).unwrap())
+                    .airdrop
+                    .is_none()
+            );
+        }
+        game.world.tick = 180 * 120 + 60;
+        game.step(&[PlayerInput::default(); 2]);
+        assert!(
+            game.world.airdrop().is_none(),
+            "a used drop does not respawn"
+        );
+        game.world.tick = 2 * 180 * 120 - 1;
+        game.step(&[PlayerInput::default(); 2]);
+        let next = game.world.airdrop().unwrap();
+        let remote = game.players[1].id;
+        let body = game.world.pieces[remote].body;
+        game.world.physics.bodies[body].set_position(Pose::new(next.position, 0.0), true);
+        game.step(&[PlayerInput::default(); 2]);
+        let remote_view = game.for_player(1).unwrap();
+        assert_eq!(remote_view.carried_special(), Some(next.weapon));
+        assert_eq!(remote_view.special_charges(), 1);
+        assert!(game.for_player(0).unwrap().airdrop().is_none());
+    }
+
     #[test]
     fn shared_visibility_cache_matches_uncached_views_and_expires_before_physics() {
         let mut game = MultiplayerWorld::new(

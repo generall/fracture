@@ -84,4 +84,15 @@ pub struct BridgeView<'a> {
     /// Zero at failure, one when the span has disappeared under water.
     pub fall_progress: f32,
     pub fragments: &'a [BodyView],
+    pub repairs: [BridgeRepairView; 2],
+}
+
+pub const BRIDGE_REPAIR_RADIUS: f32 = 1.0;
+pub const BRIDGE_REPAIR_SECONDS: f32 = 15.0;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BridgeRepairView {
+    pub team: Option<crate::level::Team>,
+    pub progress: f32,
+    pub contested: bool,
 }

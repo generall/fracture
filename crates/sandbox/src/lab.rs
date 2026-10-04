@@ -120,7 +120,15 @@ impl Lab {
         level: &sim::level::Level,
         config: sim::matchplay::MatchConfig,
     ) -> Result<(), String> {
-        let world = config.create_world(level)?;
+        let mut world = config.create_world(level)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+        #[cfg(target_arch = "wasm32")]
+        let seed = macroquad::prelude::get_time().to_bits();
+        world.configure_airdrops(config.airdrops, seed);
         self.world = world;
         self.match_progress = Some(sim::matchplay::MatchProgress::new(config));
         self.inspector = Inspector::default();

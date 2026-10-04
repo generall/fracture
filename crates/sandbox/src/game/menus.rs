@@ -152,6 +152,18 @@ impl Game {
                 EnemyActivity::Conquer
             };
         }
+        if button(
+            Rect::new(64.0, 578.0, 338.0, 38.0),
+            if self.config.airdrops {
+                "AIRDROPS / ON"
+            } else {
+                "AIRDROPS / OFF"
+            },
+            mouse,
+            self.config.airdrops,
+        ) {
+            self.config.airdrops = !self.config.airdrops;
+        }
         text(
             "Capture the enemy flag to win. Tanks respawn after 3 seconds.",
             64.0,

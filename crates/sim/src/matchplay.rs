@@ -9,6 +9,11 @@ pub struct MatchConfig {
     pub team: Team,
     pub time_limit_seconds: Option<u32>,
     pub opponent: EnemyActivity,
+    #[serde(default = "airdrops_enabled")]
+    pub airdrops: bool,
+}
+fn airdrops_enabled() -> bool {
+    true
 }
 impl Default for MatchConfig {
     fn default() -> Self {
@@ -16,6 +21,7 @@ impl Default for MatchConfig {
             team: Team::Blue,
             time_limit_seconds: Some(600),
             opponent: EnemyActivity::Conquer,
+            airdrops: true,
         }
     }
 }
@@ -59,7 +65,9 @@ impl MatchConfig {
         }
         let mut recipe = level.clone();
         recipe.enemy_activity = self.opponent;
-        World::from_level(&recipe, self.team)
+        let mut world = World::from_level(&recipe, self.team)?;
+        world.configure_airdrops(self.airdrops, 0);
+        Ok(world)
     }
 }
 

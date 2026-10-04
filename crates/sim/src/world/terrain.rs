@@ -1,6 +1,7 @@
 use super::*;
 use crate::{BridgeView, TerrainKind, TerrainPatch};
 use std::collections::BTreeSet;
+pub(in crate::world) mod repair;
 
 pub(super) struct Bridge {
     object: usize,
@@ -10,6 +11,8 @@ pub(super) struct Bridge {
     fall: Option<f32>,
     fragments: Vec<BodyView>,
     checked: Option<(usize, usize, usize, usize)>,
+    blueprint: repair::Blueprint,
+    repairs: [repair::Capture; 2],
 }
 
 impl World {
@@ -26,6 +29,7 @@ impl World {
                 intact: b.fall.is_none(),
                 fall_progress: b.fall.map_or(0.0, |t| (t / 1.4).min(1.0)),
                 fragments: &b.fragments,
+                repairs: b.repairs.map(|r| r.view()),
             })
             .chain(
                 self.replica
@@ -228,6 +232,7 @@ impl Bridge {
         anchors: [usize; 2],
         deck: TerrainPatch,
         controls: [Vector; 2],
+        blueprint: repair::Blueprint,
     ) -> Self {
         Self {
             object,
@@ -237,6 +242,8 @@ impl Bridge {
             fall: None,
             fragments: Vec::new(),
             checked: None,
+            blueprint,
+            repairs: Default::default(),
         }
     }
 }

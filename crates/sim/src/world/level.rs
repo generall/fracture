@@ -316,6 +316,7 @@ impl World {
                 max,
             },
             controls,
+            terrain::repair::Blueprint::capture(self, object),
         ));
         Ok(())
     }

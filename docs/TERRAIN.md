@@ -29,6 +29,20 @@ At failure, the crossing closes immediately. The fractured span falls and fades 
 
 This first implementation models the vertical layer explicitly as a gameplay rule in the horizontal simulation: tanks drive above the deck, exposed support material can be rammed, and all weapons travel above the deck. Blasts load the exposed booths, whose structural stress can still propagate through the connected span. Water collision barriers affect the tank and do not intercept shells, laser beams or blast rays.
 
+## Repairing a bridge
+
+After a bridge collapses, either ruined outpost becomes a repair capture point.
+Keep the center of a living tank within **1 metre** for **15 simulated seconds**
+to restore the full deck and both booths. A ring and countdown show progress.
+Leaving the radius resets that outpost's progress; opposing teams inside the
+same radius pause capture. Multiple teammates do not speed up the timer.
+Either team can repair the bridge, and the restored crossing is usable by everyone.
+
+If a tank occupies a returning booth, restoration moves it to a nearby clear
+position. If no safe position exists, the completed capture waits and displays
+`CLEAR OUTPOST`. Repairs restore the original structure and can be repeated
+after further destruction. Progress and completion are replicated in LAN games.
+
 ## Implementation scope
 
 The range recipe is authored in `crates/sim/src/world/scenes/terrain.rs`; crossing and collapse live in `world/terrain.rs`, and collision/weapon targeting rules live in `world/collision.rs`. Public `TerrainKind`, `TerrainPatch` and `BridgeView` provide rendering and inspection data; `World::terrain_at`, `bridges`, `tank_alive` and `tank_fall_progress` expose current state. Patch bounds, road/sand traction multipliers and the bridge material recipe live in Rust for this first version. The object editor and comparison-file format do not yet author terrain maps.

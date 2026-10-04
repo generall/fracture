@@ -154,6 +154,9 @@ impl World {
             }
         }
         if self.special.is_none() && !self.special_active() {
+            self.collect_airdrop();
+        }
+        if self.special.is_none() && !self.special_active() {
             let position = self.launcher_position();
             let rotation = self.piece_pose(self.launcher).rotation.inverse();
             if let Some(pickup) = self.pickups.iter_mut().find(|p| {

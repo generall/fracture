@@ -181,6 +181,42 @@ mod tests {
     }
 
     #[test]
+    fn repair_lookout_is_small_team_owned_and_replicated() {
+        let mut w = world(StationKind::Repair);
+        let target = Vector::new(2.5, 0.0);
+        assert!(!w.player_vision(std::f32::consts::PI).contains(target));
+        w.stations[0].view.owner = Some(Team::Blue);
+        let vision = w.player_vision(std::f32::consts::PI);
+        assert!(
+            vision.contains(target),
+            "station must see beyond its own building"
+        );
+        assert!(
+            !vision.contains(Vector::new(4.0, 0.0)),
+            "lookout has only a small radius"
+        );
+        w.player_aim.angle = std::f32::consts::PI;
+        let replica = World::from_replica(replica::Map::capture(&w), replica::Frame::capture(&w));
+        assert!(replica.player_vision(0.0).contains(target));
+        w.stations[0].view.owner = None;
+        assert!(!w.player_vision(std::f32::consts::PI).contains(target));
+        w.stations[0].view.owner = Some(Team::Red);
+        assert!(!w.player_vision(std::f32::consts::PI).contains(target));
+        w.team = Team::Red;
+        assert!(w.player_vision(std::f32::consts::PI).contains(target));
+        w.add_box(
+            Vector::new(1.5, 0.0),
+            Vector::new(0.2, 2.0),
+            Material::Anchor,
+            true,
+        );
+        assert!(
+            !w.player_vision(std::f32::consts::PI).contains(target),
+            "other walls still block the lookout"
+        );
+    }
+
+    #[test]
     fn stations_capture_pause_reset_and_change_owner() {
         let mut w = world(StationKind::Repair);
         assert_eq!(w.stations().next().unwrap().owner, None);

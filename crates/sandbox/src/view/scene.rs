@@ -8,6 +8,7 @@ pub(crate) struct Bridge {
     pub intact: bool,
     pub fall_progress: f32,
     pub fragments: Vec<BodyView>,
+    pub repairs: [sim::BridgeRepairView; 2],
     pub opacity: f32,
 }
 impl From<sim::BridgeView<'_>> for Bridge {
@@ -18,6 +19,7 @@ impl From<sim::BridgeView<'_>> for Bridge {
             intact: b.intact,
             fall_progress: b.fall_progress,
             fragments: b.fragments.to_vec(),
+            repairs: b.repairs,
             opacity: 1.0,
         }
     }

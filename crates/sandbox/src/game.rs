@@ -194,8 +194,18 @@ mod diagnostics {
     static SCREEN: AtomicU32 = AtomicU32::new(0);
     static PHASE: AtomicU32 = AtomicU32::new(0);
     static TICKS: AtomicU32 = AtomicU32::new(0);
+    static AIRDROPS: AtomicU32 = AtomicU32::new(0);
+    static AIRDROP_REMAINING: AtomicU32 = AtomicU32::new(0);
     pub fn publish(game: &Game, lab: &Lab) {
         READY.store(1, Ordering::Relaxed);
+        AIRDROPS.store(u32::from(game.config.airdrops), Ordering::Relaxed);
+        AIRDROP_REMAINING.store(
+            lab.world
+                .airdrop()
+                .map_or(0.0, |drop| drop.remaining)
+                .to_bits(),
+            Ordering::Relaxed,
+        );
         SCREEN.store(game.screen as u32, Ordering::Relaxed);
         PHASE.store(
             if game.screen != Screen::Match {
@@ -237,6 +247,14 @@ mod diagnostics {
     #[unsafe(no_mangle)]
     pub extern "C" fn game_match_ticks() -> u32 {
         TICKS.load(Ordering::Relaxed)
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn game_airdrops_enabled() -> u32 {
+        AIRDROPS.load(Ordering::Relaxed)
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn game_airdrop_remaining() -> f32 {
+        f32::from_bits(AIRDROP_REMAINING.load(Ordering::Relaxed))
     }
 }
 #[cfg(target_arch = "wasm32")]
