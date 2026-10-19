@@ -28,6 +28,8 @@ fn special_status(world: &sim::World) -> Option<(SpecialWeapon, String)> {
         world.carried_special().map(|weapon| {
             let status = if world.special_cooldown() > 0.0 {
                 format!("RELOAD {:.1}s", world.special_cooldown())
+            } else if weapon == SpecialWeapon::Mine {
+                crate::controller_ui::prompt("G / RMB TO PLACE", "LT TO PLACE").into()
             } else {
                 "READY".into()
             };
@@ -68,23 +70,38 @@ impl Game {
                 text(&status, x + 14.0, 67.0, 17.0, INK);
             }
         }
+        if !modal && !lab.world.tank_alive() && lab.world.player_respawn_remaining().is_some() {
+            self.draw_deployment(size, mouse, lab);
+            return None;
+        }
         if self.help && !modal {
             draw_rectangle(24.0, 104.0, 500.0, 204.0, PAPER);
             draw_rectangle_lines(24.0, 104.0, 500.0, 204.0, 1.0, RULE);
             for (i, line) in [
                 crate::controller_ui::prompt("WASD / MOVE & STEER", "LEFT STICK / MOVE & STEER"),
-                crate::controller_ui::prompt(
-                    "MOUSE / Q E / J K / AIM TURRET",
-                    "RIGHT STICK / AIM TURRET",
-                ),
+                if lab.world.player_vehicle() == sim::VehicleKind::Mortar {
+                    crate::controller_ui::prompt(
+                        "MOUSE DISTANCE / Q E / J K / RANGE",
+                        "RIGHT STICK UP/DOWN / SHELL RANGE",
+                    )
+                } else {
+                    crate::controller_ui::prompt(
+                        "MOUSE / Q E / J K / AIM TURRET",
+                        "RIGHT STICK / AIM TURRET",
+                    )
+                },
                 crate::controller_ui::prompt(
                     "SPACE/LMB/F FIRE / G/RMB SPECIAL",
                     "RT / FIRE     LT / SPECIAL",
                 ),
-                crate::controller_ui::prompt(
-                    "5 / 6 / B / CHANGE MAIN-GUN ROUND",
-                    "RB / CHANGE MAIN-GUN ROUND",
-                ),
+                match lab.world.player_vehicle() {
+                    sim::VehicleKind::Scout => "SMALL GUN / HOLD FIRE / NO SPECIALS",
+                    sim::VehicleKind::Mortar => "TURN THE HULL TO AIM THE FIXED GUN",
+                    sim::VehicleKind::Tank => crate::controller_ui::prompt(
+                        "5 / 6 / B / CHANGE MAIN-GUN ROUND",
+                        "RB / CHANGE MAIN-GUN ROUND",
+                    ),
+                },
                 crate::controller_ui::prompt(
                     "WHEEL / ZOOM     ESC / MATCH MENU",
                     "D-PAD UP/DOWN ZOOM / MENU PAUSE",

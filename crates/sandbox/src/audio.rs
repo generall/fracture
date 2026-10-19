@@ -322,7 +322,7 @@ impl Audio {
             // Stop existing transients when muting/changing FX; don't unmute old shots.
             self.stop_effects();
         }
-        let ticks = lab.world.stats().ticks;
+        let ticks = lab.world.tick_count();
         if ticks < self.ticks || gameplay != self.was_gameplay {
             self.stop_effects();
             self.cooldowns.fill(0.0);
@@ -376,11 +376,12 @@ impl Audio {
             lab.world.terrain_at(lab.world.launcher_position()),
             dt,
         );
-        let throttle = crate::controls::tracks()
-            .iter()
-            .map(|v| v.abs())
-            .sum::<f32>()
-            * 0.5;
+        let drive_input = crate::controls::tracks(lab.world.player_vehicle());
+        let throttle = if lab.world.player_vehicle() == sim::VehicleKind::Scout {
+            (drive_input[0] + drive_input[1]).abs()
+        } else {
+            drive_input.iter().map(|v| v.abs()).sum::<f32>() * 0.5
+        };
         let engine = if live && lab.world.tank_alive() {
             fx
         } else {

@@ -60,6 +60,18 @@ impl TestClient {
                     self.pending_map = Some(map);
                     self.progress = Some(progress);
                     self.events.clear();
+                    // The fixture explicitly chooses a regular tank for each match.
+                    self.client
+                        .send(ClientMessage::Input(Input {
+                            sequence: self.starts as u32 - 1,
+                            fire: 0,
+                            special: 0,
+                            control: PlayerInput {
+                                deploy: Some(sim::VehicleKind::Tank),
+                                ..Default::default()
+                            },
+                        }))
+                        .unwrap();
                 }
                 ServerMessage::Snapshot {
                     delta,
@@ -388,7 +400,11 @@ fn time_limit_then_map_change_and_capture_rematch_reach_every_client() {
         assert_eq!(c.starts, 2);
         assert!(c.lobby.as_ref().unwrap().config.airdrops);
         assert!(c.progress.as_ref().unwrap().config.airdrops);
-        assert_eq!(c.progress.as_ref().unwrap().elapsed_ticks, 1);
+        assert_eq!(
+            c.progress.as_ref().unwrap().elapsed_ticks,
+            2,
+            "deployment is accepted before the spawn tick"
+        );
         assert!(c.events.iter().any(|e| matches!(
             e,
             sim::Event::FlagCaptured {
@@ -498,7 +514,19 @@ fn remote_plasma_charges_once_destroys_props_kills_and_respawns_host() {
         }
     )));
     assert_eq!(clients[1].frame.as_ref().unwrap().charges, 0);
-    wait(&mut clients, Duration::from_secs(4), |c| {
+    clients[0]
+        .client
+        .send(ClientMessage::Input(Input {
+            sequence: 2,
+            fire: 0,
+            special: 0,
+            control: PlayerInput {
+                deploy: Some(sim::VehicleKind::Tank),
+                ..Default::default()
+            },
+        }))
+        .unwrap();
+    wait(&mut clients, Duration::from_secs(12), |c| {
         c[0].frame.as_ref().unwrap().alive
     });
     assert_eq!(clients[0].progress.as_ref().unwrap().tanks_lost, [1, 0]);

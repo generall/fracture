@@ -77,7 +77,7 @@ impl World {
         let mut tanks: Vec<_> = self
             .tanks
             .iter()
-            .filter(|t| self.tank_is_alive(t.id))
+            .filter(|t| t.mount.is_none() && self.tank_is_alive(t.id))
             .map(|t| (t.id, t.team, self.piece_pose(t.id).translation))
             .collect();
         // The terrain sandbox has one unregistered test tank.
@@ -146,7 +146,7 @@ impl World {
         let mut tanks: Vec<_> = self
             .tanks
             .iter()
-            .filter(|t| self.tank_is_alive(t.id))
+            .filter(|t| t.mount.is_none() && self.tank_is_alive(t.id))
             .map(|t| t.id)
             .collect();
         if self.tanks.is_empty() && self.tank_alive() {

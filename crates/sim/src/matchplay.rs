@@ -98,7 +98,9 @@ impl MatchProgress {
         }
         self.elapsed_ticks += 1;
         for event in events {
-            if let Event::TankDestroyed { team, .. } = event {
+            if let Event::TankDestroyed { team, details, .. } = event
+                && !details.mounted
+            {
                 self.tanks_lost[usize::from(*team == Team::Red)] += 1;
             }
         }

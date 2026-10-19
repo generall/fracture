@@ -1,6 +1,8 @@
 //! Horizontal collision layers and weapon target policy. Keep the initial,
 //! rebuilt and refined colliders on the same layer.
 use super::*;
+mod index;
+pub(super) use index::{ColliderIndex, ColliderTarget};
 
 pub(super) enum CollisionLayer {
     Solid,

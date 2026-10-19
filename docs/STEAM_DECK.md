@@ -39,7 +39,7 @@ inside that SDK; this repository does not download an SDK or publish a Steam dep
 | Deck / standard gamepad | Action |
 | --- | --- |
 | Left stick | Drive forward/reverse and steer |
-| Right stick | Aim turret; release to retain direction |
+| Right stick | Aim turret; mortar: up/down gradually adjusts range, release to hold |
 | RT | Fire main gun |
 | LT | Activate collected special weapon |
 | RB | Change HE/AP ammunition |
@@ -58,11 +58,18 @@ Physical keyboard input also works. In **Deck mode** (`--deck` or `SteamDeck=1`)
 the left stick only drives during a match; it navigates controls when a menu is
 open. Controller use in this mode hides the mouse cursor
 and aim crosshair, and ignores mouse motion so Steam's emulated pointer cannot
-redirect the turret or highlight HUD buttons. Click a mouse button or press a
-keyboard key to switch back; pointer-based editors keep their cursor visible.
+redirect the turret or highlight HUD buttons. Fire inputs (left click, Space,
+F and G) retain controller aim, including Steam's emulated inputs. Right/middle
+click or a keyboard key other than those fire keys switches back to the pointer;
+pointer-based editors keep their cursor visible.
 Normal desktop launches retain their existing cursor and mouse-motion handoff.
 Prompts use Deck/Xbox button names; PlayStation-specific glyphs
 and in-game remapping are not implemented (Steam Input can remap buttons).
+
+During controller aiming, the camera smoothly looks ahead along the gun's actual
+direction and keeps the vehicle visible near the rear of the view. Releasing the
+right stick retains that view. The mortar camera follows its hull direction,
+independently of stick range adjustment. D-pad up/down still controls zoom.
 
 Sticks use a radial dead zone. A newly connected controller must return to
 neutral before accepting input. Disconnecting during a match opens its menu
@@ -84,6 +91,14 @@ The game remained running while its window was inspected remotely.
 
 On that device the installation is `~/Games/fracture`, with a **Fracture** entry
 in the desktop application launcher. Saves use `~/.local/share/fracture`.
+The development device is reachable with `ssh deck@192.168.0.10` (verified
+2026-10-18). Its hostname is `steamdeck`.
+For remote launches, use a transient user service (`systemd-run --user`) with
+`DISPLAY` and `XAUTHORITY` from the active `plasmashell` session. This keeps the
+game running after SSH disconnects. The current launch unit is
+`fracture-game.service`; inspect it with `systemctl --user status fracture-game`
+and `journalctl --user -u fracture-game`. Player launches use normal saved audio
+settings; internal launch checks still require `FRACTURE_SILENT=1`.
 The screenshot from this check is kept locally at
 `target/steamdeck/device-match-1280x800.png`.
 
@@ -111,6 +126,7 @@ cargo test -p sandbox --lib virtual_controller_axes_buttons_and_disconnect -- --
 bash tools/build-web.sh
 # Start tools/serve.py and isolated Chrome CDP as described in CONTRIBUTING.md.
 bash tools/check-browser.sh deck game controls
+bash tools/check-browser.sh camera-aim
 ```
 
 `deck` selects the browser's `?deck=1` preview, injects a standard browser gamepad
@@ -120,6 +136,11 @@ resolutions. It also checks that normal desktop mode keeps a visible cursor and
 mouse-motion handoff. Screenshots are written to `target/screenshots/deck-*.png`.
 SDL's virtual-device test separately checks the native backend. Browser gamepad
 access requires localhost or HTTPS; browser audio may require a click/key first.
+
+`camera-aim` checks the actual gun-directed camera with a virtual gamepad: all
+four aim directions at 1280×800 and 1280×720, released-stick retention despite
+emulated mouse motion, scout aiming, and mortar hull direction during range
+adjustment. It verifies extra forward reach and that the vehicle stays on screen.
 
 Before a Steam release, test on a physical Deck: built-in controls and Steam
 overlay, cold launch, all LAN flows, audio, sleep/wake, dock/undock, and sustained

@@ -2,6 +2,12 @@
 //! These exports never modify simulation state.
 use std::sync::atomic::{AtomicU32, Ordering};
 
+static VEHICLE: AtomicU32 = AtomicU32::new(1);
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_vehicle() -> u32 {
+    VEHICLE.load(Ordering::Relaxed)
+}
+
 static TICKS: AtomicU32 = AtomicU32::new(0);
 static BROKEN: AtomicU32 = AtomicU32::new(0);
 static SHOTS: AtomicU32 = AtomicU32::new(0);
@@ -12,10 +18,21 @@ static REFINED: AtomicU32 = AtomicU32::new(0);
 static UNCONVERGED: AtomicU32 = AtomicU32::new(0);
 static CLEARED_AREA: AtomicU32 = AtomicU32::new(0);
 static SPECIAL: AtomicU32 = AtomicU32::new(0);
+static MINES: AtomicU32 = AtomicU32::new(0);
+static MORTAR_RANGE: AtomicU32 = AtomicU32::new(0);
+
+pub fn publish_mortar_range(range: f32) {
+    MORTAR_RANGE.store(range.to_bits(), Ordering::Relaxed);
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_mortar_range() -> f32 {
+    f32::from_bits(MORTAR_RANGE.load(Ordering::Relaxed))
+}
 static PLASMA_TIME: AtomicU32 = AtomicU32::new(0);
 static LASER_TIME: AtomicU32 = AtomicU32::new(0);
 static RELOAD: AtomicU32 = AtomicU32::new(0);
 static AMMUNITION: AtomicU32 = AtomicU32::new(0);
+static AIM_SPREAD: AtomicU32 = AtomicU32::new(0);
 static TURRET_ANGLE: AtomicU32 = AtomicU32::new(0);
 static ABLATED: AtomicU32 = AtomicU32::new(0);
 static ABLATED_AREA: AtomicU32 = AtomicU32::new(0);
@@ -41,6 +58,10 @@ pub extern "C" fn lab_special() -> u32 {
     SPECIAL.load(Ordering::Relaxed)
 }
 #[unsafe(no_mangle)]
+pub extern "C" fn lab_mines() -> u32 {
+    MINES.load(Ordering::Relaxed)
+}
+#[unsafe(no_mangle)]
 pub extern "C" fn lab_laser_remaining() -> f32 {
     f32::from_bits(LASER_TIME.load(Ordering::Relaxed))
 }
@@ -53,13 +74,22 @@ pub extern "C" fn lab_reload() -> f32 {
     f32::from_bits(RELOAD.load(Ordering::Relaxed))
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_aim_spread() -> f32 {
+    f32::from_bits(AIM_SPREAD.load(Ordering::Relaxed))
+}
+
 pub fn publish(world: &sim::World) {
+    MINES.store(world.visible_mines().count() as u32, Ordering::Relaxed);
+    VEHICLE.store(world.player_vehicle() as u32, Ordering::Relaxed);
     TURRET_ANGLE.store(world.player_aim().angle.to_bits(), Ordering::Relaxed);
+    AIM_SPREAD.store(world.player_aim().spread.to_bits(), Ordering::Relaxed);
     SPECIAL.store(
         world.carried_special().map_or(0, |w| match w {
             sim::SpecialWeapon::Laser => 1,
             sim::SpecialWeapon::Rocket => 2,
             sim::SpecialWeapon::Plasma => 3,
+            sim::SpecialWeapon::Mine => 4,
         }),
         Ordering::Relaxed,
     );
@@ -99,7 +129,7 @@ pub fn publish(world: &sim::World) {
     TANK_Y.store(world.launcher_position().y.to_bits(), Ordering::Relaxed);
     let angle = world
         .bodies()
-        .find(|b| b.material == sim::Material::Launcher)
+        .find(|b| b.id == world.player_tank_id())
         .unwrap()
         .angle;
     TANK_ANGLE.store(angle.to_bits(), Ordering::Relaxed);
@@ -194,6 +224,20 @@ pub extern "C" fn lab_tank_angle() -> f32 {
 static ZOOM: AtomicU32 = AtomicU32::new(0);
 static CAMERA_X: AtomicU32 = AtomicU32::new(0);
 static CAMERA_Y: AtomicU32 = AtomicU32::new(0);
+static AIM_X: AtomicU32 = AtomicU32::new(0);
+static AIM_Y: AtomicU32 = AtomicU32::new(0);
+pub fn publish_aim(x: f32, y: f32) {
+    AIM_X.store(x.to_bits(), Ordering::Relaxed);
+    AIM_Y.store(y.to_bits(), Ordering::Relaxed);
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_aim_x() -> f32 {
+    f32::from_bits(AIM_X.load(Ordering::Relaxed))
+}
+#[unsafe(no_mangle)]
+pub extern "C" fn lab_aim_y() -> f32 {
+    f32::from_bits(AIM_Y.load(Ordering::Relaxed))
+}
 pub fn publish_camera(camera: &crate::navigation::Navigation) {
     ZOOM.store(camera.zoom.to_bits(), Ordering::Relaxed);
     CAMERA_X.store(camera.center.x.to_bits(), Ordering::Relaxed);

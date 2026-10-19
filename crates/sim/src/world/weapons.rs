@@ -1,6 +1,12 @@
 use super::*;
 use rapier2d::parry::query::{ShapeCastOptions, cast_shapes};
 
+const ROCKET_BLAST_ENERGY: f32 = 20_000_000.0;
+const ROCKET_BLAST_RADIUS: f32 = 5.5;
+const MORTAR_WARHEAD_SCALE: f32 = 0.75;
+
+use collision::ColliderTarget;
+
 pub(super) struct BlastPulse {
     pub(super) piece: usize,
     pub(super) local_point: Vector,
@@ -14,8 +20,42 @@ pub(super) struct BlastPulse {
 impl World {
     // Sweep against the live collider poses, including their linear velocities.
     // This avoids stale broad-phase queries between fixed physics microsteps.
-    fn shell_hit(
+    pub(super) fn shell_hit(
         &self,
+        position: Vector,
+        velocity: Vector,
+        dt: f32,
+        radius: f32,
+        shooter: usize,
+    ) -> Option<(f32, usize, Vector, Vector)> {
+        let end = position + velocity * dt;
+        let padding = Vector::splat(radius);
+        let bounds = Aabb::new(position.min(end) - padding, position.max(end) + padding);
+        let targets = self.query_index.lock().unwrap().sweep(self, bounds, dt);
+        self.cast_shell_targets(targets, position, velocity, dt, radius, shooter)
+    }
+
+    #[cfg(test)]
+    fn shell_targets(&self) -> impl Iterator<Item = ColliderTarget> + '_ {
+        self.physics
+            .colliders
+            .iter()
+            .filter_map(|(handle, collider)| {
+                let piece = self.weapon_target(collider)?;
+                let body = collider.parent()?;
+                Some(ColliderTarget {
+                    collider: handle,
+                    piece,
+                    body,
+                    bounds: collider.compute_aabb(),
+                    velocity: self.physics.bodies[body].linvel(),
+                })
+            })
+    }
+
+    fn cast_shell_targets(
+        &self,
+        targets: impl IntoIterator<Item = ColliderTarget>,
         position: Vector,
         velocity: Vector,
         dt: f32,
@@ -24,26 +64,20 @@ impl World {
     ) -> Option<(f32, usize, Vector, Vector)> {
         let mut nearest = None;
         let owner = self.pieces[shooter].body;
-        for (_, collider) in self.physics.colliders.iter() {
-            let Some(id) = self.weapon_target(collider) else {
-                continue;
-            };
-            let Some(handle) = collider.parent() else {
-                continue;
-            };
-            if handle == owner {
+        for target in targets {
+            if target.body == owner {
                 continue;
             }
-            let body = &self.physics.bodies[handle];
-            let target_velocity = body.linvel();
+            let target_velocity = target.velocity;
             let end = position + (velocity - target_velocity) * dt;
-            let bounds = collider.compute_aabb();
+            let bounds = target.bounds;
             let padding = Vector::splat(radius);
             if (position.min(end) - padding).cmpgt(bounds.maxs).any()
                 || (position.max(end) + padding).cmplt(bounds.mins).any()
             {
                 continue;
             }
+            let collider = &self.physics.colliders[target.collider];
             if let Ok(Some(hit)) = cast_shapes(
                 &Pose::translation(position.x, position.y),
                 velocity,
@@ -57,7 +91,7 @@ impl World {
                 let point = collider.position().transform_point(hit.witness2)
                     + target_velocity * hit.time_of_impact;
                 let normal = collider.position().rotation * hit.normal2;
-                nearest = Some((hit.time_of_impact, id, point, normal));
+                nearest = Some((hit.time_of_impact, target.piece, point, normal));
             }
         }
         nearest
@@ -67,13 +101,28 @@ impl World {
         self.fire_from(self.launcher, shot, events);
     }
 
-    pub(super) fn fire_from(&mut self, shooter: usize, shot: Shot, events: &mut Vec<Event>) {
+    pub(super) fn fire_from(&mut self, shooter: usize, mut shot: Shot, events: &mut Vec<Event>) {
         if !self.tank_is_alive(shooter)
             || !shot.target.is_finite()
             || !shot.mass.is_finite()
             || !shot.speed.is_finite()
         {
             return;
+        }
+        let kind = self.vehicle_kind(shooter);
+        if kind == VehicleKind::Scout && shot.ammunition.special() {
+            return;
+        }
+        if kind != VehicleKind::Tank && !shot.ammunition.special() {
+            shot.ammunition = if kind == VehicleKind::Scout {
+                Ammunition::ArmorPiercing
+            } else {
+                Ammunition::HighExplosive
+            };
+            if kind == VehicleKind::Mortar {
+                self.fire_mortar(shooter, shot, events);
+                return;
+            }
         }
         let origin = self.piece_pose(shooter).translation;
         let offset = shot.target - origin;
@@ -148,13 +197,24 @@ impl World {
             return;
         }
         let (lo, hi) = shot.ammunition.mass_range();
-        let mass = shot.mass.clamp(lo, hi);
+        let mass = if kind == VehicleKind::Scout {
+            0.02
+        } else {
+            shot.mass.clamp(lo, hi)
+        };
         let position = origin + barrel * 1.65;
         let (lo, hi) = shot.ammunition.speed_range();
-        let velocity = direction * shot.speed.clamp(lo, hi);
+        let velocity = direction
+            * if kind == VehicleKind::Scout {
+                260.0
+            } else {
+                shot.speed.clamp(lo, hi)
+            };
         self.record_aimed_shot(shooter, shot.ammunition);
         self.reveal_firing_tank(shooter);
         self.shells.push(Shell {
+            vehicle: kind,
+            flight: 0.0,
             ammunition: shot.ammunition,
             position,
             previous_position: position,
@@ -165,11 +225,16 @@ impl World {
         });
         self.physics.bodies[self.pieces[shooter].body].apply_impulse(-velocity * mass, true);
         self.shots += 1;
+        let interval = if kind == VehicleKind::Scout {
+            kind.reload()
+        } else {
+            shot.ammunition.interval()
+        };
         if shooter == self.launcher {
-            self.reload = shot.ammunition.interval();
+            self.reload = interval;
             self.last_ammunition = shot.ammunition;
         } else if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == shooter) {
-            tank.reload = shot.ammunition.interval();
+            tank.reload = interval;
         }
         events.push(Event::Fired {
             ammunition: shot.ammunition,
@@ -178,16 +243,111 @@ impl World {
         });
     }
 
+    fn fire_mortar(&mut self, shooter: usize, shot: Shot, events: &mut Vec<Event>) {
+        let reload = if shooter == self.launcher {
+            self.reload
+        } else {
+            self.tanks
+                .iter()
+                .find(|t| t.id == shooter)
+                .map_or(0.0, |t| t.reload)
+        };
+        if reload > 1e-6 {
+            return;
+        }
+        let pose = self.piece_pose(shooter);
+        let direction = pose.rotation * Vector::X;
+        let position = pose.translation + direction * 0.85;
+        // Aim controls range; azimuth always comes from the hull. The elevated
+        // trajectory ignores horizontal cover until it hits the ground.
+        let range = shot.target.distance(pose.translation).clamp(6.0, 36.0);
+        let aim = if shooter == self.launcher {
+            self.player_aim
+        } else {
+            self.tanks.iter().find(|t| t.id == shooter).unwrap().aim
+        };
+        let impact = pose.translation + direction * range + aim.mortar_offset(shooter, range);
+        let flight = 0.8 + range / 24.0;
+        let velocity = (impact - position) / flight;
+        self.shells.push(Shell {
+            ammunition: Ammunition::HighExplosive,
+            vehicle: VehicleKind::Mortar,
+            flight,
+            position,
+            previous_position: position,
+            velocity,
+            mass: 10.0,
+            age: 0.0,
+            owner: shooter,
+        });
+        self.record_aimed_shot(shooter, Ammunition::HighExplosive);
+        self.reveal_firing_tank(shooter);
+        self.physics.bodies[self.pieces[shooter].body].apply_impulse(-direction * 1200.0, true);
+        self.shots += 1;
+        if shooter == self.launcher {
+            self.reload = VehicleKind::Mortar.reload();
+            self.last_ammunition = Ammunition::HighExplosive;
+        } else if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == shooter) {
+            tank.reload = VehicleKind::Mortar.reload();
+        }
+        events.push(Event::Fired {
+            ammunition: Ammunition::HighExplosive,
+            position,
+            velocity,
+        });
+    }
+
     pub(super) fn advance_shells(&mut self, dt: f32, events: &mut Vec<Event>) {
         let shells = std::mem::take(&mut self.shells);
         for mut shell in shells {
-            if let Some((_, piece, point, normal)) = self.shell_hit(
+            if shell.flight > 0.0 {
+                let travel = dt.min((shell.flight - shell.age).max(0.0));
+                shell.position += shell.velocity * travel;
+                shell.age += dt;
+                if shell.age >= shell.flight {
+                    let event = self.next_impact();
+                    self.detonate_mortar(shell.position, event, events);
+                } else {
+                    self.shells.push(shell);
+                }
+                continue;
+            }
+            let hit = self.shell_hit(
                 shell.position,
                 shell.velocity,
                 dt,
                 shell.ammunition.radius(),
                 shell.owner,
-            ) {
+            );
+            if let Some((time, mine)) = self.mine_hit(
+                shell.position,
+                shell.velocity,
+                dt,
+                shell.ammunition.radius(),
+            ) && hit.is_none_or(|(surface_time, ..)| time < surface_time)
+            {
+                self.shoot_mine(mine, events);
+                continue;
+            }
+            if let Some((_, piece, point, normal)) = hit {
+                if shell.vehicle == VehicleKind::Scout {
+                    self.damage_tank_from(
+                        piece,
+                        12.0,
+                        TankImpact {
+                            cause: DestructionCause::Shell(shell.ammunition),
+                            point,
+                            direction: shell.velocity.normalize_or_zero(),
+                            impulse: shell.velocity * shell.mass,
+                        },
+                        events,
+                    );
+                    events.push(Event::Impacted {
+                        position: point,
+                        normal,
+                    });
+                    continue;
+                }
                 self.sweep_decorations(shell.position, point, shell.ammunition.radius());
                 let event = self.next_impact();
                 self.hit_tank(
@@ -221,11 +381,11 @@ impl World {
                         events,
                     ),
                     Ammunition::Rocket => {
-                        self.rocket_shock(piece, point, event, events);
+                        self.warhead_shock(piece, point, 1.0, event, events);
                         self.blast_with_tank_scale(
                             position,
-                            20_000_000.0,
-                            5.5,
+                            ROCKET_BLAST_ENERGY,
+                            ROCKET_BLAST_RADIUS,
                             0.035,
                             event,
                             events,
@@ -238,11 +398,13 @@ impl World {
                 }
                 // The shell is consumed here; there is no bouncing collider.
             } else {
-                self.sweep_decorations(
-                    shell.position,
-                    shell.position + shell.velocity * dt,
-                    shell.ammunition.radius(),
-                );
+                if shell.vehicle != VehicleKind::Scout {
+                    self.sweep_decorations(
+                        shell.position,
+                        shell.position + shell.velocity * dt,
+                        shell.ammunition.radius(),
+                    );
+                }
                 shell.position += shell.velocity * dt;
                 shell.age += dt;
                 if shell.age
@@ -258,12 +420,64 @@ impl World {
         }
     }
 
-    fn rocket_shock(&mut self, hit: usize, impact: Vector, event: u64, events: &mut Vec<Event>) {
+    fn detonate_mortar(&mut self, position: Vector, event: u64, events: &mut Vec<Event>) {
+        // The falling warhead can directly strike a ground mine.
+        let struck: Vec<_> = self
+            .mines
+            .iter()
+            .enumerate()
+            .filter_map(|(index, mine)| {
+                (mine.position.distance(position) <= mines::MINE_RADIUS + 0.35).then_some(index)
+            })
+            .collect();
+        for index in struck.into_iter().rev() {
+            self.shoot_mine(index, events);
+        }
+        // An overhead impact may land inside the target, unlike a horizontal
+        // rocket sweep. Couple its shock into the material under the shell.
+        let hit = self
+            .physics
+            .colliders
+            .iter()
+            .filter_map(|(_, collider)| {
+                let id = self.weapon_target(collider)?;
+                if !self.pieces[id].destructible() {
+                    return None;
+                }
+                let point = collider
+                    .shape()
+                    .project_point(collider.position(), position, true)
+                    .point;
+                let distance = point.distance_squared(position);
+                (distance <= 0.35 * 0.35).then_some((id, point, distance))
+            })
+            .min_by(|a, b| a.2.total_cmp(&b.2));
+        if let Some((id, point, _)) = hit {
+            self.warhead_shock(id, point, MORTAR_WARHEAD_SCALE, event, events);
+        }
+        self.blast_with_tank_scale(
+            position,
+            ROCKET_BLAST_ENERGY * MORTAR_WARHEAD_SCALE,
+            ROCKET_BLAST_RADIUS * MORTAR_WARHEAD_SCALE.cbrt(),
+            0.06,
+            event,
+            events,
+        );
+    }
+
+    fn warhead_shock(
+        &mut self,
+        hit: usize,
+        impact: Vector,
+        scale: f32,
+        event: u64,
+        events: &mut Vec<Event>,
+    ) {
         // The warhead couples part of its energy into the struck connected
         // material as an internal shock; external blast rays still obey cover.
         let body = self.pieces[hit].body;
         let object = self.pieces[hit].object;
-        let mut budget = 4_000_000.0;
+        let mut budget = 4_000_000.0 * scale;
         let mut failed = Vec::new();
         for (id, bond) in self.bonds.iter().enumerate() {
             let a = &self.pieces[bond.a];
@@ -291,7 +505,7 @@ impl World {
             }
             // Approximate transient internal pressure (Pa), attenuated through
             // the connected target. Stronger/thicker seams still cost more work.
-            let pressure = 8_000_000.0 * (1.0 - distance / 3.0).powi(2);
+            let pressure = 8_000_000.0 * scale * (1.0 - distance / 3.0).powi(2);
             let resistance = components.projectile_resistance;
             let limit = bond.strength.shear * bond.strength_scale * resistance;
             let cost = bond.toughness * bond.width * bond.depth * bond.strength_scale * resistance;
@@ -397,6 +611,20 @@ impl World {
                 {
                     nearest = Some((hit.time_of_impact, id));
                 }
+            }
+            if let Some((distance, mine)) = self.mine_hit(origin, barrel, RANGE, RADIUS)
+                && nearest.is_none_or(|(surface_distance, _)| distance < surface_distance)
+            {
+                self.laser_beam = Some(LaserBeam {
+                    start: origin + barrel * distance.min(1.65),
+                    end: origin + barrel * distance,
+                    remaining: 0.02,
+                });
+                if cut {
+                    self.shoot_mine(mine, events);
+                    continue;
+                }
+                break;
             }
             let distance = nearest.map_or(RANGE, |(d, _)| (d + RADIUS).min(RANGE));
             let end = origin + barrel * distance;

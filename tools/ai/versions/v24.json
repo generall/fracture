@@ -1,0 +1,22 @@
+{
+  "name": "v24-breach-escape",
+  "speed": 0.95,
+  "combat_range": 18,
+  "replan_seconds": 0.8,
+  "recover_seconds": 3.0,
+  "recovery_detour": true,
+  "clear_fire_lane": true,
+  "route_following": true,
+  "advance_objective": true,
+  "adaptive_recovery": true,
+  "vehicle_tactics": true,
+  "bounded_clearing": true,
+  "engagement_spacing": true,
+  "productive_clearing": true,
+  "objective_drive": true,
+  "deliberate_aim": true,
+  "tactical_routes": false,
+  "siege_tactics": true,
+  "threat_cost": 12,
+  "team_roles": true
+}

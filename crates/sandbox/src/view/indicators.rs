@@ -121,6 +121,7 @@ pub(super) fn draw(world: &World, scene: &Scene, view: &Viewport) {
                     sim::SpecialWeapon::Laser => "L",
                     sim::SpecialWeapon::Rocket => "R",
                     sim::SpecialWeapon::Plasma => "P",
+                    sim::SpecialWeapon::Mine => "M",
                 };
                 crate::ui::text(label, icon.x - 3.5, icon.y + 4.0, 12.0, color);
             }

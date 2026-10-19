@@ -172,6 +172,27 @@ impl World {
                     cooldown: *cooldown,
                     remaining: 0.0,
                 }),
+                LevelItem::Turret {
+                    team,
+                    position,
+                    angle,
+                    arc,
+                    health,
+                    capturable,
+                } => {
+                    let id = w.add_tank();
+                    w.register_tank(id, *team, Vector::from(*position), *angle);
+                    w.physics.bodies[w.pieces[id].body].set_body_type(RigidBodyType::Fixed, false);
+                    let tank = w.tanks.iter_mut().find(|t| t.id == id).unwrap();
+                    tank.health = *health;
+                    tank.mount = Some(turrets::Mount::new(
+                        Vector::from(*position),
+                        *angle,
+                        *arc,
+                        *capturable,
+                        *health,
+                    ));
+                }
                 LevelItem::Spawn { .. } => {}
             }
         }
@@ -229,6 +250,33 @@ impl World {
             }
             w.enemy = Some(enemy::Enemy::new(id, level.enemy_activity, enemy_position));
         }
+        for tank in w.tanks.iter().filter(|t| t.mount.is_some()) {
+            if !w.tank_pose_clear(tank.id, w.piece_pose(tank.id)) {
+                return Err("Turret footprint overlaps an object, vehicle, water or cliff.".into());
+            }
+        }
+        w.public_layout = w.build_public_layout();
+        w.public_supply_sites = level
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                LevelItem::Pickup { position, .. } => Some(Vector::from(*position)),
+                _ => None,
+            })
+            .collect();
+        w.public_emplacements = w
+            .tanks
+            .iter()
+            .filter_map(|tank| {
+                tank.mount.map(|mount| crate::ai::Emplacement {
+                    team: tank.team,
+                    position: mount.view.position,
+                    facing: mount.view.facing,
+                    arc: mount.view.arc,
+                    range: w.vision_range_at(mount.view.position),
+                })
+            })
+            .collect();
         Ok(w)
     }
 
@@ -325,7 +373,11 @@ impl World {
         if self.flags.is_empty() || self.winner.is_some() {
             return;
         }
-        for tank in self.tanks.iter().filter(|t| self.tank_is_alive(t.id)) {
+        for tank in self
+            .tanks
+            .iter()
+            .filter(|t| t.mount.is_none() && self.tank_is_alive(t.id))
+        {
             let body = &self.physics.bodies[self.pieces[tank.id].body];
             for flag in self.flags.iter().filter(|f| f.team != tank.team) {
                 let pose = Pose::translation(flag.position.x, flag.position.y);

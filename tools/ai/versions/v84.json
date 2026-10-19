@@ -1,0 +1,11 @@
+{
+  "name": "v84-committed-flanking-assault",
+  "speed": 1.0,
+  "combat_range": 12.0,
+  "replan_seconds": 0.8,
+  "recover_seconds": 3.0,
+  "siege_tactics": true,
+  "task_control": true,
+  "combined_arms": true,
+  "perimeter_routes": true
+}

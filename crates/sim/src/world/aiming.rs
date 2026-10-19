@@ -2,6 +2,8 @@
 use super::*;
 const MIN_SPREAD: f32 = 2.0_f32.to_radians();
 const MAX_SPREAD: f32 = 40.0_f32.to_radians();
+const MORTAR_MIN_SPREAD: f32 = 0.75_f32.to_radians();
+const MORTAR_MAX_SPREAD: f32 = 14.0_f32.to_radians();
 const PLAYER_TRAVERSE: f32 = 60.0_f32.to_radians();
 pub(super) const ENEMY_TRAVERSE: f32 = 40.0_f32.to_radians();
 
@@ -12,6 +14,17 @@ pub struct AimView {
     /// Half-angle of the possible shot directions, in radians.
     pub spread: f32,
 }
+impl AimView {
+    /// Radius of the possible mortar landing points, shared by firing and UI.
+    pub fn mortar_impact_radius(self, range: f32) -> f32 {
+        0.15 + range.clamp(6.0, 36.0)
+            * self
+                .spread
+                .clamp(MORTAR_MIN_SPREAD, MORTAR_MAX_SPREAD)
+                .tan()
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(super) struct AimState {
     pub angle: f32,
@@ -39,7 +52,18 @@ impl AimState {
             spread: self.spread,
         }
     }
+    #[cfg(test)]
     pub fn advance(&mut self, desired: f32, speed: f32, hull_turn: f32, rate: f32) {
+        self.advance_for_vehicle(desired, speed, hull_turn, rate, VehicleKind::Tank);
+    }
+    pub fn advance_for_vehicle(
+        &mut self,
+        desired: f32,
+        speed: f32,
+        hull_turn: f32,
+        rate: f32,
+        kind: VehicleKind,
+    ) {
         self.active = true;
         self.previous_angle = self.angle;
         let error = (desired - self.angle + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
@@ -50,30 +74,64 @@ impl AimState {
             + 24.0_f32.to_radians() * (speed / 6.5).clamp(0.0, 1.5)
             + 8.0_f32.to_radians() * (turn.abs() / (rate * TICK_DT)).min(1.0)
             + 10.0_f32.to_radians() * hull_turn.abs().min(1.0))
-        .min(MAX_SPREAD);
+        .min(if kind == VehicleKind::Scout {
+            8.0_f32.to_radians()
+        } else {
+            MAX_SPREAD
+        });
         let tau = if desired_spread > self.spread {
             0.03
+        } else if kind == VehicleKind::Scout {
+            0.20
         } else {
             0.85
         };
         self.spread += (desired_spread - self.spread) * (1.0 - (-TICK_DT / tau).exp());
     }
-    fn shot_offset(self, id: usize) -> f32 {
+    fn advance_mortar(&mut self, angle: f32, speed: f32, hull_turn: f32) {
+        self.active = true;
+        self.previous_angle = self.angle;
+        self.angle = angle;
+        let desired = (MORTAR_MIN_SPREAD
+            + 8.0_f32.to_radians() * (speed / VehicleKind::Mortar.speed()).clamp(0.0, 1.5)
+            + 6.0_f32.to_radians() * hull_turn.abs().min(1.0))
+        .min(MORTAR_MAX_SPREAD);
+        let tau = if desired > self.spread { 0.12 } else { 0.85 };
+        self.spread += (desired - self.spread) * (1.0 - (-TICK_DT / tau).exp());
+    }
+    fn random_unit(self, id: usize, stream: u64) -> f32 {
         // Per-tank sequence: repeatable replays, no random number generator shared with physics.
-        let mut x = self.shots.wrapping_add(1).wrapping_mul(0x9e3779b97f4a7c15) ^ id as u64;
+        // Stream zero preserves the existing direct-fire shot sequence.
+        let mut x = self.shots.wrapping_add(1).wrapping_mul(0x9e3779b97f4a7c15)
+            ^ id as u64
+            ^ stream.wrapping_mul(0xd1b54a32d192ed03);
         x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
         x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
         x ^= x >> 31;
-        ((x >> 40) as f32 / 16_777_215.0 * 2.0 - 1.0) * self.spread
+        (x >> 40) as f32 / 16_777_215.0
     }
-    fn record_shot(&mut self, ammunition: Ammunition) {
+    fn shot_offset(self, id: usize) -> f32 {
+        (self.random_unit(id, 0) * 2.0 - 1.0) * self.spread
+    }
+    pub(super) fn mortar_offset(self, id: usize, range: f32) -> Vector {
+        // Uniform area sampling: scatter affects range and lateral placement.
+        let radius = self.view().mortar_impact_radius(range) * self.random_unit(id, 1).sqrt();
+        Vector::from_angle(self.angle + self.random_unit(id, 2) * std::f32::consts::TAU) * radius
+    }
+    fn record_shot(&mut self, ammunition: Ammunition, kind: VehicleKind) {
         self.shots = self.shots.wrapping_add(1);
         let kick: f32 = match ammunition {
             Ammunition::HighExplosive | Ammunition::ArmorPiercing => 6.0,
             Ammunition::Rocket => 8.0,
             Ammunition::Laser | Ammunition::Plasma => 0.0,
         };
-        self.spread = (self.spread + kick.to_radians()).min(MAX_SPREAD);
+        self.spread = if kind == VehicleKind::Scout {
+            (self.spread + 1.0_f32.to_radians()).min(8.0_f32.to_radians())
+        } else if kind == VehicleKind::Mortar {
+            (self.spread + 2.0_f32.to_radians()).min(MORTAR_MAX_SPREAD)
+        } else {
+            (self.spread + kick.to_radians()).min(MAX_SPREAD)
+        };
     }
 }
 impl World {
@@ -98,6 +156,18 @@ impl World {
         if !self.tank_is_alive(self.launcher) {
             return;
         }
+        if self.player_vehicle() == VehicleKind::Mortar {
+            let body = &self.physics.bodies[self.pieces[self.launcher].body];
+            self.player_aim.advance_mortar(
+                body.rotation().angle(),
+                body.linvel().length(),
+                body.angvel(),
+            );
+            if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == self.launcher) {
+                tank.aim = self.player_aim;
+            }
+            return;
+        }
         let Some(target) = self.player_aim.target else {
             return;
         };
@@ -108,11 +178,12 @@ impl World {
         } else {
             self.player_aim.angle
         };
-        self.player_aim.advance(
+        self.player_aim.advance_for_vehicle(
             desired,
             body.linvel().length(),
             body.angvel(),
             PLAYER_TRAVERSE,
+            self.player_vehicle(),
         );
         if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == self.launcher) {
             tank.aim = self.player_aim;
@@ -121,11 +192,12 @@ impl World {
     pub(super) fn advance_enemy_aim(&mut self, id: usize, desired: f32) {
         let body = &self.physics.bodies[self.pieces[id].body];
         if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) {
-            tank.aim.advance(
+            tank.aim.advance_for_vehicle(
                 desired,
                 body.linvel().length(),
                 body.angvel(),
                 ENEMY_TRAVERSE,
+                tank.vehicle,
             );
         }
     }
@@ -156,12 +228,13 @@ impl World {
     }
     pub(super) fn record_aimed_shot(&mut self, id: usize, ammunition: Ammunition) {
         if id == self.launcher {
-            self.player_aim.record_shot(ammunition);
+            self.player_aim
+                .record_shot(ammunition, self.player_vehicle());
             if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) {
                 tank.aim = self.player_aim;
             }
         } else if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) {
-            tank.aim.record_shot(ammunition);
+            tank.aim.record_shot(ammunition, tank.vehicle);
         }
     }
 }
@@ -169,6 +242,48 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mortar_motion_and_pivot_widen_impact_area_then_steady_aim_recovers() {
+        for (speed, turn) in [(3.6_f32, 0.0), (-3.6, 0.0), (0.0, 0.8)] {
+            let mut aim = AimState::new(0.0);
+            for _ in 0..360 {
+                aim.advance_mortar(0.0, speed.abs(), turn);
+            }
+            let moving = aim.view().mortar_impact_radius(20.0);
+            assert!(moving > 2.0, "moving or turning radius {moving}");
+            for _ in 0..480 {
+                aim.advance_mortar(0.0, 0.0, 0.0);
+            }
+            let steady = aim.view().mortar_impact_radius(20.0);
+            assert!(
+                steady < 0.5 && steady < moving * 0.25,
+                "steady radius {steady}, moving {moving}"
+            );
+            assert!(aim.view().mortar_impact_radius(36.0) > steady);
+        }
+    }
+
+    #[test]
+    fn scout_focuses_quickly_after_moving_or_firing() {
+        let mut spreads = vec![];
+        for kind in [VehicleKind::Scout, VehicleKind::Tank] {
+            let mut aim = AimState::new(0.0);
+            aim.spread = 8.0_f32.to_radians();
+            for _ in 0..60 {
+                aim.advance_for_vehicle(0.0, 0.0, 0.0, PLAYER_TRAVERSE, kind);
+            }
+            spreads.push(aim.spread.to_degrees());
+        }
+        assert!(
+            spreads[0] < 2.6,
+            "scout nearly focused after half a second: {spreads:?}"
+        );
+        assert!(spreads[1] > 5.0, "tank retains its current slower settling");
+        let mut scout = AimState::new(0.0);
+        scout.record_shot(Ammunition::ArmorPiercing, VehicleKind::Scout);
+        assert!(scout.spread.to_degrees() < 3.01);
+    }
 
     #[test]
     fn traverse_is_limited_and_takes_shortest_route() {

@@ -1,10 +1,171 @@
 # Development handoff
 
+## Current AI evolution state — follow-up
+
+Active goal: **five verified dominating iterations; currently 0/5**. Do not
+count ordinary version bumps, probe captures, kills or flag draws as promotions.
+`tools/ai-evolution.py` verifies the frozen identities, actual Deck execution,
+four complete mirrored 240-second 2v2 matches on two seeds, and flag events.
+Champion remains v11; the development branch descends from v40. The exact ledger
+is `docs/validation/ai-evolution-state.json`.
+
+The user explicitly rejected the parameter/version treadmill. Stop adding
+movement overrides. The new opt-in `task_control` brain bypasses the legacy
+stack: persistent mission, single movement task, cached complete routes,
+independent aim/fire and explicit drive/failure reasons. See
+[the control redesign](AI_CONTROL_REDESIGN.md). Preserve v11 frozen and do not
+count diagnostic captures or kills as promotions.
+
+Latest frozen candidate is v84; v82, v83 and v84 each drew all four host
+flag comparisons against v11. Still **0/5 promotions**. V84's complete guarded
+fixed tank/scout contract captures at 177.6s Blue / 210.8s Red. Latest working
+source also has an **unfrozen** scout driver correction: measured own speed,
+acceleration/yaw/braking rollout and correct reverse arrival heading. Its real
+garage contract departs at 15.7s Blue / 12.9s Red before the former 20s timeout;
+19/19 host navigation cases retain 100 HP, and the full guarded contract captures
+at 183.6s Blue / 174.0s Red. No new competitive verdict. Workspace: 437 passed,
+eight ignored; strict Clippy passes. Do not overwrite frozen v84.
+
+**AI evolution is paused at the user's request.** The recorded human 1v2
+against frozen v11 has completed: Blue captured in 125.47s, with no Blue
+vehicle loss and three Red vehicle losses. The human used a tank and HE
+throughout, without activating a special. A compact, source-hashed analysis
+and interactive route review are in
+`target/ai-arena/human-v11-seed42/review/`; regenerate the report with
+`python3 tools/ai-review-human.py DIRECTORY`. The original full recording
+remains on the Deck. Its inputs contain 15,056 physics ticks; the compact
+decision record contains 3,765 entries. No further AI changes or promotions
+followed this review.
+
+The human challenge application remains available on the Deck.
+Do not stop/restart `fracture-ai-arena.service`, inject controls, or launch
+competing native tests while they play. Current recording prefix:
+`/home/deck/.local/share/fracture-ai-challenge/round-1792359861356`.
+The separate binary supports `--play-v11`; the new desktop launcher is
+`Fracture V11 Challenge.desktop`. Human is Blue (player 0); Red bots are players
+1 and 2, with independently seeded team slots. The timer starts at the human's
+first vehicle choice, lasts 240s, and respawns take 10s. Human fog and camera
+remain ordinary; omniscient `.frames`/`.vision` exist only for review.
+
+Native silent smoke proof is under `target/ai-arena/challenge-smoke-deck/`:
+1,235 physics ticks, three actors, two v11 workers, human vehicle selection,
+driving (8.34m displacement) and firing. It is partial diagnostic evidence,
+not the user's round. User-match artifacts include `.challenge.json` (frozen
+manifest), `.inputs.jsonl` (all controls each physics tick), `.decisions.jsonl`
+(raw restricted observations/worker output and human view), `.events.jsonl`,
+`.summary.json`, `.frames`, `.vision`, `.status.json`. Read the explicit roster;
+the 1v2 recording uses [Blue, Red, Red], not the arena's alternating sides.
+Review the user's completed round before resuming AI changes. Research remains
+paused; the current request is to commit and push the workspace snapshot.
+
+## AI navigation and team coordination — 2026-10-18
+
+Latest development package: Blue=v40 (`clear-navigation-and-reverse-recovery`),
+Red=frozen v11. Individual controllers now choose complementary breacher,
+support, flank or guard roles from delayed friendly sightings and public roster
+slots. They remember teammates that leave sight and yield through checked paths.
+Independent uniform vehicle choices, four-minute 2v2 rounds and ten-second
+respawns remain unchanged.
+
+Navigation treats scenery as blocked while traveling, keeps hull clearance
+through river bends and lookahead, and avoids driving straight at unreachable
+goals. Scouts check actual rolling/reversing arcs, including slow arrival;
+tracked hulls turn before advancing. Safe recovery applies the same clearance
+checks. `sim --example ai_navigation` reproduces river, rock and spawn routes
+without combat, using frozen workers and actual physics.
+
+The prior Deck v32/v11 round completed 0–0 captures and 6–6 kills. V38 and V40's
+four mirrored competitive rounds each also had no captures, so **no objective-dominance
+promotion or branch switch has happened**. Keep v11 frozen. Basic navigation
+was prioritized after the reported rock/river collisions; base assault still
+requires improvement. Details and evidence are in the navigation validation
+report and [AI arena](AI_ARENA.md). V40 passed 19/19 real-map driving probes
+without collision damage (v32 passed 8/12 original probes). The live Deck check
+showed both Blue vehicles clear the previous rock/river failures. The current
+source passes 394 workspace tests, strict Clippy and WASM checks; six tests are
+ignored. See [navigation validation](AI_ARENA_VALIDATION_NAVIGATION_2026-10-18.md).
+
+## Earlier AI battlefield and cooldown — 2026-10-18
+
+Separate native spectator: `fracture-ai-arena` (`crates/arena`), built by
+`tools/build-ai-arena.sh`. It runs four-minute 2v2 rounds, full-field observer
+view, combined team sight, B1/B2/R1/R2 status, pause/seek and recorded review.
+Deck install is `~/Games/fracture-ai-arena`, desktop launcher **Fracture AI
+Battlefield**, SSH `deck@192.168.0.10`; the owned unit is
+`fracture-ai-arena.service`. Normal game remains `~/Games/fracture/game`.
+
+All post-destruction respawns now wait ten seconds (`sim::RESPAWN_SECONDS`),
+with initial deployment immediate. The installed normal Deck game also has this
+rule. The spectator displays remaining cooldown per vehicle. Its launcher sets
+`vblank_mode=0` only for the Deck child and holds temporary idle/display
+inhibitors; neither saved display nor mixer settings are edited.
+
+Controllers use a public immutable starting navigation layout plus delayed
+human-visible observations, with 300 ms sensor/special-acquisition delay and
+10 Hz decisions. Vehicle choices are random independently for each actor/life.
+Scouts avoid scenery attacks; other clearing attempts monitor visible progress.
+Bots open firing range when too close and leave teammates' firing lanes. All
+weapons, pickups, steering, damage and respawns use normal human routines.
+
+Default spectator pairing is Blue=v13 (improved losing v10 branch), Red=v11
+(frozen Deck winner). The Deck v10/v11 round ended 6–7 kills; the matching
+headless run ended 9–6. Outcomes are kept separate. Headless round 9 uses the
+same latest profiles with incumbent v11 as Blue; it also changes cooldown to ten
+seconds, so scores are not controlled comparisons. Frozen versions and source
+archives under ignored `target/ai-arena/versions` must not be overwritten.
+
+376 workspace tests, targeted multiplayer respawn transport, strict Clippy and
+WASM check passed. Native and browser review were checked silently. For
+commands, recordings, metrics and known remaining stalls/objective failures,
+read [AI arena](AI_ARENA.md) and the [dated validation report](AI_ARENA_VALIDATION_2026-10-18.md).
+
+**Scout sight (2026-10-18):** Scouts see 360° at their existing terrain-dependent
+range, independently of gun direction. Walls, foliage concealment and range
+limits still apply. Full-circle boundary generation is invariant under aim
+changes; host detection and LAN replica geometry use the same profile.
+
+**Scout collision balance (2026-10-18):** The scout now runs at 10 m/s and 1.2 t.
+Engine and brake forces scale with chassis mass. Removed the wall proximity
+velocity cancellation and the scout-specific contact fracture exemption: impacts
+use normal momentum transfer, ram damage and material fracture. A fast scout can
+chip weak masonry, but has less crash energy and pushing force than before.
+
+**Mortar impact dispersion (2026-10-04):** Mortar aim now reacts to translation and hull rotation, with fast widening and 0.85 s settling. `AimView::mortar_impact_radius(range)` is shared by the displayed circle and shell launch scatter: 0.15 m plus range × tan(spread), with 0.75–14° spread. At 20 m, steady radius is about 0.4 m and cruise radius about 3.2 m. The per-vehicle shot sequence samples a deterministic uniform disk; the existing direct-fire random sequence is preserved. LAN uses the already-replicated aim spread, with no new wire fields.
+
+**Mortar movement polish (2026-10-04):** Free acceleration is about 1 m/s², tapering smoothly toward 3.6 m/s. Extra engine force compensates measured contact resistance against breakable objects, with a bounded heavy-track traction budget; it no longer launches the unloaded hull. Stale collider handles after fracture are skipped. Mortar treads use each side’s replicated track travel, including reverse and pivoting; deployment previews stay static. Tests cover acceleration, reverse/pivot travel, replication, and surviving a full wall breach.
+
+**Vehicle weapon balance (2026-10-04):** Scout hits deal 12 HP (was 5), with 260 m/s bullets, 1° shot spread kick, 8° spread cap and 0.2 s settling time (was 0.85). Its bullets cannot fracture walls. Mortar mass is 16 t with stronger drive and ram protection for breaching ordinary masonry; its 3.6 m/s limit remains. Overhead shells use 75% of rocket blast energy (15 MJ) and internal material shock (3 MJ, 6 MPa), about 5 m radius, with a 0.06 anti-tank blast multiplier. Actual fracture area is nonlinear; the 75% calibration is energy/pressure, not a fixed amount of removed rock.
+
+**Scout car steering (2026-10-04):** Scout uses independent throttle and front-wheel steering, with speed-dependent yaw and momentum-preserving tire grip. It cannot pivot from rest or brake its inner wheels on turns. Reverse steering follows car behavior; controller directions request rolling arcs at stick-controlled speed. `Command::Tracks` and LAN drive channels encode `(throttle + steer)/2, (throttle - steer)/2` for scouts; tracked vehicles retain differential controls.
+
+**Vehicles and automated turrets (2026-10-04):** Sandbox **U / Choose Vehicle** redeploys without rebuilding the map and enables subsequent death choices. Human players select Scout Car,
+Regular Tank or Mortar at initial deployment and after every death. Three-second
+respawn delay remains, with no automatic choice. Profiles, collider sizes/masses,
+main weapons and mortar sight are authoritative; LAN protocol is now 8. Mortar
+range comes from mouse distance, Q/E or J/K, or right-stick magnitude; hull fixes
+azimuth. Scouts cannot take specials; their bullets do not damage scenery. See [GAME_MODE.md](GAME_MODE.md).
+
+The editor's Special tab places team-owned automated turrets with facing,
+10–360° traverse, 1–100000 HP (default 100), and capture toggle. Neutral ownership attacks both teams. Living allied turrets share their cone and near-circle sight; death removes it and repaired ownership transfers it. Fixed guns use normal tank armor/damage,
+scan within their arc, respect cover/foliage and only target enemies. Destroyed
+guns remain as visible ruins; a 1 m rear console supports 15 s repair/capture.
+Repair restores the configured health pool. Capture off permits only owner repair, so noncapturable neutral ruins stay destroyed. Turrets never auto-respawn, capture flags
+or stations, join human slots, or increment player losses. See [LEVEL_EDITOR.md](LEVEL_EDITOR.md).
+
+Validation: 326 workspace unit tests and all four real-socket LAN tests passed,
+as did formatting, Clippy with the existing allowances, and Linux/WASM release
+builds. Muted browser checks covered every deployment choice, scout automatic
+fire, fixed mortar aim, turret destruction and deliberate respawn, and editor
+placement/team/capture/facing/arc/health persistence, neutral targeting and ownership, shared turret sight, and sandbox redeployment. The reusable regression is
+`tools/vehicles-turrets-smoke.mjs`. Virtual-controller checks at 1280×800 and
+1280×720 verified deployment navigation, release of menu focus, and hidden cursor.
+
+
 **Bridge repair (2026-10-04):** Capture either ruined outpost by keeping a living
 tank's center within 1 m for 15 simulated seconds. Leaving resets progress;
 opposing teams in the same area pause it. The whole bridge returns for everyone,
 with overlapping tanks moved to clear positions (restoration waits if blocked).
-Rendering shows the radius, countdown and contested status. Original cells and
+Rendering shows the radius, progress ring and contested status. Original cells and
 bonds are reused across repairs, including after shell damage/refinement.
 State is shared once per world tick and replicated; LAN protocol is now 5.
 Regression coverage includes exact timing, multiplayer timing, radius/death,

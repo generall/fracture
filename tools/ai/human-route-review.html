@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Human vs V11 — route review</title>
+<style>body{margin:20px;background:#0b111b;color:#e1ebf3;font:16px system-ui}main{display:flex;gap:24px;flex-wrap:wrap}canvas{width:min(75vw,850px);height:min(75vw,850px);background:#101922;border:1px solid #38506c}aside{min-width:240px;max-width:330px}button,select{background:#20344a;color:white;border:1px solid #6586aa;padding:9px;margin:4px}input{width:min(90vw,850px)}p{color:#9cb1c7;max-width:1000px}pre{white-space:pre-wrap;line-height:1.6}.blue{color:#49bbff}.red{color:#ff6f85}</style>
+<h2>Human vs two V11 bots — recorded routes</h2>
+<p>Public starting layout with recorded positions. Destruction is not shown here; full battlefield snapshots remain in the original recording.</p>
+<main><div><canvas id="map" width="1000" height="1000"></canvas><br><input id="seek" type="range" min="0" value="0"><br><button id="play">Play</button><select id="speed"><option value="1">1×</option><option selected value="4">4×</option><option value="10">10×</option></select><span id="time"></span></div><aside><p><span class="blue">Blue: Human</span><br><span class="red">Pink: Red 1 / Orange: Red 2</span></p><pre id="info"></pre></aside></main>
+<script>
+const data=/*RECORDING*/{};
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),seek=document.querySelector('#seek'),frames=data.frames,colors=['#49bbff','#ff6f85','#ffb85b'],names=['Human','V11 / Red 1','V11 / Red 2'];
+seek.max=frames.length-1;let index=0,playing=false,last=performance.now(),elapsed=0;
+function polygon(p){ctx.beginPath();p.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath()}
+function draw(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0b111b';ctx.fillRect(0,0,1000,1000);let scale=940/Math.max(...data.map.size);ctx.translate(500,500);ctx.scale(scale,scale);ctx.lineWidth=.18;
+const terrain={g:'#141e26',r:'#343c43',s:'#4d4839',w:'#153951',t:'#243d2b',e:'#494731',c:'#393b40'};
+for(const row of data.map.mask?.rows||[]){let start=0;for(let i=1;i<=row.tiles.length;i++){if(i===row.tiles.length||row.tiles[i]!==row.tiles[start]){ctx.fillStyle=terrain[row.tiles[start]]||'#141e26';ctx.fillRect((row.x+start)*.5,row.y*.5,(i-start)*.5,.5);start=i}}}
+for(const p of data.map.terrain){ctx.fillStyle=({Water:'#153951',Road:'#343c43',Sand:'#4d4839',Bridge:'#534d3d',Cliff:'#393b40'})[p.kind]||'#25372d';ctx.fillRect(p.min[0],p.min[1],p.max[0]-p.min[0],p.max[1]-p.min[1])}
+for(const b of data.bridges){ctx.fillStyle='#615b46';ctx.fillRect(b.min[0],b.min[1],b.max[0]-b.min[0],b.max[1]-b.min[1])}
+ctx.strokeStyle='#8b8470';for(const outline of data.outlines){polygon(outline);ctx.stroke()}
+for(const [team,p]of data.map.flags){ctx.fillStyle=team==='blue'?colors[0]:colors[1];ctx.beginPath();ctx.arc(...p,1.3,0,Math.PI*2);ctx.fill()}
+for(let actor=0;actor<3;actor++){ctx.strokeStyle=colors[actor];ctx.lineWidth=.45;ctx.beginPath();let previous=null;for(let n=0;n<=index;n++){const s=frames[n][1][actor];if(s.alive){if(previous&&previous.alive&&previous.vehicle===s.vehicle)ctx.lineTo(...s.position);else ctx.moveTo(...s.position)}previous=s}ctx.stroke();const s=frames[index][1][actor];if(s.alive){ctx.save();ctx.translate(...s.position);ctx.rotate(s.hull_angle);ctx.fillStyle=colors[actor];ctx.fillRect(-1.1,-.85,2.2,1.7);ctx.rotate(s.turret_angle-s.hull_angle);ctx.strokeStyle='white';ctx.lineWidth=.25;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(2.5,0);ctx.stroke();ctx.restore()}}
+ctx.setTransform(1,0,0,1,0,0);document.querySelector('#time').textContent=frames[index][0].toFixed(1)+' / '+data.summary.seconds.toFixed(1)+' seconds';document.querySelector('#info').textContent=frames[index][1].map((s,i)=>names[i]+'\n'+s.vehicle.toUpperCase()+' / '+(s.alive?'HP '+s.health.toFixed(0):'RESPAWNING')+'\nPosition '+s.position.map(x=>x.toFixed(1)).join(', ')).join('\n\n');seek.value=index}
+seek.oninput=()=>{index=+seek.value;draw()};document.querySelector('#play').onclick=()=>{playing=!playing;if(index===frames.length-1)index=0;document.querySelector('#play').textContent=playing?'Pause':'Play'};
+function animate(now){if(playing){elapsed+=(now-last)*+document.querySelector('#speed').value;while(elapsed>=100){elapsed-=100;index++;if(index>=frames.length){index=frames.length-1;playing=false;document.querySelector('#play').textContent='Play';break}}draw()}last=now;requestAnimationFrame(animate)}draw();requestAnimationFrame(animate);
+</script>

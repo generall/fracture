@@ -106,7 +106,8 @@ impl World {
                 SpecialWeapon::Laser,
                 SpecialWeapon::Rocket,
                 SpecialWeapon::Plasma,
-            ][(self.airdrops.random() % 3) as usize];
+                SpecialWeapon::Mine,
+            ][(self.airdrops.random() % 4) as usize];
             self.airdrops.active = Some(Drop {
                 position,
                 weapon,

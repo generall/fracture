@@ -30,6 +30,7 @@ enum Tool {
     Spawn(Team),
     Flag(Team),
     Station(StationKind),
+    Turret,
     Pickup(sim::SpecialWeapon),
 }
 impl Tool {
@@ -58,6 +59,8 @@ enum Field {
     Angle,
     GrainWidth,
     GrainHeight,
+    TurretArc,
+    TurretHealth,
     CaptureTime,
     CaptureRadius,
     RepairRate,

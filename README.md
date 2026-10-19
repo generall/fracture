@@ -55,7 +55,7 @@ Open [the game](http://127.0.0.1:8000/) or [the sandbox](http://127.0.0.1:8000/s
 | Space / left click / F | Fire at the current aim point |
 | 5 / 6 | HE / AP; switching starts a reload |
 | B | Cycle ammunition |
-| G / right click | Spend one collected laser, rocket or plasma charge |
+| G / right click | Use a collected laser, rocket, plasma or mine charge |
 | H | Toggle field manual and simulation controls |
 | O | Open the object editor / return from testing |
 | M | Open the level editor / return from level playtesting |
@@ -69,7 +69,7 @@ Open [the game](http://127.0.0.1:8000/) or [the sandbox](http://127.0.0.1:8000/s
 | Wheel / Home | Zoom / recenter; level camera follows the tank with mouse look-ahead |
 | Middle drag | Pan in material test scenes |
 
-The main gun swaps HE/AP rounds with a 0.9-second reload. Rockets, lasers and plasma cannons must be collected from editor-placed pickup pads, with configurable charge counts and cooldowns. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. The plasma cannon charges for one second, then delivers the full laser cutting budget in one pulse. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
+The main gun swaps HE/AP rounds with a 0.9-second reload. Rockets, lasers, plasma cannons and mines must be collected from editor-placed pickup pads, with configurable charge counts and cooldowns. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. The plasma cannon charges for one second, then delivers the full laser cutting budget in one pulse. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
 
 **River crossing:** press **9**. Road increases tank speed and grip; sand slows it down; water blocks the hull and tracks. Shots pass over the deck; target the booths marked A/B to destroy the crossing. They resist pushing and slow bumps, but remain vulnerable to shooting and forceful direct rams. Losing the connection between its two banks collapses the span, closes the crossing, and sinks a tank standing on it. **R** restores the scene. See [terrain and bridge rules](docs/TERRAIN.md).
 
@@ -134,3 +134,7 @@ cargo run --release -p sim --example resolution
 [The destruction architecture](docs/DESTRUCTION.md) explains rigid chunks, stress transmission, adaptive refinement, and the remaining physics limitations.
 
 `node tools/barrel-shot-smoke.mjs` checks friction/bounce variants, rebound travel, exact replay, runtime shot/material edits, editor persistence and the library shortcut.
+
+The separate [AI battlefield spectator and match harness](docs/AI_ARENA.md) runs
+four-minute 2v2 matches with team vision, independent random vehicles and seekable
+recordings. Build its Deck package with `bash tools/build-ai-arena.sh`.

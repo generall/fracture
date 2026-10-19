@@ -1,0 +1,9 @@
+{
+  "name": "v3-clear-and-recover",
+  "speed": 0.72,
+  "combat_range": 18.0,
+  "replan_seconds": 0.8,
+  "recover_seconds": 3.0,
+  "recovery_detour": true,
+  "clear_fire_lane": true
+}

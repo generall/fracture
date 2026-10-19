@@ -267,14 +267,24 @@ impl LevelEditor {
                         self.select_tool(Tool::Pickup(weapon));
                     }
                 }
-                paragraph(
-                    "Stations: capture nearby. Pickups: drive over to collect.",
-                    24.0,
-                    668.0,
-                    240.0,
-                    17.0,
-                    MUTED,
-                );
+                if button(
+                    Rect::new(20.0, 649.0, 126.0, 38.0),
+                    "TURRET",
+                    mouse,
+                    matches!(self.tool, Tool::Turret),
+                ) {
+                    self.commit_field();
+                    self.select_tool(Tool::Turret);
+                }
+                if button(
+                    Rect::new(154.0, 649.0, 110.0, 38.0),
+                    "MINE",
+                    mouse,
+                    matches!(self.tool, Tool::Pickup(sim::SpecialWeapon::Mine)),
+                ) {
+                    self.commit_field();
+                    self.select_tool(Tool::Pickup(sim::SpecialWeapon::Mine));
+                }
             }
         }
         if button(
@@ -405,6 +415,7 @@ impl LevelEditor {
                 LevelItem::Spawn { .. }
                     | LevelItem::Flag { .. }
                     | LevelItem::Station { .. }
+                    | LevelItem::Turret { .. }
                     | LevelItem::Pickup { .. }
             ) {
                 self.field(
@@ -428,7 +439,10 @@ impl LevelEditor {
             }
             if matches!(
                 item,
-                LevelItem::Object { .. } | LevelItem::Solid { .. } | LevelItem::Spawn { .. }
+                LevelItem::Object { .. }
+                    | LevelItem::Solid { .. }
+                    | LevelItem::Spawn { .. }
+                    | LevelItem::Turret { .. }
             ) {
                 self.field(
                     Field::Angle,
@@ -510,6 +524,75 @@ impl LevelEditor {
                     16.0,
                     MUTED,
                 );
+            }
+            if let LevelItem::Turret {
+                team, capturable, ..
+            } = item
+            {
+                if button(
+                    Rect::new(x, 294.0, 256.0, 34.0),
+                    &format!("TEAM / {}", team.label()),
+                    mouse,
+                    false,
+                ) {
+                    self.commit_field();
+                    let before = self.level.clone();
+                    if let LevelItem::Turret { team, .. } = &mut self.level.items[i] {
+                        *team = match team {
+                            Team::Blue => Team::Red,
+                            Team::Red => Team::Neutral,
+                            Team::Neutral => Team::Blue,
+                        };
+                    }
+                    self.finish_change(before);
+                }
+                if button(
+                    Rect::new(x, 438.0, 256.0, 34.0),
+                    if capturable {
+                        "CAPTURABLE / ON"
+                    } else {
+                        "CAPTURABLE / OFF"
+                    },
+                    mouse,
+                    capturable,
+                ) {
+                    self.commit_field();
+                    let before = self.level.clone();
+                    if let LevelItem::Turret { capturable, .. } = &mut self.level.items[i] {
+                        *capturable = !*capturable;
+                    }
+                    self.finish_change(before);
+                }
+                self.field(
+                    Field::TurretArc,
+                    "ARC / DEGREES",
+                    Rect::new(x, 510.0, 122.0, 34.0),
+                    mouse,
+                );
+                self.field(
+                    Field::TurretHealth,
+                    "HEALTH / HP",
+                    Rect::new(x + 134.0, 510.0, 122.0, 34.0),
+                    mouse,
+                );
+                if size.y >= 850.0 {
+                    paragraph(
+                        if team == Team::Neutral && !capturable {
+                            "Attacks both teams. Cannot be repaired while capture is off."
+                        } else if team == Team::Neutral {
+                            "Attacks both teams. Destroy, then hold rear console for 15s to capture."
+                        } else if capturable {
+                            "Shares allied vision. Destroy, then hold rear console for 15s to capture."
+                        } else {
+                            "Shares allied vision. Only its owner can repair: hold rear console for 15s."
+                        },
+                        x,
+                        580.0,
+                        256.0,
+                        17.0,
+                        MUTED,
+                    );
+                }
             }
             if let LevelItem::Station { station, .. } = item {
                 self.field(

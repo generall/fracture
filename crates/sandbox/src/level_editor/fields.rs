@@ -23,6 +23,14 @@ impl LevelEditor {
             Field::Y => position.y,
             Field::Width => item.map_or(0.0, |i| i.dimensions().x),
             Field::Height => item.map_or(0.0, |i| i.dimensions().y),
+            Field::TurretHealth => match item {
+                Some(LevelItem::Turret { health, .. }) => *health,
+                _ => 100.0,
+            },
+            Field::TurretArc => match item {
+                Some(LevelItem::Turret { arc, .. }) => *arc,
+                _ => 180.0,
+            },
             Field::Angle => item.map_or(0.0, |i| i.angle().to_degrees()),
             Field::GrainWidth | Field::GrainHeight => match item {
                 Some(LevelItem::Object { asset, .. }) => asset
@@ -199,11 +207,22 @@ impl LevelEditor {
                         Field::Angle => match item {
                             LevelItem::Object { angle, .. }
                             | LevelItem::Solid { angle, .. }
-                            | LevelItem::Spawn { angle, .. } => {
+                            | LevelItem::Spawn { angle, .. }
+                            | LevelItem::Turret { angle, .. } => {
                                 *angle = n.to_radians().rem_euclid(std::f32::consts::TAU)
                             }
                             _ => {}
                         },
+                        Field::TurretHealth => {
+                            if let LevelItem::Turret { health, .. } = item {
+                                *health = n;
+                            }
+                        }
+                        Field::TurretArc => {
+                            if let LevelItem::Turret { arc, .. } = item {
+                                *arc = n;
+                            }
+                        }
                         Field::PickupRespawn => {
                             if let LevelItem::Pickup { respawn_time, .. } = item {
                                 *respawn_time = n;

@@ -7,6 +7,28 @@
   ],
   "items": [
     {
+      "kind": "pickup",
+      "weapon": "mine",
+      "position": [
+        -5.25,
+        21.75
+      ],
+      "respawn_time": 60.0,
+      "charges": 3,
+      "cooldown": 1.0
+    },
+    {
+      "kind": "pickup",
+      "weapon": "mine",
+      "position": [
+        5.25,
+        -21.75
+      ],
+      "respawn_time": 60.0,
+      "charges": 3,
+      "cooldown": 1.0
+    },
+    {
       "kind": "solid",
       "outline": [
         [

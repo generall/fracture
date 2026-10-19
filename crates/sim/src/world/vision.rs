@@ -274,7 +274,7 @@ impl World {
         if let Some(frame) = &self.replica {
             return frame.sight_range;
         }
-        self.vision_range_at(self.launcher_position())
+        self.vision_range_at(self.launcher_position()) * self.player_vehicle().sight_multiplier()
     }
 
     pub(super) fn vision_range_at(&self, position: Vector) -> f32 {
@@ -319,8 +319,13 @@ impl World {
                     _ if body.material == Material::Launcher => super::vehicle::tank_colliders()
                         .map(|(offset, half)| {
                             (
-                                SharedShape::cuboid(half.x, half.y),
-                                pose * Pose::from_translation(offset),
+                                SharedShape::cuboid(
+                                    half.x * self.vehicle_kind(body.id).size().x,
+                                    half.y * self.vehicle_kind(body.id).size().y,
+                                ),
+                                pose * Pose::from_translation(
+                                    offset * self.vehicle_kind(body.id).size(),
+                                ),
                             )
                         })
                         .to_vec(),
@@ -374,10 +379,10 @@ impl World {
                 SightGroup::FixedObject(index) => object_areas[index] += piece.shape.area(),
             }
         }
-        for (_, collider) in self.physics.colliders.iter() {
-            let Some(id) = self.weapon_target(collider) else {
-                continue;
-            };
+        let targets = self.query_index.lock().unwrap().nearby(self, nearby);
+        for target in targets {
+            let id = target.piece;
+            let collider = &self.physics.colliders[target.collider];
             if Some(id) == ignored {
                 continue;
             }
@@ -395,8 +400,8 @@ impl World {
             if !blocks || area < MIN_SIGHT_BLOCKER_AREA {
                 continue;
             }
-            let bounds = collider.compute_aabb();
-            if nearby(bounds) {
+            let bounds = target.bounds;
+            {
                 out.push(Occluder {
                     source: Some(id),
                     shape: collider.shared_shape().clone(),
@@ -469,7 +474,7 @@ impl World {
             && self.sight_path_clear(origin, Some(tank), target, in_grass)
     }
 
-    fn sight_path_clear(
+    pub(super) fn sight_path_clear(
         &self,
         origin: Vector,
         ignored: Option<usize>,
@@ -481,16 +486,24 @@ impl World {
             return true;
         }
         let ray = Ray::new(origin, (target - origin) / distance);
-        self.sight_occluders_where(ignored, &|bounds| {
+        let obstacles = self.sight_occluders_where(ignored, &|bounds| {
             origin.clamp(bounds.mins, bounds.maxs).distance(origin) <= distance
                 && bounds
                     .loosened(0.0001)
                     .cast_local_ray(&ray, distance, true)
                     .is_some()
-        })
-        .iter()
-        .all(|o| {
-            if (ignore_grass && o.grass) || (o.tank && o.shape.contains_point(&o.pose, target)) {
+        });
+        // A hull and its tracks are one target. A nearer track must not hide
+        // the same vehicle's center when the hull is rotated relative to us.
+        let target_tanks: Vec<_> = obstacles
+            .iter()
+            .filter(|o| o.tank && o.shape.contains_point(&o.pose, target))
+            .filter_map(|o| o.source)
+            .collect();
+        obstacles.iter().all(|o| {
+            if (ignore_grass && o.grass)
+                || (o.tank && o.source.is_some_and(|id| target_tanks.contains(&id)))
+            {
                 return true;
             }
             o.shape
@@ -514,7 +527,7 @@ impl World {
             return vec![];
         }
         let origin = self.launcher_position();
-        let range = self.vision_range_at(origin);
+        let range = self.vision_range_at(origin) * self.player_vehicle().sight_multiplier();
         let grass_tail = ((GRASS_REVEAL_SECONDS - SHOT_REVEAL_SECONDS) / TICK_DT).round() as u64;
         self.tanks
             .iter()
@@ -579,7 +592,7 @@ impl World {
         self.vision_from(origin, Some(tank), Some(angle))
     }
 
-    /// Combined player sight, including the allied flag's short-range lookout.
+    /// Combined player sight, including allied flags, stations and living turrets.
     pub fn player_vision(&self, angle: f32) -> Vision {
         if let Some(frame) = &self.replica {
             return frame.vision.clone();
@@ -641,6 +654,17 @@ impl World {
                 ));
             }
         }
+        for turret in self
+            .tanks()
+            .filter(|t| t.mount.is_some() && t.team == self.team() && t.health > 0.0)
+        {
+            let mount = turret.mount.unwrap();
+            vision.additional.push(self.vision_from(
+                mount.position,
+                Some(turret.id),
+                Some(turret.turret_angle),
+            ));
+        }
         for station in self.stations().filter(|s| s.owner == Some(self.team())) {
             if station.kind == crate::level::StationKind::Repair {
                 vision
@@ -659,6 +683,15 @@ impl World {
                     .collect(),
             ));
         }
+        for mine in self.mines().filter(|mine| mine.team == self.team()) {
+            vision.additional.push(self.vision_from_excluding_at_range(
+                mine.position,
+                None,
+                None,
+                &[],
+                Some(mines::MINE_SIGHT),
+            ));
+        }
         vision
     }
 
@@ -673,11 +706,12 @@ impl World {
             let origin = self.launcher_position();
             let in_grass = self.terrain_at(origin) == crate::TerrainKind::TallGrass;
             let delta = target - origin;
-            let range = self.vision_range_at(origin);
-            let in_cone = delta.length() <= NEAR_VISION
+            let range = self.vision_range_at(origin) * self.player_vehicle().sight_multiplier();
+            let in_cone = delta.length() <= self.player_vehicle().near_vision()
                 || (delta.length() <= range
-                    && delta.normalize_or_zero().dot(Vector::from_angle(angle))
-                        >= VISION_HALF_ANGLE.cos());
+                    && (self.player_vehicle().vision_half_angle() >= std::f32::consts::PI
+                        || delta.normalize_or_zero().dot(Vector::from_angle(angle))
+                            >= self.player_vehicle().vision_half_angle().cos()));
             let player_sees = self.tank_is_alive(self.launcher)
                 && in_cone
                 && self.sight_path_clear(
@@ -700,8 +734,24 @@ impl World {
                         .station_vision(station.position, station.object)
                         .contains(target)
             });
+            let turret_sees = self.tanks.iter().any(|observer| {
+                observer.mount.is_some()
+                    && observer.team == self.team
+                    && observer.health > 0.0
+                    && self.detects_tank(observer.id, tank.id)
+                    && self
+                        .vision(observer.id, observer.aim.angle)
+                        .contains(target)
+            });
+            let mine_sees = self.mines.iter().any(|mine| {
+                mine.team == self.team
+                    && mine.position.distance_squared(target) <= mines::MINE_SIGHT.powi(2)
+                    && self.sight_path_clear(mine.position, None, target, true)
+            });
             let visible = self.tank_is_alive(tank.id)
-                && (station_sees
+                && (mine_sees
+                    || turret_sees
+                    || station_sees
                     || (!self.concealed_from(self.launcher, tank.id)
                         && (player_sees || flag_sees || self.radar_covers(self.team, target))));
             visibility.push((tank.id, visible));
@@ -736,11 +786,33 @@ impl World {
         cone: Option<f32>,
         excluded: &[usize],
     ) -> Vision {
+        self.vision_from_excluding_at_range(origin, ignored, cone, excluded, None)
+    }
+
+    fn vision_from_excluding_at_range(
+        &self,
+        origin: Vector,
+        ignored: Option<usize>,
+        cone: Option<f32>,
+        excluded: &[usize],
+        near_override: Option<f32>,
+    ) -> Vision {
         let in_grass = self.terrain_at(origin) == crate::TerrainKind::TallGrass;
-        let range = if cone.is_some() {
-            self.vision_range_at(origin)
+        let kind = if cone.is_some() {
+            ignored.map_or(VehicleKind::Tank, |id| self.vehicle_kind(id))
         } else {
-            NEAR_VISION
+            VehicleKind::Tank
+        };
+        let near = near_override.unwrap_or_else(|| kind.near_vision());
+        let half_angle = kind.vision_half_angle();
+        let full_circle = cone.is_some() && half_angle >= std::f32::consts::PI;
+        // Full-circle sight has no gun-aligned seams or boundary rays. Keep
+        // identical geometry when the scout's turret turns.
+        let cone = cone.map(|angle| if full_circle { 0.0 } else { angle });
+        let range = if cone.is_some() {
+            self.vision_range_at(origin) * kind.sight_multiplier()
+        } else {
+            near
         };
         let mut obstacles = self.sight_occluders(origin, ignored, range);
         obstacles.retain(|o| o.source.is_none_or(|id| !excluded.contains(&id)));
@@ -759,9 +831,9 @@ impl World {
                 angles.push((a + offset).rem_euclid(tau));
             }
         };
-        if let Some(angle) = cone {
-            add_angle(angle - VISION_HALF_ANGLE);
-            add_angle(angle + VISION_HALF_ANGLE);
+        if let Some(angle) = cone.filter(|_| !full_circle) {
+            add_angle(angle - half_angle);
+            add_angle(angle + half_angle);
         }
         let forward = Vector::from_angle(cone.unwrap_or(0.0));
         let (corners, exposed) = silhouette(&obstacles);
@@ -775,9 +847,10 @@ impl World {
             let delta = p - origin;
             // Distant corners outside the cone cannot affect the nearby circle.
             // Keep a small angular margin for the cone's boundary rays.
-            if delta.length() <= NEAR_VISION + 0.025
+            if delta.length() <= near + 0.025
+                || full_circle
                 || (cone.is_some()
-                    && delta.normalize_or_zero().dot(forward) >= (VISION_HALF_ANGLE + 0.0001).cos())
+                    && delta.normalize_or_zero().dot(forward) >= (half_angle + 0.0001).cos())
             {
                 add_angle(delta.to_angle());
             }
@@ -788,10 +861,10 @@ impl World {
         let mut lengths: Vec<f32> = directions
             .iter()
             .map(|d| {
-                if cone.is_some() && d.dot(forward) >= VISION_HALF_ANGLE.cos() {
+                if full_circle || (cone.is_some() && d.dot(forward) >= half_angle.cos()) {
                     range
                 } else {
-                    NEAR_VISION
+                    near
                 }
             })
             .collect();
@@ -1002,6 +1075,23 @@ mod tests {
         });
         World::from_level(&level, Team::Blue).unwrap()
     }
+    #[test]
+    fn scout_full_circle_sight_keeps_grass_range_and_host_detection() {
+        let mut world = grass_tanks(true);
+        world.apply_vehicle(world.launcher, VehicleKind::Scout);
+        let enemy = world.tanks[1].id;
+        for angle in [0.0, std::f32::consts::PI] {
+            let sight = world.player_vision(angle);
+            assert_eq!(sight.tank_visibility(enemy), Some(true));
+            assert_eq!(world.host_vision(angle).tank_visibility(enemy), Some(true));
+            assert!(sight.contains(Vector::new(0.0, -7.0)));
+            assert!(
+                !sight.contains(Vector::new(0.0, -9.0)),
+                "grass still limits sight to 8m"
+            );
+        }
+    }
+
     #[test]
     fn grass_keeps_short_vision_and_tanks_inside_can_detect_each_other() {
         let world = grass_tanks(true);

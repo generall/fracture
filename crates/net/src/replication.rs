@@ -213,7 +213,7 @@ impl Encoder {
         }
     }
 }
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Decoder {
     vision: Option<Vision>,
     sequence: u64,
@@ -221,7 +221,17 @@ pub struct Decoder {
     motion: BTreeMap<u32, Motion>,
 }
 impl Decoder {
-    pub fn decode(&mut self, mut delta: Delta) -> Result<Frame, String> {
+    pub fn decode(&mut self, delta: Delta) -> Result<Frame, String> {
+        let mut frame = self.advance(delta)?;
+        frame.bodies = self
+            .motion
+            .iter()
+            .map(|(id, m)| self.definitions[id].body(*m))
+            .collect();
+        Ok(frame)
+    }
+    /// Apply records without allocating render bodies, for fast replay seeking.
+    pub fn advance(&mut self, mut delta: Delta) -> Result<Frame, String> {
         if delta.base != self.sequence || delta.sequence != self.sequence + 1 {
             return Err("Snapshot sequence gap".into());
         }
@@ -247,11 +257,6 @@ impl Decoder {
             }
             self.motion.insert(id, m);
         }
-        delta.frame.bodies = self
-            .motion
-            .iter()
-            .map(|(id, m)| self.definitions[id].body(*m))
-            .collect();
         self.sequence = delta.sequence;
         Ok(delta.frame)
     }
@@ -269,6 +274,131 @@ mod tests {
         let (delta, _) = crate::codec::decode::<Delta>(&bytes).unwrap().unwrap();
         let frame = Decoder::default().decode(delta).unwrap();
         World::from_replica(sim::replica::Map::capture(world), frame)
+    }
+    #[test]
+    fn checkpoint_and_fast_forward_match_continuous_snapshot_decoding() {
+        let mut world = World::from_level(&Level::default(), Team::Blue).unwrap();
+        let mut encoder = Encoder::default();
+        let mut stream = Vec::new();
+        for _ in 0..4 {
+            for _ in 0..30 {
+                world.step(&[sim::Command::Tracks {
+                    left: 0.7,
+                    right: 0.6,
+                }]);
+            }
+            stream.push(encoder.encode_frame(Frame::capture(&world)));
+        }
+        let mut continuous = Decoder::default();
+        let mut expected = None;
+        for delta in &stream {
+            expected = Some(continuous.decode(delta.clone()).unwrap());
+        }
+        let mut checkpoint = Decoder::default();
+        checkpoint.advance(stream[0].clone()).unwrap();
+        let mut seek = checkpoint.clone();
+        for delta in &stream[1..3] {
+            seek.advance(delta.clone()).unwrap();
+        }
+        let actual = seek.decode(stream[3].clone()).unwrap();
+        let expected = expected.unwrap();
+        assert_eq!(actual.stats.ticks, expected.stats.ticks);
+        assert_eq!(
+            format!("{:?}", actual.bodies),
+            format!("{:?}", expected.bodies)
+        );
+        assert!(actual.vision == expected.vision);
+    }
+    #[test]
+    fn mortar_impact_area_survives_wire_while_moving_and_settling() {
+        use sim::{Command, VehicleKind, level::LevelItem};
+        let level = Level {
+            size: [200.0, 200.0],
+            items: vec![LevelItem::Spawn {
+                team: Team::Blue,
+                position: [0.0, 0.0],
+                angle: 0.0,
+            }],
+            ..Level::default()
+        };
+        let mut world = World::from_level(&level, Team::Blue).unwrap();
+        world.require_vehicle_choice(world.player_tank_id());
+        world.step(&[Command::Deploy(VehicleKind::Mortar)]);
+        world.step(&[]);
+        let mut radii = vec![];
+        for throttle in [1.0, 0.0] {
+            for _ in 0..720 {
+                world.step(&[Command::Tracks {
+                    left: throttle,
+                    right: throttle,
+                }]);
+            }
+            let client = through_wire(&world);
+            let radius = world.player_aim().mortar_impact_radius(20.0);
+            assert_eq!(client.player_aim().mortar_impact_radius(20.0), radius);
+            radii.push(radius);
+        }
+        assert!(radii[0] > 3.0 && radii[1] < 0.5, "{radii:?}");
+    }
+
+    #[test]
+    fn vehicle_geometry_vision_and_turret_state_survive_wire() {
+        use sim::{
+            VehicleKind,
+            level::LevelItem,
+            multiplayer::{MultiplayerWorld, PlayerInput},
+        };
+        let mut level = Level::default();
+        level.items.push(LevelItem::Turret {
+            team: Team::Red,
+            position: [0.0, 5.0],
+            angle: 0.8,
+            arc: 100.0,
+            health: 100.0,
+            capturable: true,
+        });
+        level.items.push(LevelItem::Turret {
+            team: Team::Neutral,
+            position: [0.0, -5.0],
+            angle: 0.0,
+            arc: 180.0,
+            health: 750.0,
+            capturable: true,
+        });
+        let mut game = MultiplayerWorld::new(&level, &[Team::Blue, Team::Red]).unwrap();
+        game.require_vehicle_choices();
+        game.step(&[
+            PlayerInput {
+                deploy: Some(VehicleKind::Mortar),
+                ..Default::default()
+            },
+            PlayerInput {
+                deploy: Some(VehicleKind::Scout),
+                ..Default::default()
+            },
+        ]);
+        game.step(&[PlayerInput::default(); 2]);
+        for player in 0..2 {
+            let host = game.for_player(player).unwrap();
+            let client = through_wire(host);
+            assert_eq!(client.player_vehicle(), host.player_vehicle());
+            let a = host.player_vision(host.player_aim().angle);
+            let b = client.player_vision(client.player_aim().angle);
+            for x in -20..20 {
+                for y in -12..12 {
+                    let p = Vec2::new(x as f32, y as f32);
+                    assert_eq!(a.contains(p), b.contains(p));
+                }
+            }
+            let t = client.tanks().find(|t| t.mount.is_some()).unwrap();
+            let mount = t.mount.unwrap();
+            assert_eq!(t.team, Team::Red);
+            assert_eq!(mount.arc, 100.0);
+            assert!(mount.capturable);
+            let neutral = client.tanks().find(|t| t.team == Team::Neutral).unwrap();
+            assert_eq!(neutral.health, 750.0);
+            assert_eq!(neutral.mount.unwrap().max_health, 750.0);
+        }
     }
     #[test]
     fn bridge_deck_rendering_tag_survives_wire_without_hiding_supports() {
@@ -326,6 +456,29 @@ mod tests {
             let received = decoder.decode(delta).unwrap();
             let client = World::from_replica(sim::replica::Map::capture(&world), received);
             assert_eq!(client.airdrop(), expected);
+        }
+    }
+
+    #[test]
+    fn mine_placement_detection_and_removal_survive_wire_updates() {
+        let world = World::from_level(&Level::default(), Team::Blue).unwrap();
+        let mut frame = Frame::capture(&world);
+        let mine = sim::MineView {
+            id: 17,
+            position: Vec2::ZERO,
+            team: Team::Blue,
+            arming_remaining: 0.75,
+        };
+        let mut encoder = Encoder::default();
+        let mut decoder = Decoder::default();
+        for mines in [vec![mine], vec![], vec![mine], vec![]] {
+            frame.mines = mines.clone();
+            let bytes = crate::codec::encode(&encoder.encode_frame(frame.clone())).unwrap();
+            let (delta, _) = crate::codec::decode::<Delta>(&bytes).unwrap().unwrap();
+            let received = decoder.decode(delta).unwrap();
+            assert_eq!(received.mines, mines);
+            let client = World::from_replica(sim::replica::Map::capture(&world), received);
+            assert_eq!(client.visible_mines().collect::<Vec<_>>(), mines);
         }
     }
 

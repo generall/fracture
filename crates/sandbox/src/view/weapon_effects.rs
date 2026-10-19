@@ -43,6 +43,7 @@ pub(crate) fn pickup_marker(pickup: &sim::PickupView, view: &Viewport, opacity: 
             sim::SpecialWeapon::Laser => CYAN,
             sim::SpecialWeapon::Rocket => PINK,
             sim::SpecialWeapon::Plasma => VIOLET,
+            sim::SpecialWeapon::Mine => YELLOW,
         },
         opacity,
     );
@@ -64,7 +65,9 @@ pub(crate) fn pickup_marker(pickup: &sim::PickupView, view: &Viewport, opacity: 
         tint(color, if ready { 0.8 } else { 0.3 }),
     );
     if ready {
-        if pickup.weapon == sim::SpecialWeapon::Plasma {
+        if pickup.weapon == sim::SpecialWeapon::Mine {
+            mine_symbol(p, r * 0.55, color);
+        } else if pickup.weapon == sim::SpecialWeapon::Plasma {
             draw_circle_lines(p.x, p.y, r * 0.48, 2.0, color);
             draw_circle(p.x, p.y, r * 0.20, INK);
             for i in 0..4 {
@@ -107,6 +110,26 @@ pub(crate) fn pickup_marker(pickup: &sim::PickupView, view: &Viewport, opacity: 
             line(previous, next, 2.0, color);
             previous = next;
         }
+    }
+}
+
+fn mine_symbol(p: Vec2, radius: f32, color: Color) {
+    draw_circle(p.x, p.y, radius, tint(PAPER, 0.95));
+    draw_circle_lines(p.x, p.y, radius, 1.5, color);
+    draw_circle(p.x, p.y, radius * 0.3, color);
+    for i in 0..6 {
+        let axis = Vec2::from_angle(i as f32 * std::f32::consts::TAU / 6.0);
+        line(p + axis * radius * 0.8, p + axis * radius * 1.3, 1.5, color);
+    }
+}
+
+pub(super) fn mine_marker(mine: sim::MineView, view: &Viewport, friendly: bool) {
+    let p = view.screen(v(mine.position));
+    let color = if friendly { CYAN } else { PINK };
+    let radius = (view.scale * 0.28).max(5.0);
+    mine_symbol(p, radius, color);
+    if mine.arming_remaining > 0.0 {
+        draw_circle_lines(p.x, p.y, radius * 1.6, 1.0, tint(color, 0.4));
     }
 }
 

@@ -1,5 +1,85 @@
 # Physics performance on Steam Deck
 
+## Scout near the River Valley enemy base (2026-10-18)
+
+The Blue scout follows a high-speed loop near the Red base, with active enemy AI
+and fixed defenses. Separate scenarios drive without firing and continuously
+fire the scout gun. Each foreground native capture runs at 1280×800, after three
+seconds of warm-up, for 30 seconds. Temporary KDE display and power inhibition
+and foreground checks prevent idle throttling; audio is silent and saves are
+isolated. The runner releases inhibition and resumes any suspended player game.
+
+| Scenario | Before FPS | After FPS | Before worst frame | After worst frame | Frames >50 ms, before → after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Driving | 71.8 | 77.9 | 62.4 ms | 26.2 ms | 5 → 0 |
+| Driving and firing | 63.5 | 77.3 | 73.7 ms | 27.5 ms | 14 → 0 |
+
+Projectile queries now use a separate spatial index of live colliders, with exact
+relative-motion shape casts and stable candidate order. Fixed geometry is reused
+within a simulation tick; moving colliders refresh for each query, and geometry
+changes invalidate cached fixed bounds. Visibility queries reuse these bounds.
+Combat projectile CPU time fell from 2,973 ms to 249 ms over the capture.
+
+All 61 replay fingerprints match the pre-optimization build. Reference tests
+compare indexed sweeps with full scans after movement, shape changes, fracture,
+death and collider removal/reuse. Workspace, LAN and browser checks pass. The
+build also reduces fixed-gun ram damage and changes mortar stick range to gradual
+relative adjustment; those are intentional gameplay changes.
+
+These are single before/after gameplay captures, with different frame schedules
+and potentially different combat outcomes. Simulation time stays within 0.1 s
+of wall time in every run. No >50 ms stalls occurred in the final captures;
+this does not establish that every longer play session is free of hitches.
+Raw frame samples and stage totals: [four captures](validation/scout-deck-2026-10-18.json.gz).
+Build with `cargo build --release --locked -p game --features fracture_client/performance-test`,
+save separate before/after binaries, then run `tools/deck-scout-profile.py` on the
+Deck with `--before PATH --after PATH --seconds 30 --output DIRECTORY` and the
+desktop session's `DISPLAY`, `XAUTHORITY`, and D-Bus environment.
+
+An intermediate scout wall fix absorbed closing motion before contact. It was
+withdrawn because the car felt like it was braking against an invisible barrier.
+The archived [wall-fix frame samples](validation/scout-wall-deck-2026-10-18.json.gz)
+measure that intermediate build: about 79 FPS and no >50 ms frames in its short
+20-second captures. Those measurements do not describe the replacement physics.
+
+The replacement uses ordinary contact impulses and material fracture for scouts,
+with a 10 m/s top speed and 1.2 t chassis (previously 12 m/s and 1.8 t). Engine and
+brake forces scale with mass. Ground-speed impact energy drops from 129.6 kJ to
+60 kJ, below the regular tank's 95.1 kJ. No wall proximity logic cancels velocity
+or angular motion. Tests verify unchanged motion before contact, actual impact
+feedback and car damage, and weaker wall displacement/fracture than the tank.
+
+Local-match catch-up now has a 12 ms wall-time budget between complete 120 Hz
+physics ticks, in addition to the existing twelve-tick cap. A costly fracture
+finishes its tick, but cannot force the whole accumulated backlog into that
+rendered frame. Excess accumulated time uses the existing discard/overload path;
+the tradeoff is a slightly slower simulation clock during heavy bursts. Material
+experiments retain their prior scheduling, and solver iterations are unchanged.
+
+Final 20-second foreground Deck checks averaged 65.0 FPS driving and 74.1 FPS
+in combat. Driving had one >50 ms frame (57.6 ms maximum); combat had none
+(41.4 ms maximum). Simulation advanced 19.775 s and 19.675 s respectively in
+about 20 s of wall time. The physical build without the catch-up guard had five
+>50 ms frames in its combat comparison (71.1 ms maximum). Different frame schedules
+produce different combat/fracture histories, so these are gameplay checks rather
+than deterministic performance comparisons. Large fractures can still hitch;
+this does not claim they are eliminated. All 349 workspace tests, Clippy and the
+muted browser speed/steering and gameplay checks pass.
+[Physical scout frame samples](validation/scout-physical-deck-2026-10-18.json.gz).
+
+The subsequent scout sight update replaces its gun-aligned cone with 360° sight
+at the same terrain-dependent range. All 351 workspace tests pass, including aim
+invariance, rear cover, grass limits, host detection and replica geometry. Short
+10-second foreground Deck captures averaged 73.5 FPS driving and 62.4 FPS in
+combat, with no frames over 50 ms (27.1/34.6 ms maxima). Simulation advanced
+9.967/9.742 s in about 10 s of wall time. These short captures check the extra
+sight cost, not sustained destruction or identical gameplay traces. The completed
+driving report survived a test-runner window-close race; the runner now accepts
+that shutdown only after a report exists and the game exits successfully.
+[360° scout frame samples](validation/scout-360-deck-2026-10-18.json.gz).
+
+## Earlier physics investigation
+
 The 2026-09-27 investigation compares CPU stage costs, Rapier worker pools, and
 optimizations of physics bookkeeping, visibility and AI queries. Normal game builds keep Rapier
 single-threaded. The optional `sim/parallel` feature is retained for experiments;

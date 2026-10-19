@@ -195,9 +195,7 @@ fn rectangle(min: Vec2, max: Vec2) -> Vec<Vec2> {
     vec![min, Vec2::new(max.x, min.y), max, Vec2::new(min.x, max.y)]
 }
 fn polygon(body: BodyView) -> Vec<Vec2> {
-    let local = if body.material == Material::Launcher {
-        rectangle(Vec2::new(-1.08, -0.82), Vec2::new(1.08, 0.82))
-    } else {
+    let local = {
         match body.shape {
             Shape::Triangle { vertices } => vertices.to_vec(),
             Shape::Box { half } => rectangle(-half, half),

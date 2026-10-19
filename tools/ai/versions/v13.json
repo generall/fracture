@@ -1,0 +1,16 @@
+{
+  "name": "v13-steady-engagement",
+  "speed": 0.65,
+  "combat_range": 12.0,
+  "replan_seconds": 0.8,
+  "recover_seconds": 3.0,
+  "recovery_detour": true,
+  "clear_fire_lane": true,
+  "route_following": true,
+  "advance_objective": true,
+  "adaptive_recovery": true,
+  "vehicle_tactics": true,
+  "bounded_clearing": true,
+  "engagement_spacing": true,
+  "productive_clearing": true
+}

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/sim", "crates/sandbox", "crates/game", "crates/net"]
+members = ["crates/sim", "crates/sandbox", "crates/game", "crates/net", "crates/arena"]
 resolver = "3"
 exclude = ["vendor/quad-snd"]
 

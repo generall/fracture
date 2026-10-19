@@ -718,6 +718,7 @@ impl World {
         edges: &[usize],
         frame: Pose,
     ) {
+        self.query_epoch += 1;
         let lookup: BTreeMap<_, _> = mesh
             .ids
             .iter()

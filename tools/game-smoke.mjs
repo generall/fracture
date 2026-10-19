@@ -89,7 +89,8 @@ try {
     {kind:'spawn',team:'blue',position:[-18,0],angle:0},
     {kind:'spawn',team:'red',position:[18,0],angle:Math.PI},
     {kind:'flag',team:'blue',position:[-21,0]},
-    {kind:'flag',team:'red',position:[21,0]}
+    {kind:'flag',team:'red',position:[21,0]},
+    {kind:'pickup',weapon:'mine',position:[18,0],charges:2,cooldown:0.3,respawn_time:60}
   ]};
   await importMap(imported);
   assert.equal(await evaluate('JSON.parse(localStorage.getItem("fracture.match-map.v1")).name'),imported.name);
@@ -106,6 +107,10 @@ try {
   assert.equal((await stats()).shots,0,'countdown blocks firing');
   await screenshot('game-countdown');
   await until('wasm_exports.game_phase()===2 && wasm_exports.game_match_ticks()>10','match running');
+  await click(720,578); // Deploy the standard tank from the existing vehicle picker.
+  await until('wasm_exports.lab_tank_alive()===1','tank deployed');
+  await until('wasm_exports.lab_special()===4','match mine pickup collected');
+  await screenshot('game-mines-ready');
   const tickBefore=(await stats()).ticks;
   for(const [code,name,n] of [['KeyM','m',77],['KeyO','o',79],['KeyR','r',82],['Digit1','1',49],['KeyN','n',78],['KeyT','t',84],['KeyV','v',86]]) await key(code,name,n);
   assert.equal(await evaluate('wasm_exports.game_screen()'),3,'sandbox shortcuts cannot leave the match');
@@ -114,6 +119,11 @@ try {
   await key('Space',' ',32);
   assert.ok((await stats()).shots>0,'Space fires the main gun in a match');
   assert.equal(await evaluate('wasm_exports.game_phase()'),2,'Space does not open the pause menu');
+  const shotsBeforeMine=(await stats()).shots;
+  await key('KeyG','g',71);
+  await until('wasm_exports.lab_mines()===1','mine placed during a match');
+  assert.equal((await stats()).shots,shotsBeforeMine,'mine placement is independent of main-gun reload');
+  assert.equal(await evaluate('wasm_exports.lab_special()'),4,'HUD keeps the remaining mine charge');
   for(const [x,y] of [[20,20],[20,880]]) {
     await until('wasm_exports.lab_reload()===0','main gun ready before edge click');
     const shots=(await stats()).shots;
@@ -149,6 +159,8 @@ try {
   await click(220,714); // Back to blue.
   await click(1250,837);
   await until('wasm_exports.game_phase()===2','capture match begins');
+  await click(720,578);
+  await until('wasm_exports.lab_tank_alive()===1','capture-match tank deployed');
   await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w',windowsVirtualKeyCode:87});
   await until('wasm_exports.game_phase()===4','match results');
   await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w',windowsVirtualKeyCode:87});
@@ -188,7 +200,7 @@ try {
   await key('KeyM','m',77);
   await until('wasm_exports.level_editor_active()===1','sandbox editor still works');
   assert.deepEqual(errors,[]);
-  console.log('PASS: home, lobby, bundled maps, import/persistence, config, countdown, gameplay, sandbox isolation, pause, validation, capture, results, rematch, saved-map reload and sandbox access');
+  console.log('PASS: home, lobby, bundled maps, import/persistence, countdown, deployment, mine pickup/placement/HUD, gameplay, pause, capture, results, rematch, saved-map reload and sandbox isolation');
 } finally {
   if(originalStores) await evaluate(`Object.entries(${JSON.stringify(originalStores)}).forEach(([k,v])=>v===null?localStorage.removeItem(k):localStorage.setItem(k,v))`);
   await fetch(`${debugUrl}/json/close/${page.id}`); ws.close();

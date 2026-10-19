@@ -1,6 +1,6 @@
 //! Fire, smoke and a cosmetic turret above the independently simulated wreck.
 use crate::{
-    ui::{CYAN, INK, PINK},
+    ui::{CYAN, INK, MUTED, PINK},
     view::{Viewport, tank_parts},
 };
 use macroquad::prelude::*;
@@ -28,7 +28,11 @@ impl WreckEffect {
         Self {
             position: v(position),
             details,
-            color: if team == Team::Blue { CYAN } else { PINK },
+            color: match team {
+                Team::Blue => CYAN,
+                Team::Red => PINK,
+                Team::Neutral => MUTED,
+            },
             seed,
             age: 0.0,
         }
@@ -93,15 +97,36 @@ impl WreckEffect {
             + v(self.details.velocity).clamp_length_max(5.0) * 0.2)
             * drift_time;
         let spin = (noise(self.seed + 17) - 0.5) * (3.0 + 8.0 * strength);
-        tank_parts::draw_turret(
-            view,
-            self.position + drift,
-            self.details.turret_angle + spin * drift_time,
-            height,
-            fade,
-            self.color,
-        );
-
+        if self.details.vehicle == sim::VehicleKind::Tank {
+            tank_parts::draw_turret(
+                view,
+                self.position + drift,
+                self.details.turret_angle + spin * drift_time,
+                height,
+                fade,
+                self.color,
+            );
+        } else {
+            let p = view.screen(self.position + drift) - vec2(0.0, height * view.scale);
+            let direction = Vec2::from_angle(self.details.turret_angle + spin * drift_time);
+            let length = if self.details.vehicle == sim::VehicleKind::Scout {
+                0.5
+            } else {
+                0.9
+            };
+            draw_line(
+                p.x,
+                p.y,
+                p.x + direction.x * view.scale * length,
+                p.y + direction.y * view.scale * length,
+                if self.details.vehicle == sim::VehicleKind::Scout {
+                    2.0
+                } else {
+                    7.0
+                },
+                tint(self.color, fade),
+            );
+        }
         // Fuel fire stays at the known death position; it never follows unseen fragments.
         let hot = Color::from_rgba(255, 190, 70, 255);
         let red = Color::from_rgba(244, 88, 36, 255);

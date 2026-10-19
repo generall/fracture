@@ -47,7 +47,7 @@ impl Actions {
         self.held & action != 0
     }
     pub fn used(self) -> bool {
-        self.drive != Vec2::ZERO || self.aim != Vec2::ZERO || self.pressed != 0
+        self.drive != Vec2::ZERO || self.aim != Vec2::ZERO || self.held != 0
     }
 }
 #[derive(Default)]
@@ -161,11 +161,14 @@ impl Controller {
         };
         let actions = self.tracker.update(raw, dt);
         let mouse = Vec2::from(mouse_position());
-        // Deck desktop mappings can emit mouse motion alongside stick input,
-        // including after release. Require a deliberate handoff to the mouse.
+        // Deck desktop mappings can emit pointer motion, left clicks and fire
+        // keys alongside controller input, even after release. These must not
+        // replace the selected aim with the stale hidden cursor's position.
         if (!handheld && (mouse - self.last_mouse).length_squared() > 4.0)
-            || !get_keys_pressed().is_empty()
-            || is_mouse_button_pressed(MouseButton::Left)
+            || get_keys_pressed()
+                .into_iter()
+                .any(|key| pointer_key(handheld, key))
+            || (!handheld && is_mouse_button_pressed(MouseButton::Left))
             || (handheld
                 && [MouseButton::Right, MouseButton::Middle]
                     .into_iter()
@@ -184,9 +187,29 @@ impl Controller {
     }
 }
 
+fn pointer_key(handheld: bool, key: KeyCode) -> bool {
+    !handheld || !matches!(key, KeyCode::Space | KeyCode::F | KeyCode::G)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn deck_fire_aliases_keep_controller_aim_and_held_buttons_keep_ownership() {
+        for key in [KeyCode::Space, KeyCode::F, KeyCode::G] {
+            assert!(!pointer_key(true, key));
+            assert!(pointer_key(false, key));
+        }
+        assert!(pointer_key(true, KeyCode::A));
+        assert!(
+            Actions {
+                held: FIRE,
+                ..Actions::default()
+            }
+            .used()
+        );
+        assert!(!Actions::default().used());
+    }
     #[test]
     fn dead_zone_retains_analog_precision_and_rejects_invalid_values() {
         assert_eq!(dead_zone(vec2(0.1, -0.1)), Vec2::ZERO);

@@ -24,7 +24,7 @@ match settings clears readiness. Changing a player's team clears that player's
 readiness.
 
 The countdown lasts three seconds. Capture the enemy flag to win; destroyed tanks
-respawn after three seconds when their spawn is clear. The host can return the
+require a vehicle selection after every death and respawn after a minimum of ten seconds when their spawn is clear. Initial deployment also offers Scout Car, Regular Tank and Mortar. The host can return the
 session to the lobby for another map or match. A guest can leave independently.
 The host leaving closes the session. Match menus and sound settings do not pause
 the shared simulation; that player's movement input is neutral while a menu is open.

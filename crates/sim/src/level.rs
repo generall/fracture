@@ -12,6 +12,9 @@ pub use terrain_mask::{TERRAIN_CELL_SIZE, TerrainMask};
 pub const MAX_LEVEL_OBJECTS: usize = 192;
 pub const MAX_LEVEL_BYTES: usize = 2 * 1024 * 1024;
 pub const FLAG_RADIUS: f32 = 0.35;
+fn default_turret_health() -> f32 {
+    100.0
+}
 fn default_pickup_respawn() -> f32 {
     20.0
 }
@@ -24,18 +27,21 @@ fn default_pickup_charges() -> u32 {
 pub enum Team {
     Blue,
     Red,
+    Neutral,
 }
 impl Team {
     pub fn label(self) -> &'static str {
         match self {
             Self::Blue => "BLUE",
             Self::Red => "RED",
+            Self::Neutral => "NEUTRAL",
         }
     }
     pub fn other(self) -> Self {
         match self {
             Self::Blue => Self::Red,
             Self::Red => Self::Blue,
+            Self::Neutral => Self::Neutral,
         }
     }
 }
@@ -68,6 +74,17 @@ pub enum LevelItem {
         charges: u32,
         #[serde(default)]
         cooldown: f32,
+    },
+    Turret {
+        team: Team,
+        position: [f32; 2],
+        angle: f32,
+        /// Total traverse arc in degrees, centered on angle.
+        arc: f32,
+        #[serde(default = "default_turret_health")]
+        health: f32,
+        #[serde(default)]
+        capturable: bool,
     },
     Station {
         station: StationKind,
@@ -302,6 +319,15 @@ impl Level {
                         }
                         Ok(0)
                     }
+                    LevelItem::Turret { arc, health, .. } => {
+                        if !health.is_finite() || !(1.0..=100_000.0).contains(health) {
+                            return Err("Turret health must be 1–100000 HP.".into());
+                        }
+                        if !arc.is_finite() || !(10.0..=360.0).contains(arc) {
+                            return Err("Turret arc must be 10–360 degrees.".into());
+                        }
+                        Ok(1)
+                    }
                     LevelItem::Station { settings, .. } => {
                         settings.validate()?;
                         Ok(2)
@@ -328,6 +354,9 @@ impl Level {
                         )
                     }
                     LevelItem::Flag { team, .. } | LevelItem::Spawn { team, .. } => {
+                        if *team == Team::Neutral {
+                            return Err("Spawns and flags must belong to Blue or Red.".into());
+                        }
                         if self.items[..i].iter().any(|other| {
                             matches!((item, other),
                             (LevelItem::Flag {..}, LevelItem::Flag {team: t, ..}) |
@@ -384,6 +413,7 @@ impl LevelItem {
         match self {
             Self::Object { asset, .. } => &asset.name,
             Self::Solid { .. } => "UNBREAKABLE WALL",
+            Self::Turret { .. } => "AUTOMATED TURRET",
             Self::Station { station, .. } => station.label(),
             Self::Pickup { weapon, .. } => weapon.label(),
             Self::Terrain { terrain, .. } => terrain.label(),
@@ -405,6 +435,7 @@ impl LevelItem {
             | Self::Spawn { position, .. }
             | Self::Pickup { position, .. }
             | Self::Station { position, .. }
+            | Self::Turret { position, .. }
             | Self::Flag { position, .. } => Vec2::from(*position),
             Self::Terrain { min, max, .. } | Self::Bridge { min, max, .. } => {
                 (Vec2::from(*min) + Vec2::from(*max)) * 0.5
@@ -413,9 +444,10 @@ impl LevelItem {
     }
     pub fn angle(&self) -> f32 {
         match self {
-            Self::Object { angle, .. } | Self::Solid { angle, .. } | Self::Spawn { angle, .. } => {
-                *angle
-            }
+            Self::Object { angle, .. }
+            | Self::Solid { angle, .. }
+            | Self::Spawn { angle, .. }
+            | Self::Turret { angle, .. } => *angle,
             _ => 0.0,
         }
     }
@@ -426,6 +458,7 @@ impl LevelItem {
             | Self::Spawn { position, .. }
             | Self::Pickup { position, .. }
             | Self::Station { position, .. }
+            | Self::Turret { position, .. }
             | Self::Flag { position, .. } => *position = (Vec2::from(*position) + delta).to_array(),
             Self::Terrain { min, max, .. } | Self::Bridge { min, max, .. } => {
                 *min = (Vec2::from(*min) + delta).to_array();
@@ -441,6 +474,7 @@ impl LevelItem {
                 rectangle((Vec2::from(*max) - Vec2::from(*min)) * 0.5)
             }
             Self::Station { .. } => rectangle(Vec2::ONE),
+            Self::Turret { .. } => rectangle(Vec2::new(1.08, 0.82)),
             Self::Pickup { .. } => rectangle(Vec2::splat(0.65)),
             Self::Spawn { .. } => rectangle(Vec2::new(1.08, 0.82)),
             Self::Flag { .. } => rectangle(Vec2::splat(FLAG_RADIUS)),

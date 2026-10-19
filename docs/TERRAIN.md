@@ -33,7 +33,7 @@ This first implementation models the vertical layer explicitly as a gameplay rul
 
 After a bridge collapses, either ruined outpost becomes a repair capture point.
 Keep the center of a living tank within **1 metre** for **15 simulated seconds**
-to restore the full deck and both booths. A ring and countdown show progress.
+to restore the full deck and both booths. A ring shows progress.
 Leaving the radius resets that outpost's progress; opposing teams inside the
 same radius pause capture. Multiple teammates do not speed up the timer.
 Either team can repair the bridge, and the restored crossing is usable by everyone.

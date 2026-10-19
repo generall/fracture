@@ -339,6 +339,7 @@ impl LevelEditor {
                 LevelItem::Spawn { .. }
                     | LevelItem::Flag { .. }
                     | LevelItem::Station { .. }
+                    | LevelItem::Turret { .. }
                     | LevelItem::Pickup { .. }
             ) {
                 let corner = resize_corner(item);
@@ -574,6 +575,14 @@ impl LevelEditor {
                 charges: 1,
                 cooldown: 5.0,
             }),
+            Tool::Turret => Some(LevelItem::Turret {
+                team: Team::Blue,
+                position: point.to_array(),
+                angle: 0.0,
+                arc: 180.0,
+                health: 100.0,
+                capturable: true,
+            }),
             Tool::Station(station) => Some(LevelItem::Station {
                 station: *station,
                 position: point.to_array(),
@@ -656,7 +665,11 @@ fn resize_corner(item: &LevelItem) -> sim::Vec2 {
     item.position() + sim::Vec2::from_angle(item.angle()).rotate(item.dimensions() * 0.5)
 }
 pub(super) fn team_color(team: Team) -> Color {
-    if team == Team::Blue { CYAN } else { PINK }
+    match team {
+        Team::Blue => CYAN,
+        Team::Red => PINK,
+        Team::Neutral => MUTED,
+    }
 }
 fn draw_item(
     item: &LevelItem,
@@ -703,7 +716,9 @@ fn draw_item(
             ..
         } => Color::from_rgba(158, 146, 132, 255),
         LevelItem::Terrain { .. } => MUTED,
-        LevelItem::Flag { team, .. } | LevelItem::Spawn { team, .. } => team_color(*team),
+        LevelItem::Flag { team, .. }
+        | LevelItem::Spawn { team, .. }
+        | LevelItem::Turret { team, .. } => team_color(*team),
         _ => INK,
     };
     let points: Vec<_> = item
@@ -776,6 +791,38 @@ fn draw_item(
                 selected || mesh.is_none(),
             );
         }
+        LevelItem::Turret {
+            angle,
+            arc,
+            capturable,
+            ..
+        } => {
+            crate::view::vehicles::turret(center, *angle, *angle, view.scale, color, true);
+            if selected || mesh.is_none() {
+                let half = arc.to_radians() * 0.5;
+                let radius = view.scale * 4.0;
+                let mut previous = center + Vec2::from_angle(*angle - half) * radius;
+                for step in 1..=48 {
+                    let next = center
+                        + Vec2::from_angle(*angle - half + 2.0 * half * step as f32 / 48.0)
+                            * radius;
+                    draw_line(previous.x, previous.y, next.x, next.y, 1.0, color);
+                    previous = next;
+                }
+                for a in [*angle - half, *angle + half] {
+                    let p = center + Vec2::from_angle(a) * radius;
+                    draw_line(center.x, center.y, p.x, p.y, 1.0, color);
+                }
+                let repair = center - Vec2::from_angle(*angle) * view.scale * 2.5;
+                draw_circle_lines(
+                    repair.x,
+                    repair.y,
+                    view.scale,
+                    1.0,
+                    if *capturable { CYAN } else { MUTED },
+                );
+            }
+        }
         LevelItem::Spawn { angle, .. } => {
             let end = center + Vec2::from_angle(*angle) * view.scale * 1.8;
             draw_line(center.x, center.y, end.x, end.y, 2.0, color);
@@ -812,6 +859,7 @@ fn draw_item(
             LevelItem::Spawn { .. }
                 | LevelItem::Flag { .. }
                 | LevelItem::Station { .. }
+                | LevelItem::Turret { .. }
                 | LevelItem::Pickup { .. }
         ) {
             let p = view.screen(v(resize_corner(item)));

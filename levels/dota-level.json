@@ -5229,8 +5229,8 @@
       "kind": "spawn",
       "team": "red",
       "position": [
-        -38.53706,
-        69.31087
+        -38.381783,
+        69.23323
       ],
       "angle": 4.712389
     },
@@ -9000,8 +9000,8 @@
         }
       },
       "position": [
-        31.233192,
-        51.55296
+        30.327204,
+        49.0381
       ],
       "angle": 0.0
     },
@@ -9132,8 +9132,8 @@
         }
       },
       "position": [
-        29.933147,
-        49.452896
+        27.378239,
+        44.78685
       ],
       "angle": 0.0
     },
@@ -9264,8 +9264,8 @@
         }
       },
       "position": [
-        28.633102,
-        47.252834
+        53.817726,
+        32.755257
       ],
       "angle": 0.0
     },
@@ -9396,536 +9396,8 @@
         }
       },
       "position": [
-        27.23306,
-        44.952766
-      ],
-      "angle": 0.0
-    },
-    {
-      "kind": "object",
-      "asset": {
-        "version": 1,
-        "name": "barrel",
-        "outline": [
-          [
-            0.65,
-            0.0
-          ],
-          [
-            0.6005217,
-            0.24874423
-          ],
-          [
-            0.45961937,
-            0.45961937
-          ],
-          [
-            0.24874422,
-            0.6005217
-          ],
-          [
-            -2.8412401e-8,
-            0.65
-          ],
-          [
-            -0.24874428,
-            0.6005217
-          ],
-          [
-            -0.45961937,
-            0.45961937
-          ],
-          [
-            -0.60052174,
-            0.24874412
-          ],
-          [
-            -0.65,
-            -5.6824803e-8
-          ],
-          [
-            -0.6005217,
-            -0.24874422
-          ],
-          [
-            -0.4596193,
-            -0.45961946
-          ],
-          [
-            -0.24874403,
-            -0.60052174
-          ],
-          [
-            7.751172e-9,
-            -0.65
-          ],
-          [
-            0.24874434,
-            -0.6005216
-          ],
-          [
-            0.45961955,
-            -0.45961922
-          ],
-          [
-            0.6005217,
-            -0.24874422
-          ]
-        ],
-        "circular": true,
-        "surface": "panel",
-        "density": 140.0,
-        "thickness": 0.4,
-        "friction": 0.09,
-        "restitution": 0.04,
-        "soft_bounce": {
-          "restitution": 0.62,
-          "speed": 16.0
-        },
-        "tension": 800000.0,
-        "compression": 1600000.0,
-        "shear": 800000.0,
-        "refinement": 0,
-        "cohesion": 1.0,
-        "pinned_edge": null,
-        "layout": {
-          "mode": "stones",
-          "size": [
-            1.3,
-            1.3
-          ],
-          "seed": 7,
-          "sites": [
-            [
-              0.0,
-              0.0
-            ]
-          ]
-        },
-        "young": 12000000000.0,
-        "toughness": 40.0,
-        "color": [
-          105,
-          224,
-          174
-        ],
-        "components": {
-          "blocks_vision": false,
-          "projectile_resistance": 60.0,
-          "contact_resistance": 8.0,
-          "contact_refinement": false,
-          "crush": {
-            "force": 2500.0,
-            "resistance": 0.0001
-          },
-          "explosive": null,
-          "plasticity": {
-            "yield_stress": 500.0,
-            "flow_rate": 2.0,
-            "hardening": 0.0,
-            "max_strain": 3.0
-          }
-        }
-      },
-      "position": [
-        53.933483,
-        32.685802
-      ],
-      "angle": 0.0
-    },
-    {
-      "kind": "object",
-      "asset": {
-        "version": 1,
-        "name": "barrel",
-        "outline": [
-          [
-            0.65,
-            0.0
-          ],
-          [
-            0.6005217,
-            0.24874423
-          ],
-          [
-            0.45961937,
-            0.45961937
-          ],
-          [
-            0.24874422,
-            0.6005217
-          ],
-          [
-            -2.8412401e-8,
-            0.65
-          ],
-          [
-            -0.24874428,
-            0.6005217
-          ],
-          [
-            -0.45961937,
-            0.45961937
-          ],
-          [
-            -0.60052174,
-            0.24874412
-          ],
-          [
-            -0.65,
-            -5.6824803e-8
-          ],
-          [
-            -0.6005217,
-            -0.24874422
-          ],
-          [
-            -0.4596193,
-            -0.45961946
-          ],
-          [
-            -0.24874403,
-            -0.60052174
-          ],
-          [
-            7.751172e-9,
-            -0.65
-          ],
-          [
-            0.24874434,
-            -0.6005216
-          ],
-          [
-            0.45961955,
-            -0.45961922
-          ],
-          [
-            0.6005217,
-            -0.24874422
-          ]
-        ],
-        "circular": true,
-        "surface": "panel",
-        "density": 140.0,
-        "thickness": 0.4,
-        "friction": 0.09,
-        "restitution": 0.04,
-        "soft_bounce": {
-          "restitution": 0.62,
-          "speed": 16.0
-        },
-        "tension": 800000.0,
-        "compression": 1600000.0,
-        "shear": 800000.0,
-        "refinement": 0,
-        "cohesion": 1.0,
-        "pinned_edge": null,
-        "layout": {
-          "mode": "stones",
-          "size": [
-            1.3,
-            1.3
-          ],
-          "seed": 7,
-          "sites": [
-            [
-              0.0,
-              0.0
-            ]
-          ]
-        },
-        "young": 12000000000.0,
-        "toughness": 40.0,
-        "color": [
-          105,
-          224,
-          174
-        ],
-        "components": {
-          "blocks_vision": false,
-          "projectile_resistance": 60.0,
-          "contact_resistance": 8.0,
-          "contact_refinement": false,
-          "crush": {
-            "force": 2500.0,
-            "resistance": 0.0001
-          },
-          "explosive": null,
-          "plasticity": {
-            "yield_stress": 500.0,
-            "flow_rate": 2.0,
-            "hardening": 0.0,
-            "max_strain": 3.0
-          }
-        }
-      },
-      "position": [
-        53.850395,
-        30.935747
-      ],
-      "angle": 0.0
-    },
-    {
-      "kind": "object",
-      "asset": {
-        "version": 1,
-        "name": "barrel",
-        "outline": [
-          [
-            0.65,
-            0.0
-          ],
-          [
-            0.6005217,
-            0.24874423
-          ],
-          [
-            0.45961937,
-            0.45961937
-          ],
-          [
-            0.24874422,
-            0.6005217
-          ],
-          [
-            -2.8412401e-8,
-            0.65
-          ],
-          [
-            -0.24874428,
-            0.6005217
-          ],
-          [
-            -0.45961937,
-            0.45961937
-          ],
-          [
-            -0.60052174,
-            0.24874412
-          ],
-          [
-            -0.65,
-            -5.6824803e-8
-          ],
-          [
-            -0.6005217,
-            -0.24874422
-          ],
-          [
-            -0.4596193,
-            -0.45961946
-          ],
-          [
-            -0.24874403,
-            -0.60052174
-          ],
-          [
-            7.751172e-9,
-            -0.65
-          ],
-          [
-            0.24874434,
-            -0.6005216
-          ],
-          [
-            0.45961955,
-            -0.45961922
-          ],
-          [
-            0.6005217,
-            -0.24874422
-          ]
-        ],
-        "circular": true,
-        "surface": "panel",
-        "density": 140.0,
-        "thickness": 0.4,
-        "friction": 0.09,
-        "restitution": 0.04,
-        "soft_bounce": {
-          "restitution": 0.62,
-          "speed": 16.0
-        },
-        "tension": 800000.0,
-        "compression": 1600000.0,
-        "shear": 800000.0,
-        "refinement": 0,
-        "cohesion": 1.0,
-        "pinned_edge": null,
-        "layout": {
-          "mode": "stones",
-          "size": [
-            1.3,
-            1.3
-          ],
-          "seed": 7,
-          "sites": [
-            [
-              0.0,
-              0.0
-            ]
-          ]
-        },
-        "young": 12000000000.0,
-        "toughness": 40.0,
-        "color": [
-          105,
-          224,
-          174
-        ],
-        "components": {
-          "blocks_vision": false,
-          "projectile_resistance": 60.0,
-          "contact_resistance": 8.0,
-          "contact_refinement": false,
-          "crush": {
-            "force": 2500.0,
-            "resistance": 0.0001
-          },
-          "explosive": null,
-          "plasticity": {
-            "yield_stress": 500.0,
-            "flow_rate": 2.0,
-            "hardening": 0.0,
-            "max_strain": 3.0
-          }
-        }
-      },
-      "position": [
-        53.783833,
-        28.93526
-      ],
-      "angle": 0.0
-    },
-    {
-      "kind": "object",
-      "asset": {
-        "version": 1,
-        "name": "barrel",
-        "outline": [
-          [
-            0.65,
-            0.0
-          ],
-          [
-            0.6005217,
-            0.24874423
-          ],
-          [
-            0.45961937,
-            0.45961937
-          ],
-          [
-            0.24874422,
-            0.6005217
-          ],
-          [
-            -2.8412401e-8,
-            0.65
-          ],
-          [
-            -0.24874428,
-            0.6005217
-          ],
-          [
-            -0.45961937,
-            0.45961937
-          ],
-          [
-            -0.60052174,
-            0.24874412
-          ],
-          [
-            -0.65,
-            -5.6824803e-8
-          ],
-          [
-            -0.6005217,
-            -0.24874422
-          ],
-          [
-            -0.4596193,
-            -0.45961946
-          ],
-          [
-            -0.24874403,
-            -0.60052174
-          ],
-          [
-            7.751172e-9,
-            -0.65
-          ],
-          [
-            0.24874434,
-            -0.6005216
-          ],
-          [
-            0.45961955,
-            -0.45961922
-          ],
-          [
-            0.6005217,
-            -0.24874422
-          ]
-        ],
-        "circular": true,
-        "surface": "panel",
-        "density": 140.0,
-        "thickness": 0.4,
-        "friction": 0.09,
-        "restitution": 0.04,
-        "soft_bounce": {
-          "restitution": 0.62,
-          "speed": 16.0
-        },
-        "tension": 800000.0,
-        "compression": 1600000.0,
-        "shear": 800000.0,
-        "refinement": 0,
-        "cohesion": 1.0,
-        "pinned_edge": null,
-        "layout": {
-          "mode": "stones",
-          "size": [
-            1.3,
-            1.3
-          ],
-          "seed": 7,
-          "sites": [
-            [
-              0.0,
-              0.0
-            ]
-          ]
-        },
-        "young": 12000000000.0,
-        "toughness": 40.0,
-        "color": [
-          105,
-          224,
-          174
-        ],
-        "components": {
-          "blocks_vision": false,
-          "projectile_resistance": 60.0,
-          "contact_resistance": 8.0,
-          "contact_refinement": false,
-          "crush": {
-            "force": 2500.0,
-            "resistance": 0.0001
-          },
-          "explosive": null,
-          "plasticity": {
-            "yield_stress": 500.0,
-            "flow_rate": 2.0,
-            "hardening": 0.0,
-            "max_strain": 3.0
-          }
-        }
-      },
-      "position": [
-        53.68382,
-        27.002205
+        53.830135,
+        28.91211
       ],
       "angle": 0.0
     },
@@ -10999,6 +10471,702 @@
         -67.5
       ],
       "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-8,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-8
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-9,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "circular": true,
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "blocks_vision": false,
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 1200000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        28.819584,
+        46.911556
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-8,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-8
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-9,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "circular": true,
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "blocks_vision": false,
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 1200000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        31.8106,
+        50.9603
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-8,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-8
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-9,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "circular": true,
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "blocks_vision": false,
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 1200000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        53.799652,
+        30.880186
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "explosive barrel",
+        "outline": [
+          [
+            0.65,
+            0.0
+          ],
+          [
+            0.6005217,
+            0.24874423
+          ],
+          [
+            0.45961937,
+            0.45961937
+          ],
+          [
+            0.24874422,
+            0.6005217
+          ],
+          [
+            -2.8412401e-8,
+            0.65
+          ],
+          [
+            -0.24874428,
+            0.6005217
+          ],
+          [
+            -0.45961937,
+            0.45961937
+          ],
+          [
+            -0.60052174,
+            0.24874412
+          ],
+          [
+            -0.65,
+            -5.6824803e-8
+          ],
+          [
+            -0.6005217,
+            -0.24874422
+          ],
+          [
+            -0.4596193,
+            -0.45961946
+          ],
+          [
+            -0.24874403,
+            -0.60052174
+          ],
+          [
+            7.751172e-9,
+            -0.65
+          ],
+          [
+            0.24874434,
+            -0.6005216
+          ],
+          [
+            0.45961955,
+            -0.45961922
+          ],
+          [
+            0.6005217,
+            -0.24874422
+          ]
+        ],
+        "circular": true,
+        "surface": "panel",
+        "density": 140.0,
+        "thickness": 0.4,
+        "friction": 0.09,
+        "restitution": 0.04,
+        "tension": 800000.0,
+        "compression": 1600000.0,
+        "shear": 800000.0,
+        "refinement": 0,
+        "cohesion": 1.0,
+        "pinned_edge": null,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            1.3,
+            1.3
+          ],
+          "seed": 7,
+          "sites": [
+            [
+              0.0,
+              0.0
+            ]
+          ]
+        },
+        "young": 12000000000.0,
+        "toughness": 40.0,
+        "color": [
+          255,
+          108,
+          96
+        ],
+        "components": {
+          "blocks_vision": false,
+          "projectile_resistance": 3.0,
+          "contact_resistance": 8.0,
+          "contact_refinement": false,
+          "crush": {
+            "force": 2500.0,
+            "resistance": 0.0001
+          },
+          "explosive": {
+            "energy": 1200000.0,
+            "radius": 3.0
+          },
+          "plasticity": {
+            "yield_stress": 1000.0,
+            "flow_rate": 2.0,
+            "hardening": 2.0,
+            "max_strain": 1.2
+          }
+        }
+      },
+      "position": [
+        53.77023,
+        27.110376
+      ],
+      "angle": 0.0
+    },
+    {
+      "kind": "turret",
+      "team": "red",
+      "position": [
+        -55.014843,
+        55.821014
+      ],
+      "angle": 5.4977875,
+      "arc": 180.0,
+      "health": 100.0,
+      "capturable": false
+    },
+    {
+      "kind": "turret",
+      "team": "blue",
+      "position": [
+        56.363594,
+        -56.51441
+      ],
+      "angle": 2.3561945,
+      "arc": 180.0,
+      "health": 100.0,
+      "capturable": false
+    },
+    {
+      "kind": "turret",
+      "team": "neutral",
+      "position": [
+        45.809692,
+        41.795948
+      ],
+      "angle": 3.8397243,
+      "arc": 180.0,
+      "health": 200.0,
+      "capturable": true
+    },
+    {
+      "kind": "object",
+      "asset": {
+        "version": 1,
+        "name": "Flank / crossing cover",
+        "outline": [
+          [
+            -1.9926199,
+            -1.1133604
+          ],
+          [
+            -1.4022139,
+            -2.3279352
+          ],
+          [
+            -0.44280443,
+            -2.631579
+          ],
+          [
+            0.6642066,
+            -2.1457489
+          ],
+          [
+            1.6236162,
+            -1.3157895
+          ],
+          [
+            2.00738,
+            0.060728744
+          ],
+          [
+            1.4022139,
+            1.7813765
+          ],
+          [
+            0.4870849,
+            2.368421
+          ],
+          [
+            -0.5904059,
+            2.0647774
+          ],
+          [
+            -1.800738,
+            1.3157895
+          ]
+        ],
+        "surface": "rock",
+        "density": 2900.0,
+        "thickness": 0.65,
+        "friction": 1.1,
+        "restitution": 0.04,
+        "tension": 88000.0,
+        "compression": 400000.0,
+        "shear": 64000.0,
+        "refinement": 0,
+        "cohesion": 18.0,
+        "pinned_edge": null,
+        "ground_anchor": true,
+        "layout": {
+          "mode": "stones",
+          "size": [
+            3.0,
+            3.0
+          ],
+          "seed": 31,
+          "sites": [
+            [
+              -1.0833104,
+              -1.5659063
+            ],
+            [
+              0.8437565,
+              -1.2396605
+            ],
+            [
+              -0.25658864,
+              1.253801
+            ]
+          ]
+        },
+        "young": 15000000000.0,
+        "toughness": 55.0,
+        "color": [
+          111,
+          105,
+          94
+        ],
+        "components": {
+          "projectile_resistance": 1.0,
+          "contact_resistance": 1000.0,
+          "contact_refinement": false,
+          "crush": null,
+          "explosive": null
+        }
+      },
+      "position": [
+        51.399517,
+        44.313515
+      ],
+      "angle": 0.4
+    },
+    {
+      "kind": "turret",
+      "team": "neutral",
+      "position": [
+        -37.17546,
+        -44.903137
+      ],
+      "angle": 1.2217305,
+      "arc": 180.0,
+      "health": 200.0,
+      "capturable": true
+    },
+    {
+      "kind": "pickup",
+      "weapon": "mine",
+      "position": [
+        -43.267178,
+        67.77244
+      ],
+      "respawn_time": 20.0,
+      "charges": 1,
+      "cooldown": 5.0
+    },
+    {
+      "kind": "pickup",
+      "weapon": "mine",
+      "position": [
+        48.134983,
+        -71.76
+      ],
+      "respawn_time": 20.0,
+      "charges": 1,
+      "cooldown": 5.0
     }
   ],
   "terrain_mask": {
@@ -11776,17 +11944,17 @@
       {
         "x": -115,
         "y": -5,
-        "tiles": "rrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeectttttrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggggggggggggtttttttttggggggggggggggccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeectttttrrrrrrrrrrrrrr"
       },
       {
         "x": -115,
         "y": -4,
-        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggcceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeettttttrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwggggggtttttttttttttttttttggggggggggcceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeettttttrrrrrrrrrrrrrr"
       },
       {
         "x": -116,
         "y": -3,
-        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeetttttrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggggggttttttttttttttttttttttttttttgccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeetttttrrrrrrrrrrrrrrr"
       },
       {
         "x": -116,
@@ -11801,137 +11969,137 @@
       {
         "x": -116,
         "y": 0,
-        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggttgggggggggggggggggggggggggttggcccceeeeeeeeeeeeeeeeeeeeeeeeeeeerrrtttttrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggggttttttttttttttttttttttttttttttggcccceeeeeeeeeeeeeeeeeeeeeeeeeeeerrrtttttrrrrrrrrrrrrrr"
       },
       {
         "x": -117,
         "y": 1,
-        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggttgggggggggggggggggggggggggttggggcccceeeeeeeeeeeeeeeeeeeeeeeeeerrrrttttrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggtttttttttttttttttttttttttttttttgggcccceeeeeeeeeeeeeeeeeeeeeeeeeerrrrttttrrrrrrrrrrrrrr"
       },
       {
         "x": -117,
         "y": 2,
-        "tiles": "rrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggtttttttttttttttttggttggttggttgggggcccceeeeeeeeeeeeeeeeeeeeeeeeeerrrrtttrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggttttttttttttttttttttttttttttttttggggcccceeeeeeeeeeeeeeeeeeeeeeeeeerrrrtttrrrrrrrrrrrrrr"
       },
       {
         "x": -117,
         "y": 3,
-        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggtttttttttttttttttggttggttggttggggggcccceeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggttttttttttttttttttttttttttttttttgggggcccceeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -117,
         "y": 4,
-        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggttgggggggggggggggggttggttggttgggggggcccceeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggtttttttttttttttttttttttttttttttttggggggcccceeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -118,
         "y": 5,
-        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggttgggggggggggggggggttggttttttggggggggcccceeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggttttttttttttttttttttttttttttttttggggggggcccceeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -118,
         "y": 6,
-        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggtttttttttttttttttggttggttttttgggggggggcccceeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggttttttttttttttttttttttttttttttttgggggggggcccceeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -118,
         "y": 7,
-        "tiles": "rrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwgggggtttttttttttttttttggttggttggggggggggggggccceeeeeeeeeeeeeeeeeccrrrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwggtttttttttttttttttttttttttttttttgggggggggggccceeeeeeeeeeeeeeeeeccrrrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -118,
         "y": 8,
-        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggttgggggggggggggttggttggttgggggggggggggggccceeeeeeeeeeeeeeecccrrrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggttttttttttttttttttttttttttttttgggggggggggggccceeeeeeeeeeeeeeecccrrrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -119,
         "y": 9,
-        "tiles": "rrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwgggggttgggggggggggggttggttggttgggggggggggggggcccceeeeeeeeeeeccccccgggrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwggttttttttttttttttttttttttttttttgggggggggggggcccceeeeeeeeeeeccccccgggrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -119,
         "y": 10,
-        "tiles": "rrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwgggggttggtttttttttggttggttggttggggggggggggggggccccceeeeeeecccccccggggrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwggttttttttttttttttttttttttttttttggggggggggggggccccceeeeeeecccccccggggrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -119,
         "y": 11,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwggggggttggtttttttttggttggttggttggggggggggggggggggccccccccccccccgggggggrrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwgggttttttttttttttttttttttttttttttggggggggggggggggccccccccccccccgggggggrrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -119,
         "y": 12,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwggggggttggttgggggggggttggttggttgggggggggggggggggggcccccccccccggggggggggrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwgggttttttttttttttttttttttttttttttgggggggggggggggggcccccccccccggggggggggrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -120,
         "y": 13,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwggggggttggttgggggggggttggttggttggggggggggggggggggggggggccgggggggggggggggrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwgggttttttttttggggttttttttttttttttggggggggggggggggggggggccgggggggggggggggrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -120,
         "y": 14,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwgggggggttggttgggggggggttggttggttgggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwggggttttttttttggggtttttttttttttttggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -120,
         "y": 15,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwgggggggttggttgggggggggttggttggttggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwggggttttttttttggggtttttttttttttttgggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -120,
         "y": 16,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwggggggggttggttgggggggggttggttggttggggggggggggggttgggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwgggggttttttttttggggttttttttttttttggggggggggggggttgggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -120,
         "y": 17,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwgggggggggttggtttttttttttttggttggttggggggggggggtttttgggggggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwgggggggtttttttttttttttttttttttttttggggggggggggtttttgggggggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -121,
         "y": 18,
-        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwwgggggggggttggtttttttttttttggttggttggggggggggttttttttggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggwwwwwwwwwwwwwwwwwwwwgggggggtttttttttttttttttttttttttttggggggggggttttttttggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -121,
         "y": 19,
-        "tiles": "rrrrrrrrrrrrrrrrrgrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggwwwwwwwwwwwwwwwwwwwwggggggggggttgggggggggggggggggttggttgggggggggttttttttttgggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrgrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggwwwwwwwwwwwwwwwwwwwwggggggggtttttttttttttttttttttttttttgggggggggttttttttttgggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -121,
         "y": 20,
-        "tiles": "rrrrrrrrrrrrrrrrggrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwggggggggggggggggggwwwwwwwwwwwwwwwwwwwwgggggggggggttgggggggggggggggggttggttggggggggttttttttttttggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrggrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwggggggggggggggggggwwwwwwwwwwwwwwwwwwwwggggggggggttttttttttttttttttttttttttggggggggttttttttttttggggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -121,
         "y": 21,
-        "tiles": "rrrrrrrrrrrrrrrrgggrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggwwwwwwwwwwwwwwwwwwwwggggggggggggtttttttttttttttttttttggtttggggggttttttttttttttggggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggwwwwwwwwwwwwwwwwwwwwgggggggggggtttttttttttttttttttttttttttggggggttttttttttttttggggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -121,
         "y": 22,
-        "tiles": "rrrrrrrrrrrrrrrrgggrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwgggggggggwwwwwwwwwwwwwwwwwwwwwwwwggggggggggggtttttttttttttttttttttggttttttgggtttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggrrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwgggggggggwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggttttttttttttttttttttttttttttttgggtttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -121,
         "y": 23,
-        "tiles": "rrrrrrrrrrrrrrrrggggrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggggttgggttttttttttttttttttttttggggggggggggggggggggggggrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrggggrrrrrrrrgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwggggggggggggggttttttttttttttttttttttttttttttttttttttttttttggggggggggggggggggggggggrrrrrrrrrrrrrrrr"
       },
       {
         "x": -122,
         "y": 24,
-        "tiles": "rrrrrrrrrrrrrrrrrggggrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwwggggggggggggggggggggggggggggggttggggggtttttttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrrggggrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggttttttttttttttttttttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -122,
         "y": 25,
-        "tiles": "rrrrrrrrrrrrrrrrgggggrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrrrgwwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggtttggggggttttttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrgggggrrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrrrgwwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggggtttttttttttttttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -122,
         "y": 26,
-        "tiles": "rrrrrrrrrrrrrrrrggggggrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrrgggggwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggtttttggggtttttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
+        "tiles": "rrrrrrrrrrrrrrrrggggggrrrrrrrrggggggggggggggggggggggggggggggggggggggggggggggggggggggggrrrrrrrrrrrrrrrrrrrrrrrrrgggggwwwwwwwwwwwwwwwwwwwwwwwwggwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwgggggggggggggggggggggggggggttttttttttttttttttttttttttgggggggggggggggggggggggrrrrrrrrrrrrrrrrrr"
       },
       {
         "x": -122,
@@ -12595,5 +12763,5 @@
       }
     ]
   },
-  "enemy_activity": "conquer"
+  "enemy_activity": "attack"
 }

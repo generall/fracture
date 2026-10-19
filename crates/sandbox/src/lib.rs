@@ -1,4 +1,8 @@
+#[cfg(all(feature = "ai-arena", not(target_arch = "wasm32")))]
+mod arena;
 mod audio;
+#[cfg(all(feature = "ai-arena", not(target_arch = "wasm32")))]
+pub use arena::{run as run_ai_arena, window_conf as ai_arena_window_conf};
 mod comparison;
 mod comparison_storage;
 mod controller;
@@ -176,15 +180,19 @@ pub async fn run(application: Application) {
             .match_progress
             .as_ref()
             .is_some_and(|p| p.outcome.is_some());
-        let context = game.screen as u64 * 16
+        let deploying = (game.screen == game::Screen::Match && !lab.world.tank_alive())
+            || (gameplay && lab.world.player_choosing_vehicle());
+        let context = game.screen as u64 * 32
             + u64::from(game.menu)
             + u64::from(outcome) * 2
-            + u64::from(sound_settings) * 4;
+            + u64::from(sound_settings) * 4
+            + u64::from(deploying) * 8;
         let menu_navigation = sound_settings
             || matches!(
                 game.screen,
                 game::Screen::Home | game::Screen::Lobby | game::Screen::Lan
             )
+            || deploying
             || (game.screen == game::Screen::Match && (game.menu || outcome));
         controller_ui::begin(
             context,
@@ -192,7 +200,7 @@ pub async fn run(application: Application) {
             if handheld {
                 menu_navigation
             } else {
-                game_ui || sound_settings
+                game_ui || sound_settings || deploying
             },
             pad,
         );
@@ -422,7 +430,11 @@ pub async fn run(application: Application) {
                 lab.inspector.help = !lab.inspector.help;
             }
         }
-        let accepts_input = !proper_match || game.input_allowed(&lab);
+        let accepts_input = if proper_match {
+            game.input_allowed(&lab)
+        } else {
+            !lab.world.player_choosing_vehicle()
+        };
         let in_chamber = accepts_input
             && chamber.contains(mouse)
             && if proper_match {
@@ -486,6 +498,9 @@ pub async fn run(application: Application) {
         if !proper_match && is_key_pressed(KeyCode::V) && lab.world.scene() == Scene::Level {
             lab.fog_enabled = !lab.fog_enabled;
         }
+        if !proper_match && is_key_pressed(KeyCode::U) {
+            lab.choose_sandbox_vehicle();
+        }
         if !proper_match && is_key_pressed(KeyCode::R) {
             lab.reset(lab.world.scene());
         }
@@ -525,6 +540,13 @@ pub async fn run(application: Application) {
                     .point_stick(Vec2::from_angle(lab.world.player_aim().angle));
             }
             lab.keyboard_aim.point_stick(pad.aim);
+            if lab.world.player_vehicle() == sim::VehicleKind::Mortar {
+                lab.mortar_range =
+                    controls::advance_mortar_range(lab.mortar_range, pad.aim, aim_dt);
+                if let Some(turn) = controls::turret_turn() {
+                    lab.mortar_range = (lab.mortar_range + turn * aim_dt * 8.0).clamp(6.0, 36.0);
+                }
+            }
         }
         if in_chamber && !lab.keyboard_aim.active() {
             lab.aim = viewport.world(mouse);
@@ -568,10 +590,14 @@ pub async fn run(application: Application) {
                 .bodies()
                 .find(|b| b.id == lab.world.player_tank_id())
                 .map_or([0.0; 2], |tank| {
-                    controls::stick_tracks(pad.drive, tank.angle)
+                    if lab.world.player_vehicle() == sim::VehicleKind::Scout {
+                        controls::stick_car(pad.drive, tank.angle)
+                    } else {
+                        controls::stick_tracks(pad.drive, tank.angle)
+                    }
                 })
         } else {
-            controls::tracks()
+            controls::tracks(lab.world.player_vehicle())
         };
         #[cfg(all(feature = "performance-test", not(target_arch = "wasm32")))]
         let tracks = performance
@@ -592,7 +618,18 @@ pub async fn run(application: Application) {
         } else if !lab.paused {
             lab.accumulator += f64::from(wall_dt) * if lab.slow { 0.2 } else { 1.0 };
             let mut steps = 0;
-            while lab.accumulator >= f64::from(TICK_DT) && steps < 12 {
+            // A costly impact must not cause a cascade of catch-up frames.
+            // Finish every physics tick; cap only extra wall-time work in a
+            // match. Material experiments retain their existing step policy.
+            let deadline = if proper_match {
+                get_time() + 0.012
+            } else {
+                f64::INFINITY
+            };
+            while lab.accumulator >= f64::from(TICK_DT)
+                && steps < 12
+                && (steps == 0 || get_time() < deadline)
+            {
                 lab.tick(tracks);
                 lab.accumulator -= f64::from(TICK_DT);
                 steps += 1;
@@ -648,7 +685,13 @@ pub async fn run(application: Application) {
             );
             lab.navigation.follow_tank(
                 position,
-                (in_chamber && !lab.keyboard_aim.active()).then_some(mouse),
+                if lab.keyboard_aim.active() {
+                    Some(navigation::LookAhead::Direction(Vec2::from_angle(
+                        lab.world.player_aim().angle,
+                    )))
+                } else {
+                    in_chamber.then_some(navigation::LookAhead::Pointer(mouse))
+                },
                 wall_dt,
                 chamber,
             );
@@ -694,7 +737,10 @@ pub async fn run(application: Application) {
         view::draw_world(
             &lab.world,
             &viewport,
-            pointer_enabled.then_some(lab.aim),
+            (pointer_enabled
+                || (lab.world.player_vehicle() == sim::VehicleKind::Mortar
+                    && lab.world.tank_alive()))
+            .then_some(lab.aim),
             alpha,
             lab.overlay,
             &lab.sparks,
@@ -719,6 +765,8 @@ pub async fn run(application: Application) {
                 apply_game_action(action, &mut game, &mut lab);
             }
             vec![]
+        } else if lab.world.player_choosing_vehicle() {
+            vec![]
         } else {
             lab.inspector.draw(
                 size,
@@ -735,6 +783,7 @@ pub async fn run(application: Application) {
             match action {
                 Action::Scene(scene) => lab.reset(scene),
                 Action::Reset => lab.reset(lab.world.scene()),
+                Action::Vehicle => lab.choose_sandbox_vehicle(),
                 Action::Pause => {
                     lab.paused = !lab.paused;
                     lab.accumulator = 0.0;
@@ -790,11 +839,16 @@ pub async fn run(application: Application) {
                 ui::toast(chamber, message);
             }
         }
+        if !proper_match && lab.world.player_choosing_vehicle() {
+            game.draw_deployment(size, mouse, &mut lab);
+        }
         #[cfg(target_arch = "wasm32")]
         {
             diagnostics::publish(&lab.world);
             diagnostics::publish_camera(&lab.navigation);
             diagnostics::publish_ammunition(lab.inspector.ammunition);
+            diagnostics::publish_mortar_range(lab.mortar_range);
+            diagnostics::publish_aim(lab.aim.x, lab.aim.y);
         }
         if !proper_match
             || game.menu

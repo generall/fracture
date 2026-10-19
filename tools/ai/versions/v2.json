@@ -1,0 +1,8 @@
+{
+  "name": "v2-mobile",
+  "speed": 0.72,
+  "combat_range": 8.0,
+  "replan_seconds": 0.8,
+  "recover_seconds": 4.0,
+  "recovery_detour": false
+}

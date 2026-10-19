@@ -23,6 +23,10 @@ impl World {
                 parts.push((Vector::new(x, y), Vector::new(0.35, 0.155)));
             }
         }
+        for (offset, half) in &mut parts {
+            *offset *= details.vehicle.size();
+            *half *= details.vehicle.size();
+        }
         // Always create new wrecks. Level cleanup targets 8192 active pieces
         // by retiring small offscreen debris instead of suppressing new ones.
         // These ten pieces also expire before their tank can respawn.
@@ -38,10 +42,10 @@ impl World {
         let total_weight: f32 = weights.iter().sum();
         let object = self.objects.len();
         self.objects.push(components::ObjectInstance {
-            color: Some(if team == crate::level::Team::Blue {
-                [76, 215, 235]
-            } else {
-                [242, 103, 173]
+            color: Some(match team {
+                crate::level::Team::Blue => [76, 215, 235],
+                crate::level::Team::Red => [242, 103, 173],
+                crate::level::Team::Neutral => [140, 151, 163],
             }),
             components: crate::Components::default(),
             ignited: false,
@@ -231,7 +235,7 @@ mod tests {
             assert!(world.physics.colliders.get(piece.collider).is_none());
         }
         assert!(!world.tank_is_alive(tank));
-        for _ in 0..70 {
+        for _ in 0..900 {
             world.step(&[]);
         }
         assert!(world.tank_is_alive(tank));

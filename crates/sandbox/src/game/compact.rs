@@ -163,7 +163,7 @@ impl Game {
         }
         wrapped(
             if self.status.is_empty() {
-                "Capture the enemy flag. Tanks respawn after 3 seconds."
+                "Capture the enemy flag. Choose your vehicle at spawn and after each death."
             } else {
                 &self.status
             },

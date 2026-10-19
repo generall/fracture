@@ -154,6 +154,14 @@ impl World {
                                 } else {
                                     2200.0
                                 };
+                                // A defensive gun transfers a ram into its fixed
+                                // foundation. Weapon damage keeps normal armor.
+                                let resistance = resistance
+                                    * match self.tanks.iter().find(|tank| tank.id == id) {
+                                        Some(tank) if tank.mount.is_some() => 8.0,
+                                        Some(tank) if tank.vehicle == VehicleKind::Mortar => 2.5,
+                                        _ => 1.0,
+                                    };
                                 let entry = ramming.entry(id).or_default();
                                 entry.0 += work;
                                 entry.1 += work / resistance;

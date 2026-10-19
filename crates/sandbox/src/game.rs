@@ -1,5 +1,6 @@
 //! Local lobby and match presentation. The simulation owns match rules/results.
 mod compact;
+mod deployment;
 mod hud;
 mod maps;
 mod menus;
@@ -162,6 +163,9 @@ impl Game {
         lab.paused = false;
     }
     pub fn input_allowed(&self, lab: &Lab) -> bool {
+        self.simulation_running(lab) && lab.world.tank_alive()
+    }
+    fn simulation_running(&self, lab: &Lab) -> bool {
         self.screen == Screen::Match
             && self.countdown <= 0.0
             && !self.menu
@@ -177,7 +181,7 @@ impl Game {
         if !self.menu {
             self.countdown = (self.countdown - dt).max(0.0);
         }
-        lab.paused = !self.input_allowed(lab);
+        lab.paused = !self.simulation_running(lab);
         if lab.paused {
             lab.pending.clear();
             lab.firing = false;
@@ -304,6 +308,14 @@ mod tests {
         assert_eq!(game.countdown, 2.0);
         game.menu = false;
         game.advance(2.0, &mut lab);
+        assert!(
+            !game.input_allowed(&lab),
+            "deployment blocks driving, not the match clock"
+        );
+        assert!(!lab.paused);
+        lab.world
+            .step(&[sim::Command::Deploy(sim::VehicleKind::Tank)]);
+        lab.world.step(&[]);
         assert!(game.input_allowed(&lab));
         assert!(!lab.paused);
         lab.pending.push(sim::Command::ActivateSpecial);

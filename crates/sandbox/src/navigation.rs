@@ -1,13 +1,19 @@
 use crate::view::Viewport;
 use macroquad::prelude::*;
 
+#[derive(Clone, Copy)]
+pub enum LookAhead {
+    Pointer(Vec2),
+    Direction(Vec2),
+}
+
 pub struct Navigation {
     pub center: Vec2,
     pub zoom: f32,
     target_zoom: f32,
     anchor: Option<(Vec2, Vec2)>,
     look_offset: Vec2,
-    look_direction: Vec2,
+    look: LookAhead,
     follow_position: Option<Vec2>,
     game_camera_range: Option<f32>,
     expanded_game_view: bool,
@@ -21,7 +27,7 @@ impl Default for Navigation {
             target_zoom: 1.0,
             anchor: None,
             look_offset: Vec2::ZERO,
-            look_direction: Vec2::ZERO,
+            look: LookAhead::Direction(Vec2::ZERO),
             follow_position: None,
             game_camera_range: None,
             expanded_game_view: false,
@@ -51,7 +57,7 @@ impl Navigation {
             target_zoom: zoom,
             anchor: None,
             look_offset: Vec2::ZERO,
-            look_direction: Vec2::ZERO,
+            look: LookAhead::Direction(Vec2::ZERO),
             follow_position: None,
             game_camera_range: None,
             expanded_game_view: false,
@@ -106,24 +112,40 @@ impl Navigation {
         }
     }
 
-    pub fn follow_tank(&mut self, tank: Vec2, mouse: Option<Vec2>, dt: f32, rect: Rect) {
+    pub fn follow_tank(&mut self, tank: Vec2, look: Option<LookAhead>, dt: f32, rect: Rect) {
         let scale = Viewport::new(rect, self.center, self.zoom).scale;
         let half_view = vec2(rect.w, rect.h) * 0.5 / scale;
         let safe_offset = (half_view - Vec2::splat(2.0)).max(Vec2::ZERO);
-        if let Some(mouse) = mouse {
-            let direction = ((mouse - rect.center()) / (vec2(rect.w, rect.h) * 0.5))
-                .clamp(-Vec2::ONE, Vec2::ONE);
-            // Ordinary aiming near the middle of the screen does not pan.
-            self.look_direction =
-                direction.signum() * ((direction.abs() - Vec2::splat(0.45)).max(Vec2::ZERO) / 0.55);
+        if let Some(look) = look {
+            self.look = look;
         }
-        // Keep the last valid direction over HUD panels or outside the viewport.
-        // Equal world-space reach on both axes, independent of aspect ratio.
-        let reach = Vec2::splat(half_view.x * 0.22);
-        let desired = (self.look_direction * reach).clamp(-safe_offset, safe_offset);
+        // Retain the last valid look over menus or outside the viewport.
+        let desired = match self.look {
+            LookAhead::Pointer(mouse) => {
+                let direction = ((mouse - rect.center()) / (vec2(rect.w, rect.h) * 0.5))
+                    .clamp(-Vec2::ONE, Vec2::ONE);
+                // Ordinary mouse aiming near the middle of the screen does not pan.
+                let direction = direction.signum()
+                    * ((direction.abs() - Vec2::splat(0.45)).max(Vec2::ZERO) / 0.55);
+                direction * (half_view.x * 0.22)
+            }
+            LookAhead::Direction(direction) => {
+                let direction = direction.normalize_or_zero();
+                // Put the vehicle near the rear of the view along the actual
+                // barrel direction. Use the available space on both axes so
+                // vertical and diagonal aim work on a wide handheld screen.
+                let reach = (safe_offset / direction.abs().max(Vec2::splat(0.0001))).min_element();
+                direction * reach * 0.85
+            }
+        }
+        .clamp(-safe_offset, safe_offset);
+        let look_speed = match self.look {
+            LookAhead::Direction(_) => 3.0,
+            LookAhead::Pointer(_) => 1.5,
+        };
         self.look_offset = self
             .look_offset
-            .lerp(desired, 1.0 - (-1.5 * dt).exp())
+            .lerp(desired, 1.0 - (-look_speed * dt).exp())
             .clamp(-safe_offset, safe_offset);
         // Gentle follow easing softens acceleration and braking; a respawn snaps
         // immediately. The final clamp keeps the whole tank inside the view.
@@ -276,11 +298,16 @@ mod tests {
         let mut camera = Navigation::default();
         let mouse = vec2(rect.right(), rect.bottom());
         for _ in 0..120 {
-            camera.follow_tank(Vec2::ZERO, Some(mouse), 1.0 / 60.0, rect);
+            camera.follow_tank(
+                Vec2::ZERO,
+                Some(LookAhead::Pointer(mouse)),
+                1.0 / 60.0,
+                rect,
+            );
         }
         let offset = camera.center;
         let tank = vec2(90.0, -75.0);
-        camera.follow_tank(tank, Some(mouse), 0.0, rect);
+        camera.follow_tank(tank, Some(LookAhead::Pointer(mouse)), 0.0, rect);
         assert!(
             (camera.center - tank).distance(offset) < 0.0001,
             "respawn must snap to the tank"
@@ -289,7 +316,7 @@ mod tests {
             camera.scroll_game(wheel, rect, 24.0, false);
             for _ in 0..120 {
                 camera.advance_game_zoom(1.0 / 60.0, rect, 24.0, false);
-                camera.follow_tank(tank, Some(mouse), 1.0 / 60.0, rect);
+                camera.follow_tank(tank, Some(LookAhead::Pointer(mouse)), 1.0 / 60.0, rect);
                 let view = Viewport::new(rect, camera.center, camera.zoom);
                 for corner in [vec2(-1.8, -1.8), vec2(1.8, 1.8)] {
                     assert!(rect.contains(view.screen(tank + corner)));
@@ -306,7 +333,7 @@ mod tests {
         let rect = Rect::new(0.0, 80.0, 1440.0, 723.0);
         let mut a = Navigation::default();
         let mut b = Navigation::default();
-        let mouse = Some(vec2(rect.right(), rect.center().y));
+        let mouse = Some(LookAhead::Pointer(vec2(rect.right(), rect.center().y)));
         for _ in 0..30 {
             a.follow_tank(Vec2::ZERO, mouse, 1.0 / 30.0, rect);
         }
@@ -316,6 +343,61 @@ mod tests {
         assert!(a.center.x > 0.0 && a.center.y.abs() < 0.0001);
         assert!(a.center.distance(b.center) < 0.0001);
     }
+    #[test]
+    fn barrel_look_ahead_reveals_more_range_and_keeps_vehicle_visible() {
+        for height in [800.0, 720.0] {
+            let rect = Rect::new(0.0, 0.0, 1280.0, height);
+            for zoom in [0.4, 1.0, 3.0] {
+                for angle in [0.0, 0.7, -1.2, std::f32::consts::PI] {
+                    let tank = vec2(-30.0, 12.0);
+                    let direction = Vec2::from_angle(angle);
+                    let mut camera = Navigation::fitted(tank, zoom);
+                    camera.advance_game_zoom(0.0, rect, 24.0, false);
+                    let scale = Viewport::new(rect, tank, camera.zoom).scale;
+                    let half_view = vec2(rect.w, rect.h) * 0.5 / scale;
+                    let centered_reach =
+                        (half_view / direction.abs().max(Vec2::splat(0.0001))).min_element();
+                    camera.follow_tank(tank, Some(LookAhead::Direction(direction)), 0.0, rect);
+                    assert_eq!(camera.center, tank, "a direction change must not snap");
+                    for _ in 0..240 {
+                        camera.follow_tank(tank, None, 1.0 / 60.0, rect);
+                    }
+                    let offset = camera.center - tank;
+                    assert!(offset.dot(direction) > 0.0);
+                    assert!(offset.perp_dot(direction).abs() < 0.0001);
+                    let view = Viewport::new(rect, camera.center, camera.zoom);
+                    let gain = if zoom <= 1.0 { 1.4 } else { 1.05 };
+                    assert!(rect.contains(view.screen(tank + direction * centered_reach * gain)));
+                    for corner in [vec2(-1.8, -1.8), vec2(1.8, 1.8)] {
+                        assert!(rect.contains(view.screen(tank + corner)));
+                    }
+                    let respawn = tank + vec2(100.0, -80.0);
+                    camera.follow_tank(respawn, None, 0.0, rect);
+                    assert!((camera.center - respawn).distance(offset) < 0.0001);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn barrel_camera_eases_turns_and_holds_aim_independently_of_frame_rate() {
+        let rect = Rect::new(0.0, 0.0, 1280.0, 800.0);
+        let mut positions = Vec::new();
+        for fps in [30, 144] {
+            let mut camera = Navigation::default();
+            for direction in [Vec2::X, -Vec2::Y, -Vec2::X] {
+                let before = camera.center;
+                camera.follow_tank(Vec2::ZERO, Some(LookAhead::Direction(direction)), 0.0, rect);
+                assert_eq!(camera.center, before);
+                for _ in 0..fps {
+                    camera.follow_tank(Vec2::ZERO, None, 1.0 / fps as f32, rect);
+                }
+            }
+            positions.push(camera.center);
+        }
+        assert!(positions[0].distance(positions[1]) < 0.0001);
+    }
+
     #[test]
     fn elevation_zoom_eases_in_both_directions_without_a_zero_dt_snap() {
         let rect = Rect::new(0.0, 80.0, 1440.0, 723.0);

@@ -296,6 +296,7 @@ impl ControlState {
         let mut input = self.input;
         self.input.fire = false;
         self.input.special = false;
+        self.input.deploy = None;
         if self.last_input.elapsed() > Duration::from_millis(250) {
             input.tracks = [0.0; 2];
             // Brake stale movement, but deliver an accepted one-shot action once.
@@ -319,7 +320,9 @@ impl ControlState {
         }
         let fire = self.input.fire || fire_delta > 0;
         let special = self.input.special || special_delta > 0;
+        let deploy = input.control.deploy.or(self.input.deploy);
         self.input = input.control;
+        self.input.deploy = deploy;
         self.input.fire = fire;
         self.input.special = special;
         self.sequence = Some(input.sequence);
@@ -400,6 +403,7 @@ impl Server {
                     .unwrap_or_default()
                     .as_nanos() as u64;
                 game.configure_airdrops(self.lobby.config.airdrops, seed);
+                game.require_vehicle_choices();
                 let map = Map::capture(game.world());
                 self.progress = MatchProgress::new(self.lobby.config);
                 for (index, slot) in self.lobby.players.iter().map(|p| p.slot).enumerate() {
@@ -473,7 +477,7 @@ impl Server {
             }
             ClientMessage::Leave => return false,
             _ if !registered => return false,
-            ClientMessage::Team(team) if self.game.is_none() => {
+            ClientMessage::Team(team) if self.game.is_none() && team != Team::Neutral => {
                 let p = self.peers.get_mut(&slot).unwrap().player.as_mut().unwrap();
                 p.team = team;
                 p.ready = false;

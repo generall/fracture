@@ -10,11 +10,13 @@ pub const MAX_PLAYERS: usize = 6;
 /// Controls contain intent only: mass, velocity, health and positions are host-owned.
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PlayerInput {
+    /// Drive channels, using the same vehicle-specific encoding as Command::Tracks.
     pub tracks: [f32; 2],
     pub aim: Vector,
     pub ammunition: Ammunition,
     pub fire: bool,
     pub special: bool,
+    pub deploy: Option<VehicleKind>,
 }
 impl Default for PlayerInput {
     fn default() -> Self {
@@ -24,6 +26,7 @@ impl Default for PlayerInput {
             ammunition: Ammunition::HighExplosive,
             fire: false,
             special: false,
+            deploy: None,
         }
     }
 }
@@ -34,7 +37,7 @@ impl PlayerInput {
             && self.tracks.iter().all(|v| v.is_finite() && v.abs() <= 1.0)
             && Ammunition::MAIN.contains(&self.ammunition)
     }
-    fn commands(self) -> Vec<Command> {
+    pub(super) fn commands(self) -> Vec<Command> {
         let mut commands = vec![
             Command::SelectAmmunition(self.ammunition),
             Command::Aim(self.aim),
@@ -43,6 +46,9 @@ impl PlayerInput {
                 right: self.tracks[1],
             },
         ];
+        if let Some(kind) = self.deploy {
+            commands.push(Command::Deploy(kind));
+        }
         if self.fire {
             commands.push(Command::Fire(Shot::new(self.ammunition, self.aim)));
         }
@@ -56,7 +62,7 @@ impl PlayerInput {
 // Existing weapon routines operate on the selected tank. Store all of their
 // per-player state here while keeping bodies, damage and world timers shared.
 #[derive(Clone, Copy)]
-struct Weapons {
+pub(super) struct Weapons {
     primary: Ammunition,
     special: Option<crate::SpecialWeapon>,
     charges: u32,
@@ -71,7 +77,7 @@ struct Weapons {
     plasma_beam: Option<LaserBeam>,
 }
 impl Weapons {
-    fn capture(w: &World) -> Self {
+    pub(super) fn capture(w: &World) -> Self {
         Self {
             primary: w.primary_ammunition,
             special: w.special,
@@ -87,7 +93,7 @@ impl Weapons {
             plasma_beam: w.plasma_beam,
         }
     }
-    fn apply(self, w: &mut World) {
+    pub(super) fn apply(self, w: &mut World) {
         w.primary_ammunition = self.primary;
         w.special = self.special;
         w.special_charges = self.charges;
@@ -100,6 +106,24 @@ impl Weapons {
         w.last_ammunition = self.last;
         w.laser_beam = self.beam;
         w.plasma_beam = self.plasma_beam;
+    }
+}
+impl Default for Weapons {
+    fn default() -> Self {
+        Self {
+            primary: Ammunition::HighExplosive,
+            special: None,
+            charges: 0,
+            interval: 0.0,
+            cooldown: 0.0,
+            laser: 0.0,
+            plasma: 0.0,
+            direction: Vector::X,
+            pulse: 0.0,
+            last: Ammunition::HighExplosive,
+            beam: None,
+            plasma_beam: None,
+        }
     }
 }
 struct Player {
@@ -119,6 +143,7 @@ impl MultiplayerWorld {
         if !(2..=MAX_PLAYERS).contains(&teams.len())
             || !teams.contains(&Team::Blue)
             || !teams.contains(&Team::Red)
+            || teams.contains(&Team::Neutral)
         {
             return Err("A LAN match needs 2–6 players with at least one on each team.".into());
         }
@@ -131,11 +156,9 @@ impl MultiplayerWorld {
         let weapons = Weapons::capture(&world);
         let mut players: Vec<Player> = Vec::new();
         for &team in teams {
-            let id = if let Some(tank) = world
-                .tanks
-                .iter()
-                .find(|t| t.team == team && !players.iter().any(|p| p.id == t.id))
-            {
+            let id = if let Some(tank) = world.tanks.iter().find(|t| {
+                t.mount.is_none() && t.team == team && !players.iter().any(|p| p.id == t.id)
+            }) {
                 tank.id
             } else {
                 let (spawn, angle) = level
@@ -194,6 +217,11 @@ impl MultiplayerWorld {
         result.activate(0);
         Ok(result)
     }
+    pub fn require_vehicle_choices(&mut self) {
+        for player in &self.players {
+            self.world.require_vehicle_choice(player.id);
+        }
+    }
     pub fn player_count(&self) -> usize {
         self.players.len()
     }
@@ -230,6 +258,10 @@ impl MultiplayerWorld {
     }
     pub fn world(&self) -> &World {
         &self.world
+    }
+    #[cfg(feature = "physics-profile")]
+    pub fn take_physics_profile(&mut self) -> super::PhysicsProfile {
+        self.world.take_physics_profile()
     }
 
     fn activate(&mut self, player: usize) {
@@ -317,6 +349,92 @@ impl MultiplayerWorld {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mines_use_remote_inventory_and_each_teams_snapshot() {
+        let mut level = Level::default();
+        level.items.push(LevelItem::Pickup {
+            weapon: crate::SpecialWeapon::Mine,
+            position: [18.0, 0.0],
+            respawn_time: 60.0,
+            charges: 2,
+            cooldown: 1.0,
+        });
+        let mut game = MultiplayerWorld::new(&level, &[Team::Blue, Team::Red, Team::Red]).unwrap();
+        game.step(&[PlayerInput::default(); 3]);
+        assert_eq!(game.for_player(1).unwrap().special_charges(), 2);
+        let mut inputs = [PlayerInput::default(); 3];
+        inputs[1].special = true;
+        game.step(&inputs);
+        assert_eq!(game.for_player(1).unwrap().special_charges(), 1);
+        assert_eq!(game.for_player(0).unwrap().special_charges(), 0);
+        let shared = replica::Frame::capture(game.for_player(0).unwrap());
+        assert!(shared.mines.is_empty(), "distant enemy mines stay hidden");
+        for player in [1, 2] {
+            let frame = replica::Frame::for_player(game.for_player(player).unwrap(), &shared);
+            assert_eq!(frame.mines.len(), 1, "all teammates see the placed mine");
+            assert_eq!(frame.mines[0].team, Team::Red);
+        }
+        let body = game.world.pieces[game.players[0].id].body;
+        game.world.physics.bodies[body].set_position(Pose::new(Vector::new(15.1, 0.0), 0.0), true);
+        game.world
+            .physics
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut game.world.physics.colliders);
+        let close = replica::Frame::for_player(game.for_player(0).unwrap(), &shared);
+        assert_eq!(
+            close.mines.len(),
+            1,
+            "enemy vehicle reveals it inside three meters"
+        );
+        game.world.physics.bodies[body].set_position(Pose::new(Vector::new(10.0, 0.0), 0.0), true);
+        let far = replica::Frame::for_player(game.for_player(0).unwrap(), &close);
+        assert!(
+            far.mines.is_empty(),
+            "leaving detection immediately hides it again"
+        );
+    }
+    #[test]
+    fn each_player_deploys_independently_and_must_choose_again_after_death() {
+        let mut game = MultiplayerWorld::new(&Level::default(), &[Team::Blue, Team::Red]).unwrap();
+        game.require_vehicle_choices();
+        let mut inputs = [PlayerInput::default(); 2];
+        inputs[0].deploy = Some(VehicleKind::Scout);
+        inputs[1].deploy = Some(VehicleKind::Mortar);
+        game.step(&inputs);
+        inputs.iter_mut().for_each(|i| i.deploy = None);
+        game.step(&inputs);
+        assert_eq!(
+            game.for_player(0).unwrap().player_vehicle(),
+            VehicleKind::Scout
+        );
+        assert_eq!(
+            game.for_player(1).unwrap().player_vehicle(),
+            VehicleKind::Mortar
+        );
+        let id = game.players[1].id;
+        game.world
+            .tanks
+            .iter_mut()
+            .find(|t| t.id == id)
+            .unwrap()
+            .protection = 0.0;
+        game.world.damage_tank(id, 1000.0, &mut vec![]);
+        for _ in 0..1200 {
+            game.step(&inputs);
+        }
+        assert!(game.for_player(0).unwrap().tank_alive());
+        assert!(!game.for_player(1).unwrap().tank_alive());
+        inputs[1].deploy = Some(VehicleKind::Tank);
+        game.step(&inputs);
+        inputs[1].deploy = None;
+        game.step(&inputs);
+        assert_eq!(
+            game.for_player(1).unwrap().player_vehicle(),
+            VehicleKind::Tank
+        );
+        assert!(game.for_player(1).unwrap().tank_alive());
+    }
+
     #[test]
     fn bridge_repair_takes_fifteen_seconds_with_multiple_players() {
         let mut level = Level::default();
@@ -467,7 +585,7 @@ mod tests {
         assert_eq!(game.for_player(2).unwrap().carried_special(), None);
         assert!(game.for_player(0).unwrap().tank_alive());
         let mut respawns = 0;
-        for _ in 0..400 {
+        for _ in 0..1200 {
             respawns += game
                 .step(&[])
                 .iter()
@@ -549,6 +667,7 @@ mod tests {
             game.step(&[
                 PlayerInput::default(),
                 PlayerInput {
+                    deploy: None,
                     tracks: [f32::NAN, 50.0],
                     aim: Vector::splat(f32::INFINITY),
                     ammunition: Ammunition::Plasma,

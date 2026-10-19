@@ -25,15 +25,36 @@ impl Run {
         let scenario = std::env::var("FRACTURE_PERF_SCENARIO").ok()?;
         assert_eq!(std::env::var("FRACTURE_SILENT").as_deref(), Ok("1"));
         game.select_map(match scenario.as_str() {
-            "river" => 0,
+            "river" | "river-scout" | "river-scout-combat" => 0,
             "classic" => 1,
-            _ => panic!("FRACTURE_PERF_SCENARIO must be river or classic"),
+            _ => panic!("unknown FRACTURE_PERF_SCENARIO"),
         });
+        let scout = scenario.starts_with("river-scout");
+        if scout {
+            // A reproducible approach to the red base, keeping the actual map,
+            // defenses, AI, physics and visibility. Never edit the saved map.
+            for item in &mut game.map.items {
+                if let sim::level::LevelItem::Spawn {
+                    team: sim::level::Team::Blue,
+                    position,
+                    angle,
+                } = item
+                {
+                    *position = [-57.0, 40.0];
+                    *angle = 0.0;
+                }
+            }
+        }
         game.config.opponent = sim::level::EnemyActivity::Attack;
         game.config.time_limit_seconds = None;
         game.start(lab);
         assert_eq!(game.screen as u32, crate::game::Screen::Match as u32);
         game.countdown = 0.0;
+        lab.pending.push(sim::Command::Deploy(if scout {
+            sim::VehicleKind::Scout
+        } else {
+            sim::VehicleKind::Tank
+        }));
         let origin = lab.world.launcher_position();
         let mut points: Vec<_> = lab
             .world
@@ -100,6 +121,8 @@ impl Run {
                 self.slow_frames.push(serde_json::json!({
                     "frame":self.frames.len(), "wall_ms":sample[0],
                     "cpu_ms":&sample[1..], "physics":physics,
+                    "position":lab.world.launcher_position(),
+                    "alive":lab.world.tank_alive(),
                 }));
             }
             self.frames.push(sample);
@@ -174,6 +197,33 @@ impl Run {
 
     pub fn input(&mut self, lab: &mut Lab) -> [f32; 2] {
         let tick = lab.match_progress.as_ref().unwrap().elapsed_ticks;
+        if self.scenario.starts_with("river-scout") {
+            if !lab.world.tank_alive() {
+                lab.pending
+                    .push(sim::Command::Deploy(sim::VehicleKind::Scout));
+            }
+            // Follow a broad loop past the red defensive gun and flag enclosure.
+            let center = sim::Vec2::new(-57.0, 57.0);
+            let angle = tick as f32 * sim::TICK_DT * 0.55 - std::f32::consts::FRAC_PI_2 + 0.3;
+            let target = center + sim::Vec2::from_angle(angle) * 17.0;
+            let position = lab.world.launcher_position();
+            let direction = target - position;
+            lab.keyboard_aim
+                .point_stick(vec2(center.x - position.x, center.y - position.y));
+            lab.firing = self.scenario == "river-scout-combat";
+            if lab.firing {
+                lab.fire();
+            }
+            let heading = lab
+                .world
+                .tank_poses()
+                .find(|(id, ..)| *id == lab.world.player_tank_id())
+                .map_or(0.0, |(_, _, angle)| angle);
+            return crate::controls::stick_car(
+                vec2(direction.x, direction.y).normalize_or_zero(),
+                heading,
+            );
+        }
         let target = self.targets[(tick as usize / 480) % self.targets.len()];
         let delta = target - lab.world.launcher_position();
         lab.keyboard_aim.point_stick(vec2(delta.x, delta.y));

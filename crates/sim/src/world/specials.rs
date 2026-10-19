@@ -53,7 +53,10 @@ impl World {
         }
     }
     pub(super) fn select_main_ammunition(&mut self, ammunition: Ammunition) {
-        if ammunition.special() || ammunition == self.primary_ammunition {
+        if self.player_vehicle() != VehicleKind::Tank
+            || ammunition.special()
+            || ammunition == self.primary_ammunition
+        {
             return;
         }
         self.primary_ammunition = ammunition;
@@ -61,7 +64,8 @@ impl World {
         self.last_ammunition = ammunition;
     }
     pub(super) fn activate_special(&mut self, events: &mut Vec<Event>) {
-        if !self.tank_is_alive(self.launcher)
+        if self.player_vehicle() == VehicleKind::Scout
+            || !self.tank_is_alive(self.launcher)
             || self.special_active()
             || self.special_reload > 1e-5
             || self.special_charges == 0
@@ -69,6 +73,11 @@ impl World {
             return;
         }
         match self.special {
+            Some(SpecialWeapon::Mine) => {
+                if self.place_mine() {
+                    self.consume_special_charge(0.0);
+                }
+            }
             Some(SpecialWeapon::Laser) => {
                 self.consume_special_charge(LASER_DURATION);
                 self.laser_remaining = LASER_DURATION;
@@ -114,7 +123,7 @@ impl World {
                 pickup.remaining = (pickup.remaining - TICK_DT).max(0.0);
             }
         }
-        if !self.tank_is_alive(self.launcher) {
+        if self.player_vehicle() == VehicleKind::Scout || !self.tank_is_alive(self.launcher) {
             self.laser_remaining = 0.0;
             self.plasma_remaining = 0.0;
             self.plasma_beam = None;

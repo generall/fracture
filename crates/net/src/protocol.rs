@@ -6,7 +6,7 @@ use sim::{
     multiplayer::PlayerInput,
     replica::Map,
 };
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 8;
 pub const PORT: u16 = 45771;
 pub const DISCOVERY_PORT: u16 = 45770;
 #[derive(Clone, Debug, Serialize, Deserialize)]

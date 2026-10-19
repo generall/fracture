@@ -22,6 +22,7 @@ pub(crate) struct Lab {
     pub(crate) vision: sim::Vision,
     pub(crate) accumulator: f64,
     pub(crate) aim: Vec2,
+    pub(crate) mortar_range: f32,
     pub(crate) keyboard_aim: crate::controls::KeyboardAim,
     pub(crate) pending: Vec<Command>,
     pub(crate) firing: bool,
@@ -53,6 +54,7 @@ impl Lab {
             vision: sim::Vision::default(),
             accumulator: 0.0,
             aim: vec2(3.0, 0.0),
+            mortar_range: 20.0,
             keyboard_aim: crate::controls::KeyboardAim::default(),
             pending: Vec::new(),
             firing: false,
@@ -66,6 +68,13 @@ impl Lab {
             overloaded: 0.0,
             notice: None,
         }
+    }
+
+    pub(crate) fn choose_sandbox_vehicle(&mut self) {
+        self.world.request_player_deployment();
+        self.pending.clear();
+        self.firing = false;
+        self.paused = false;
     }
 
     pub(crate) fn reset(&mut self, scene: Scene) {
@@ -129,6 +138,7 @@ impl Lab {
         #[cfg(target_arch = "wasm32")]
         let seed = macroquad::prelude::get_time().to_bits();
         world.configure_airdrops(config.airdrops, seed);
+        world.require_vehicle_choice(world.player_tank_id());
         self.world = world;
         self.match_progress = Some(sim::matchplay::MatchProgress::new(config));
         self.inspector = Inspector::default();
@@ -151,7 +161,12 @@ impl Lab {
     pub(crate) fn refresh_keyboard_aim(&mut self) {
         let origin = self.world.launcher_position();
         if let Some(target) = self.keyboard_aim.target(vec2(origin.x, origin.y)) {
-            self.aim = target;
+            self.aim = if self.world.player_vehicle() == sim::VehicleKind::Mortar {
+                vec2(origin.x, origin.y)
+                    + Vec2::from_angle(self.world.player_aim().angle) * self.mortar_range
+            } else {
+                target
+            };
         }
     }
 
@@ -180,7 +195,8 @@ impl Lab {
             return;
         }
         if self.firing
-            && self.inspector.ammunition.automatic()
+            && (self.inspector.ammunition.automatic()
+                || self.world.player_vehicle() == sim::VehicleKind::Scout)
             && !self.pending.iter().any(|c| matches!(c, Command::Fire(_)))
         {
             self.fire();
@@ -325,13 +341,17 @@ impl Lab {
                             position,
                             team,
                             details,
-                            self.world.stats().ticks as usize + details.id,
+                            self.world.tick_count() as usize + details.id,
                         ));
                     if let Some(fog) = &mut self.fog {
                         fog.observe_tank_wreck(&self.world, details.id, get_time());
                     }
                     self.notice = Some((
-                        format!("{} TANK DESTROYED / RESPAWN IN 3 S", team.label()),
+                        format!(
+                            "{} {} DESTROYED",
+                            team.label(),
+                            if details.mounted { "TURRET" } else { "VEHICLE" }
+                        ),
                         2.0,
                     ));
                 }
@@ -342,7 +362,7 @@ impl Lab {
                     {
                         continue;
                     }
-                    self.notice = Some((format!("{} TANK RESPAWNED", team.label()), 1.0));
+                    self.notice = Some((format!("{} VEHICLE DEPLOYED", team.label()), 1.0));
                 }
                 Event::TankSunk { .. } => {
                     self.notice = Some(("TANK LOST / R TO REBUILD".into(), 5.0))

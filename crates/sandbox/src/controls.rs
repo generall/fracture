@@ -35,10 +35,25 @@ pub const SCENES: &[SceneBinding] = &[
     },
 ];
 
-pub fn tracks() -> [f32; 2] {
+pub fn tracks(kind: sim::VehicleKind) -> [f32; 2] {
     let throttle = (is_key_down(KeyCode::W) as i32 - is_key_down(KeyCode::S) as i32) as f32;
     let steer = (is_key_down(KeyCode::D) as i32 - is_key_down(KeyCode::A) as i32) as f32;
-    mix_tracks(throttle, steer)
+    if kind == sim::VehicleKind::Scout {
+        mix_car(throttle, steer)
+    } else {
+        mix_tracks(throttle, steer)
+    }
+}
+
+/// Relative artillery range adjustment. Centering the stick retains range;
+/// a soft response near neutral provides fine aim without absolute-range jumps.
+pub fn advance_mortar_range(range: f32, stick: Vec2, dt: f32) -> f32 {
+    if !stick.is_finite() || !dt.is_finite() || dt <= 0.0 {
+        return range;
+    }
+    let input = (-stick.y).clamp(-1.0, 1.0);
+    let response = input * (0.2 + 0.8 * input * input);
+    (range + response * 10.0 * dt.min(0.1)).clamp(6.0, 36.0)
 }
 
 pub fn mix_tracks(throttle: f32, steer: f32) -> [f32; 2] {
@@ -60,6 +75,32 @@ pub fn stick_tracks(stick: Vec2, heading: f32) -> [f32; 2] {
     };
     let steer = (nearer_end / 30.0_f32.to_radians()).clamp(-1.0, 1.0);
     mix_tracks(error.cos(), steer).map(|t| t * stick.length())
+}
+
+/// Encode independent car throttle and wheel steering without normalization.
+fn mix_car(throttle: f32, steer: f32) -> [f32; 2] {
+    [(throttle + steer) * 0.5, (throttle - steer) * 0.5]
+}
+
+/// Drive toward the stick along a rolling arc, including a sideways request.
+/// Wheel steering reverses while backing up so the car still follows the stick.
+pub fn stick_car(stick: Vec2, heading: f32) -> [f32; 2] {
+    use std::f32::consts::{FRAC_PI_2, PI, TAU};
+    if stick == Vec2::ZERO {
+        return [0.0; 2];
+    }
+    let error = (stick.to_angle() - heading + PI).rem_euclid(TAU) - PI;
+    let reverse = error.abs() > FRAC_PI_2 + 0.01;
+    let direction = if reverse { -1.0 } else { 1.0 };
+    let nearer_end = if reverse {
+        error - PI.copysign(error)
+    } else {
+        error
+    };
+    mix_car(
+        stick.length().min(1.0) * direction,
+        (nearer_end / 45.0_f32.to_radians()).clamp(-1.0, 1.0) * direction,
+    )
 }
 
 pub fn turret_turn() -> Option<f32> {
@@ -103,6 +144,67 @@ impl KeyboardAim {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mortar_stick_adjusts_range_gradually_and_retains_it_on_release() {
+        let small = advance_mortar_range(20.0, vec2(0.0, -0.2), 1.0 / 60.0);
+        assert!(small > 20.0 && small < 20.01);
+        let full = advance_mortar_range(20.0, vec2(0.0, -1.0), 1.0 / 60.0);
+        assert!(full > small && full < 20.2);
+        assert_eq!(advance_mortar_range(full, Vec2::ZERO, 1.0), full);
+        assert_eq!(advance_mortar_range(full, Vec2::X, 1.0), full);
+        assert_eq!(advance_mortar_range(full, -Vec2::Y, 0.0), full);
+        assert_eq!(advance_mortar_range(full, vec2(f32::NAN, 0.0), 0.1), full);
+        let adjust = |fps: usize, stick| {
+            (0..fps).fold(20.0, |range, _| {
+                advance_mortar_range(range, stick, 1.0 / fps as f32)
+            })
+        };
+        assert!((adjust(30, -Vec2::Y) - adjust(120, -Vec2::Y)).abs() < 0.001);
+        assert!((adjust(60, Vec2::Y) - 10.0).abs() < 0.001);
+        assert_eq!(advance_mortar_range(36.0, -Vec2::Y, 0.1), 36.0);
+        assert_eq!(advance_mortar_range(6.0, Vec2::Y, 0.1), 6.0);
+        assert!(
+            advance_mortar_range(20.0, -Vec2::Y, 5.0) <= 21.0,
+            "a hitch cannot jump the entire range"
+        );
+    }
+
+    #[test]
+    fn car_controls_keep_throttle_when_steering_and_drive_sideways_requests() {
+        for throttle in [-1.0, -0.5, 0.0, 0.5, 1.0] {
+            for steer in [-1.0, 0.0, 1.0] {
+                let [left, right] = mix_car(throttle, steer);
+                assert!((left + right - throttle).abs() < 0.001);
+                assert!((left - right - steer).abs() < 0.001);
+                assert!(left.abs().max(right.abs()) <= 1.0);
+            }
+        }
+        for heading in [0.0, 1.2, -2.0] {
+            for error in [
+                0.0_f32,
+                0.5,
+                -0.5,
+                std::f32::consts::FRAC_PI_2,
+                -std::f32::consts::FRAC_PI_2,
+                2.6,
+                -2.6,
+            ] {
+                let [left, right] = stick_car(Vec2::from_angle(heading + error) * 0.5, heading);
+                let throttle = left + right;
+                assert!((throttle.abs() - 0.5).abs() < 0.001);
+                let turn = throttle * (left - right);
+                let target_turn = if error.abs() > std::f32::consts::FRAC_PI_2 {
+                    -error.signum()
+                } else {
+                    error.signum()
+                };
+                if error != 0.0 {
+                    assert!(turn * target_turn > 0.0);
+                }
+            }
+        }
+        assert_eq!(stick_car(Vec2::ZERO, 0.0), [0.0; 2]);
+    }
 
     #[test]
     fn stick_drives_toward_its_world_direction() {

@@ -242,6 +242,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fracture-ai-arena"
+version = "0.1.0"
+dependencies = [
+ "macroquad",
+ "sandbox",
+]
+
+[[package]]
 name = "game"
 version = "0.1.0"
 dependencies = [

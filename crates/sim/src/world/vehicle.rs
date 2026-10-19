@@ -1,4 +1,5 @@
 use super::*;
+mod scout;
 
 const TRACK_OFFSET: f32 = 0.65;
 
@@ -64,6 +65,93 @@ pub(super) fn tank_colliders() -> [(Vector, Vector); 3] {
 }
 
 impl World {
+    pub fn vehicle_kind(&self, id: usize) -> VehicleKind {
+        self.tanks()
+            .find(|t| t.id == id)
+            .map_or(VehicleKind::Tank, |t| t.vehicle)
+    }
+    pub fn player_vehicle(&self) -> VehicleKind {
+        self.vehicle_kind(self.launcher)
+    }
+    pub fn main_reload_interval(&self) -> f32 {
+        if self.player_vehicle() == VehicleKind::Tank {
+            self.last_ammunition().interval()
+        } else {
+            self.player_vehicle().reload()
+        }
+    }
+    /// Sandbox redeployment: register experiment vehicles before offering a choice.
+    pub fn request_player_deployment(&mut self) {
+        if self.replica.is_some() {
+            return;
+        }
+        let id = self.launcher;
+        if !self.tanks.iter().any(|t| t.id == id) {
+            let pose = self.piece_pose(id);
+            self.register_tank(id, self.team, pose.translation, pose.rotation.angle());
+        }
+        self.require_vehicle_choice(id);
+    }
+    pub fn player_choosing_vehicle(&self) -> bool {
+        self.tanks.iter().any(|t| {
+            t.id == self.launcher && t.requires_choice && t.health <= 0.0 && t.respawn.is_some()
+        })
+    }
+    /// Enable human deployment choices, including the first spawn.
+    pub fn require_vehicle_choice(&mut self, id: usize) {
+        if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) {
+            tank.requires_choice = true;
+            tank.choice = None;
+            tank.health = 0.0;
+            tank.respawn = Some(0.0);
+            self.physics.bodies[self.pieces[id].body].set_enabled(false);
+        }
+    }
+    pub(super) fn choose_vehicle(&mut self, id: usize, kind: VehicleKind) {
+        if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id)
+            && tank.requires_choice
+            && tank.health <= 0.0
+            && tank.respawn.is_some()
+        {
+            tank.choice = Some(kind);
+        }
+    }
+    pub(super) fn apply_vehicle(&mut self, id: usize, kind: VehicleKind) {
+        if self.vehicle_kind(id) == kind {
+            return;
+        }
+        let handle = self.pieces[id].body;
+        let colliders = self.physics.bodies[handle].colliders().to_vec();
+        for (i, ((offset, half), handle)) in tank_colliders().into_iter().zip(colliders).enumerate()
+        {
+            let collider = &mut self.physics.colliders[handle];
+            let half = half * kind.size();
+            collider.set_shape(SharedShape::cuboid(half.x, half.y));
+            collider.set_translation_wrt_parent(offset * kind.size());
+            collider.set_mass(
+                kind.mass()
+                    * if i == 0 {
+                        3800.0 / 4500.0
+                    } else {
+                        350.0 / 4500.0
+                    },
+            );
+        }
+        self.physics.bodies[handle]
+            .recompute_mass_properties_from_colliders(&self.physics.colliders);
+        self.pieces[id].shape = Shape::Box {
+            half: Vector::new(1.08, 0.82) * kind.size(),
+        };
+        self.pieces[id].shape_revision = self.pieces[id].shape_revision.wrapping_add(1);
+        if let Some(tank) = self.tanks.iter_mut().find(|t| t.id == id) {
+            tank.vehicle = kind;
+        }
+        self.sight_cache = None;
+        self.physics
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.physics.colliders);
+    }
+
     pub(super) fn add_tank(&mut self) -> usize {
         let position = Vector::new(-7.0, 0.0);
         let [(_, hull), tracks @ ..] = tank_colliders();
@@ -126,10 +214,67 @@ impl World {
         self.drive_tank(self.launcher, throttles, dt);
     }
 
+    fn mortar_push_force(&self, id: usize, throttles: [f32; 2], dt: f32) -> f32 {
+        let throttle = (throttles[0] + throttles[1]) * 0.5;
+        if throttle.abs() < 0.01 {
+            return 0.0;
+        }
+        let handle = self.pieces[id].body;
+        let direction = self.piece_pose(id).rotation * Vector::X * throttle.signum();
+        let mut impulse = 0.0;
+        for pair in self.physics.contact_pairs() {
+            if !pair.has_any_active_contact() {
+                continue;
+            }
+            // Fracture can replace colliders after the prior physics step.
+            let (Some(a), Some(b)) = (
+                self.physics.colliders.get(pair.collider1),
+                self.physics.colliders.get(pair.collider2),
+            ) else {
+                continue;
+            };
+            let (other, sign) = if a.parent() == Some(handle) {
+                (b, -1.0)
+            } else if b.parent() == Some(handle) {
+                (a, 1.0)
+            } else {
+                continue;
+            };
+            let destructible = (other.user_data as usize)
+                .checked_sub(1)
+                .and_then(|i| self.pieces.get(i))
+                .is_some_and(|p| p.active && p.destructible());
+            if !destructible {
+                continue;
+            }
+            for manifold in &pair.manifolds {
+                let resistance = -(manifold.data.normal * sign).dot(direction);
+                if resistance > 0.0 {
+                    impulse += manifold
+                        .points
+                        .iter()
+                        .map(|c| c.data.impulse.max(0.0))
+                        .sum::<f32>()
+                        * resistance;
+                }
+            }
+        }
+        // The prior solver impulse is the load the engine must overcome.
+        // Compensation vanishes immediately when the obstacle stops resisting.
+        (impulse / dt).min(220_000.0)
+    }
+
     pub(super) fn drive_tank(&mut self, id: usize, throttles: [f32; 2], dt: f32) {
         if !self.tank_is_alive(id) {
             return;
         }
+        let kind = self.vehicle_kind(id);
+        let track_offset = TRACK_OFFSET * kind.size().y;
+        let drive_scale = match kind {
+            VehicleKind::Scout => 1.05,
+            VehicleKind::Tank => 1.0,
+            VehicleKind::Mortar => 2.2,
+        };
         let pose = *self.physics.bodies[self.pieces[id].body].position();
         // A short transition band at exposed elevation edges. Sampling the
         // resolved terrain avoids slopes between touching/overlapping plateaus.
@@ -140,12 +285,21 @@ impl World {
             )
         };
         let edge = (height(1.25) - height(-1.25)).abs();
-        let surfaces = [-TRACK_OFFSET, TRACK_OFFSET].map(|y| {
+        let surfaces = [-track_offset, track_offset].map(|y| {
             [-0.78, 0.78].map(|x| {
                 self.terrain_at(pose.transform_point(Vector::new(x, y)))
                     .traction()
             })
         });
+        if kind == VehicleKind::Scout {
+            self.drive_scout(id, throttles, surfaces, edge, dt);
+            return;
+        }
+        let pushing = if kind == VehicleKind::Mortar {
+            self.mortar_push_force(id, throttles, dt)
+        } else {
+            0.0
+        };
         let body = &mut self.physics.bodies[self.pieces[id].body];
         if body.is_sleeping() && throttles == [0.0; 2] {
             return;
@@ -157,6 +311,7 @@ impl World {
         let requested: [f32; 2] = std::array::from_fn(|i| {
             throttles[i]
                 * self.tank_speed_limit
+                * (kind.speed() / 6.5)
                 * (surfaces[i][0][0] + surfaces[i][1][0])
                 * 0.5
                 * (1.0 - 0.75 * edge)
@@ -173,7 +328,7 @@ impl World {
         let braking = throttles == [0.0; 2];
         let steering = (throttles[0] - throttles[1]).abs() > 0.01;
         let mut impulses = Vec::with_capacity(4);
-        for (i, y) in [-TRACK_OFFSET, TRACK_OFFSET].into_iter().enumerate() {
+        for (i, y) in [-track_offset, track_offset].into_iter().enumerate() {
             let midpoint = body.position().transform_point(Vector::new(0.0, y));
             let travel = body.velocity_at_point(midpoint).dot(forward) * dt;
             if id == self.launcher {
@@ -188,15 +343,26 @@ impl World {
                 let velocity = body.velocity_at_point(point);
                 let speed = velocity.dot(forward);
                 let is_braking = targets[i].abs() < 0.01 || speed * (targets[i] - speed) < 0.0;
-                // Fixed engine force gives about 1.6 m/s² acceleration. Brakes
+                // The regular tank engine gives about 1.6 m/s² acceleration. Brakes
                 // have a higher force budget, rather than a reversible motor drag.
                 let force_limit = if is_braking {
                     6_500.0 * grip * (1.0 + edge)
                 } else {
-                    1_800.0 * drive
+                    1_800.0 * drive * drive_scale
                 };
-                let longitudinal =
-                    ((targets[i] - speed) * patch_mass * 20.0).clamp(-force_limit, force_limit);
+                let gain = if kind == VehicleKind::Mortar && !is_braking {
+                    1.5
+                } else {
+                    20.0
+                };
+                let mut longitudinal =
+                    ((targets[i] - speed) * patch_mass * gain).clamp(-force_limit, force_limit);
+                if kind == VehicleKind::Mortar && !is_braking {
+                    // Compensate actual wall resistance, rather than giving the
+                    // unloaded hull the full breaching force at every start.
+                    longitudinal = (longitudinal + targets[i].signum() * pushing * 0.25)
+                        .clamp(-55_000.0 * drive, 55_000.0 * drive);
+                }
                 // Front/rear lateral contacts generate scrub torque, absent from
                 // the old centreline-only model. A turn allows controlled slip.
                 let lateral_gain = if steering && !braking { 3.0 } else { 24.0 };
@@ -204,8 +370,13 @@ impl World {
                     -patch_mass * 9.81 * 0.9 * grip,
                     patch_mass * 9.81 * 0.9 * grip,
                 );
+                let traction = if kind == VehicleKind::Mortar {
+                    1.4
+                } else {
+                    0.95
+                };
                 let force = (forward * longitudinal + side * lateral)
-                    .clamp_length_max(patch_mass * 9.81 * 0.95 * grip);
+                    .clamp_length_max(patch_mass * 9.81 * traction * grip);
                 impulses.push((point, force * dt));
             }
         }

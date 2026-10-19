@@ -14,6 +14,13 @@ impl World {
         self.scene
     }
 
+    /// Simulation time without assembling full geometry/physics diagnostics.
+    pub fn tick_count(&self) -> u64 {
+        self.replica
+            .as_ref()
+            .map_or(self.tick, |frame| frame.stats.ticks)
+    }
+
     pub fn launcher_position(&self) -> Vector {
         if let Some(frame) = &self.replica {
             return frame.position;
@@ -79,6 +86,7 @@ impl World {
                     opacity: if piece.material == Material::Launcher
                         && !self.tank_is_alive(id)
                         && !self.tanks.is_empty()
+                        && !self.tanks.iter().any(|t| t.id == id && t.mount.is_some())
                     {
                         0.0
                     } else if id == self.launcher {

@@ -2,6 +2,7 @@ pub(crate) mod decorations;
 mod indicators;
 pub(crate) mod scene;
 pub(crate) mod tank_parts;
+pub(crate) mod vehicles;
 mod weapon_effects;
 use crate::ui::{CYAN, INK, MUTED, PAPER, PINK, RULE, VIOLET};
 use macroquad::prelude::*;
@@ -58,7 +59,7 @@ pub(crate) fn station_marker(
     let team_color = |team| match team {
         Some(Team::Blue) => CYAN,
         Some(Team::Red) => PINK,
-        None => MUTED,
+        _ => MUTED,
     };
     let color = tint(team_color(station.owner), opacity);
     let p = view.screen(v(station.position));
@@ -129,7 +130,7 @@ pub(crate) fn station_marker(
         match station.owner {
             Some(Team::Blue) => "BLUE",
             Some(Team::Red) => "RED",
-            None => "NEUTRAL",
+            _ => "NEUTRAL",
         }
     };
     let width = measure_text(label, None, 12, 1.0).width;
@@ -354,7 +355,7 @@ fn draw_bridges(scene: &Scene, viewport: &Viewport) {
                 let color = match repair.team {
                     Some(sim::level::Team::Blue) => CYAN,
                     Some(sim::level::Team::Red) => PINK,
-                    None => MUTED,
+                    _ => MUTED,
                 };
                 let color = tint(color, bridge.opacity);
                 let radius = viewport.scale * sim::BRIDGE_REPAIR_RADIUS;
@@ -369,25 +370,24 @@ fn draw_bridges(scene: &Scene, viewport: &Viewport) {
                     previous = next;
                 }
                 let label = if repair.contested {
-                    "CONTESTED".to_owned()
+                    Some("CONTESTED")
                 } else if repair.progress >= 1.0 {
-                    "CLEAR OUTPOST".to_owned()
+                    Some("CLEAR OUTPOST")
                 } else {
-                    format!(
-                        "REPAIR / {:.0}s",
-                        ((1.0 - repair.progress) * sim::BRIDGE_REPAIR_SECONDS).ceil()
-                    )
+                    None
                 };
-                let width = measure_text(&label, None, 14, 1.0).width;
-                let y = p.y - radius - 8.0;
-                draw_rectangle(
-                    p.x - width * 0.5 - 4.0,
-                    y - 14.0,
-                    width + 8.0,
-                    18.0,
-                    tint(PAPER, bridge.opacity * 0.9),
-                );
-                crate::ui::text(&label, p.x - width * 0.5, y, 14.0, color);
+                if let Some(label) = label {
+                    let width = measure_text(label, None, 14, 1.0).width;
+                    let y = p.y - radius - 8.0;
+                    draw_rectangle(
+                        p.x - width * 0.5 - 4.0,
+                        y - 14.0,
+                        width + 8.0,
+                        18.0,
+                        tint(PAPER, bridge.opacity * 0.9),
+                    );
+                    crate::ui::text(label, p.x - width * 0.5, y, 14.0, color);
+                }
                 color
             };
             draw_circle_lines(p.x, p.y, viewport.scale * 0.3, 1.8, color);
@@ -426,6 +426,10 @@ pub fn draw_world(
     }
     for (pickup, opacity) in &scene.pickups {
         pickup_marker(pickup, viewport, *opacity);
+    }
+    // Live team detection has no fog memory or scenery visibility grace period.
+    for mine in world.visible_mines() {
+        weapon_effects::mine_marker(mine, viewport, mine.team == world.team());
     }
     draw_bridges(scene, viewport);
     for (prop, opacity) in &scene.decorations {
@@ -610,13 +614,68 @@ fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, alpha: f32) {
         let status = scene.tanks.iter().copied().find(|t| t.id == tank.id);
         let player = tank.id == world.player_tank_id();
         let tank_color = tint(
-            if status.map_or(world.team(), |t| t.team) == sim::level::Team::Red {
-                PINK
-            } else {
-                CYAN
+            match status.map_or(world.team(), |t| t.team) {
+                sim::level::Team::Blue => CYAN,
+                sim::level::Team::Red => PINK,
+                sim::level::Team::Neutral => MUTED,
             },
             tank.opacity,
         );
+        if let Some(status) = status
+            && let Some(mount) = status.mount
+        {
+            let center = viewport.screen(v(mount.position));
+            vehicles::turret(
+                center,
+                mount.facing,
+                interpolate_angle(status.previous_turret_angle, status.turret_angle, alpha),
+                viewport.scale,
+                tank_color,
+                status.health > 0.0,
+            );
+            if status.health <= 0.0 {
+                let repair = viewport.screen(v(mount.repair_position()));
+                let color = tint(
+                    if mount.contested {
+                        PINK
+                    } else {
+                        match mount.capturing {
+                            Some(sim::level::Team::Blue) => CYAN,
+                            Some(sim::level::Team::Red) => PINK,
+                            _ => MUTED,
+                        }
+                    },
+                    tank.opacity,
+                );
+                draw_circle_lines(repair.x, repair.y, viewport.scale, 1.0, tint(color, 0.5));
+                let mut prev = repair - vec2(0.0, viewport.scale);
+                for step in 1..=40 {
+                    let a = -std::f32::consts::FRAC_PI_2
+                        + std::f32::consts::TAU * mount.progress * step as f32 / 40.0;
+                    let next = repair + Vec2::from_angle(a) * viewport.scale;
+                    line(prev, next, 2.5, color);
+                    prev = next;
+                }
+                draw_text("+", repair.x - 5.0, repair.y + 5.0, 18.0, color);
+            } else {
+                let width = viewport.scale * 2.0;
+                draw_rectangle(
+                    center.x - width * 0.5,
+                    center.y - viewport.scale * 1.3,
+                    width,
+                    4.0,
+                    MUTED,
+                );
+                draw_rectangle(
+                    center.x - width * 0.5,
+                    center.y - viewport.scale * 1.3,
+                    width * (status.health / mount.max_health).clamp(0.0, 1.0),
+                    4.0,
+                    tank_color,
+                );
+            }
+            continue;
+        }
         let hull_color = tint(INK, tank.opacity);
         let fall = if player {
             world.tank_fall_progress()
@@ -637,60 +696,74 @@ fn draw_tanks(world: &World, scene: &Scene, viewport: &Viewport, alpha: f32) {
             (tank.previous_turret_angle, tank.turret_angle)
         };
         let aim_direction = Vec2::from_angle(interpolate_angle(previous_turret, turret, alpha));
-        // Tracks, road wheels and moving tread slats are all vector geometry.
-        for (i, y) in [-0.65, 0.65].into_iter().enumerate() {
-            let points = tank_parts::track_outline(y).map(transform);
-            masked_polygon(&points, tank_color);
-            let offset =
-                status.map_or(world.track_travel(), |t| t.track_travel)[i].rem_euclid(0.18);
-            for j in 0..11 {
-                let x = -0.99 + j as f32 * 0.18 + offset;
+        let kind = status.map_or(sim::VehicleKind::Tank, |t| t.vehicle);
+        if kind != sim::VehicleKind::Tank {
+            vehicles::draw(
+                kind,
+                center,
+                angle,
+                aim_direction.to_angle(),
+                scale,
+                tank_color,
+                hull_color,
+                status.map_or(world.track_travel(), |t| t.track_travel),
+            );
+        } else {
+            // Tracks, road wheels and moving tread slats are all vector geometry.
+            for (i, y) in [-0.65, 0.65].into_iter().enumerate() {
+                let points = tank_parts::track_outline(y).map(transform);
+                masked_polygon(&points, tank_color);
+                let offset =
+                    status.map_or(world.track_travel(), |t| t.track_travel)[i].rem_euclid(0.18);
+                for j in 0..11 {
+                    let x = -0.99 + j as f32 * 0.18 + offset;
+                    line(
+                        transform(vec2(x, y - 0.13)),
+                        transform(vec2(x, y + 0.13)),
+                        1.2,
+                        tint(tank_color, 0.8),
+                    );
+                }
+            }
+            let hull = tank_parts::hull_outline().map(transform);
+            masked_polygon(&hull, hull_color);
+            for x in [-0.72, -0.60, -0.48] {
                 line(
-                    transform(vec2(x, y - 0.13)),
-                    transform(vec2(x, y + 0.13)),
+                    transform(vec2(x, -0.28)),
+                    transform(vec2(x, 0.28)),
                     1.2,
-                    tint(tank_color, 0.8),
+                    tint(MUTED, tank.opacity),
                 );
             }
-        }
-        let hull = tank_parts::hull_outline().map(transform);
-        masked_polygon(&hull, hull_color);
-        for x in [-0.72, -0.60, -0.48] {
-            line(
-                transform(vec2(x, -0.28)),
-                transform(vec2(x, 0.28)),
-                1.2,
-                tint(MUTED, tank.opacity),
-            );
-        }
-        let turret_rotation = Vec2::from_angle(aim_direction.to_angle());
-        let turret = |p: Vec2| center + turret_rotation.rotate(p) * scale;
-        let recoil = if matches!(
-            if player {
-                world.last_ammunition()
+            let turret_rotation = Vec2::from_angle(aim_direction.to_angle());
+            let turret = |p: Vec2| center + turret_rotation.rotate(p) * scale;
+            let recoil = if matches!(
+                if player {
+                    world.last_ammunition()
+                } else {
+                    sim::Ammunition::ArmorPiercing
+                },
+                sim::Ammunition::HighExplosive | sim::Ammunition::ArmorPiercing
+            ) {
+                let elapsed = sim::Ammunition::ArmorPiercing.interval()
+                    - status.map_or(world.reload_remaining(), |t| t.reload);
+                (1.0 - elapsed / 0.15).clamp(0.0, 1.0) * 0.22
             } else {
-                sim::Ammunition::ArmorPiercing
-            },
-            sim::Ammunition::HighExplosive | sim::Ammunition::ArmorPiercing
-        ) {
-            let elapsed = sim::Ammunition::ArmorPiercing.interval()
-                - status.map_or(world.reload_remaining(), |t| t.reload);
-            (1.0 - elapsed / 0.15).clamp(0.0, 1.0) * 0.22
-        } else {
-            0.0
-        };
-        masked_polygon(
-            &[
-                vec2(0.1, -0.105),
-                vec2(1.58 - recoil, -0.105),
-                vec2(1.58 - recoil, 0.105),
-                vec2(0.1, 0.105),
-            ]
-            .map(turret),
-            tank_color,
-        );
-        masked_polygon(&tank_parts::turret_outline().map(turret), tank_color);
-        draw_circle_lines(center.x, center.y, scale * 0.13, 1.3, hull_color);
+                0.0
+            };
+            masked_polygon(
+                &[
+                    vec2(0.1, -0.105),
+                    vec2(1.58 - recoil, -0.105),
+                    vec2(1.58 - recoil, 0.105),
+                    vec2(0.1, 0.105),
+                ]
+                .map(turret),
+                tank_color,
+            );
+            masked_polygon(&tank_parts::turret_outline().map(turret), tank_color);
+            draw_circle_lines(center.x, center.y, scale * 0.13, 1.3, hull_color);
+        }
         if let Some(status) = status {
             let width = (scale * 2.0).max(28.0);
             let at = center + vec2(-width * 0.5, -scale * 1.35 - 6.0);
@@ -717,6 +790,18 @@ fn draw_effects(
             continue;
         }
         let p = viewport.screen(v(shell.previous_position).lerp(v(shell.position), alpha));
+        if shell.flight > 0.0 {
+            let t = (shell.age / shell.flight).clamp(0.0, 1.0);
+            let raised = p - vec2(0.0, (std::f32::consts::PI * t).sin() * viewport.scale * 2.5);
+            draw_circle(p.x, p.y, 3.0, tint(MUTED, 0.6));
+            line(p, raised, 1.0, tint(PINK, 0.25));
+            draw_circle(raised.x, raised.y, 4.0, PINK);
+            continue;
+        }
+        if shell.vehicle == sim::VehicleKind::Scout {
+            line(p - v(shell.velocity).normalize_or_zero() * 9.0, p, 1.5, INK);
+            continue;
+        }
         let direction = v(shell.velocity).normalize();
         let side = vec2(-direction.y, direction.x);
         let color = match shell.ammunition {
@@ -845,15 +930,27 @@ pub(crate) fn draw_crosshair(world: &World, viewport: &Viewport, aim: Option<Vec
                     draw_triangle(inner_a, outer_b, inner_b, fill);
                 }
             };
-            let progress = (1.0 - world.reload_remaining() / world.last_ammunition().interval())
-                .clamp(0.0, 1.0);
+            let progress =
+                (1.0 - world.reload_remaining() / world.main_reload_interval()).clamp(0.0, 1.0);
             let split = -state.spread + 2.0 * state.spread * progress;
             band(-state.spread, split, tint(CYAN, 0.45));
             band(split, state.spread, tint(PINK, 0.18));
         }
     }
     let Some(aim) = aim else { return };
+    let aim = if world.player_vehicle() == sim::VehicleKind::Mortar {
+        let origin = v(world.launcher_position());
+        origin + Vec2::from_angle(world.player_aim().angle) * aim.distance(origin).clamp(6.0, 36.0)
+    } else {
+        aim
+    };
     let p = viewport.screen(aim);
+    if world.player_vehicle() == sim::VehicleKind::Mortar {
+        let range = aim.distance(v(world.launcher_position()));
+        let radius = world.player_aim().mortar_impact_radius(range) * viewport.scale;
+        draw_circle(p.x, p.y, radius, tint(color, 0.04));
+        draw_circle_lines(p.x, p.y, radius, 1.2, tint(color, 0.65));
+    }
     for axis in [Vec2::X, Vec2::Y] {
         for sign in [-1.0, 1.0] {
             line(

@@ -282,6 +282,13 @@ impl Lan {
         if !lab.world.is_replica() || self.client.is_none() {
             return;
         }
+        if enabled
+            && lab.firing
+            && lab.world.player_vehicle() == sim::VehicleKind::Scout
+            && lab.world.reload_remaining() <= 0.0
+        {
+            lab.fire();
+        }
         let fire = enabled
             && lab
                 .pending
@@ -298,8 +305,19 @@ impl Lan {
         if special {
             self.special = self.special.wrapping_add(1);
         }
+        let deploy = lab.pending.iter().find_map(|c| {
+            if let sim::Command::Deploy(kind) = c {
+                Some(*kind)
+            } else {
+                None
+            }
+        });
         lab.pending.clear();
-        if !fire && !special && self.last_input.elapsed() < Duration::from_secs_f32(1.0 / 60.0) {
+        if deploy.is_none()
+            && !fire
+            && !special
+            && self.last_input.elapsed() < Duration::from_secs_f32(1.0 / 60.0)
+        {
             return;
         }
         self.sequence = self.sequence.wrapping_add(1);
@@ -309,6 +327,7 @@ impl Lan {
             fire: self.fire,
             special: self.special,
             control: PlayerInput {
+                deploy,
                 tracks: if enabled { tracks } else { [0.0; 2] },
                 aim: sim::Vec2::new(lab.aim.x, lab.aim.y),
                 ammunition: lab.inspector.ammunition,

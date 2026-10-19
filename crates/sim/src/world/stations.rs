@@ -102,7 +102,7 @@ impl World {
             .tanks
             .iter()
             .enumerate()
-            .filter(|(_, t)| self.tank_is_alive(t.id))
+            .filter(|(_, t)| t.mount.is_none() && self.tank_is_alive(t.id))
             .map(|(index, t)| (index, t.team, self.piece_pose(t.id).translation))
             .collect();
         for station in &mut self.stations {

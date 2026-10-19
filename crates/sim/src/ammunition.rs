@@ -18,17 +18,19 @@ pub enum SpecialWeapon {
     Laser,
     Rocket,
     Plasma,
+    Mine,
 }
 impl SpecialWeapon {
-    pub fn ammunition(self) -> Ammunition {
+    pub fn ammunition(self) -> Option<Ammunition> {
         match self {
-            Self::Laser => Ammunition::Laser,
-            Self::Plasma => Ammunition::Plasma,
-            Self::Rocket => Ammunition::Rocket,
+            Self::Laser => Some(Ammunition::Laser),
+            Self::Plasma => Some(Ammunition::Plasma),
+            Self::Rocket => Some(Ammunition::Rocket),
+            Self::Mine => None,
         }
     }
     pub fn label(self) -> &'static str {
-        self.ammunition().label()
+        self.ammunition().map_or("MINE", Ammunition::label)
     }
 }
 impl Ammunition {

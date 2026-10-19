@@ -169,7 +169,12 @@ try {
     assert.equal(await evaluate('wasm_exports.controller_active()'),1,'idle pad stays active through mouse motion');
     assert.equal(await evaluate("getComputedStyle(document.getElementById('glcanvas')).cursor"),'none');
     await click(1000,400);
-    assert.equal(await evaluate('wasm_exports.controller_active()'),0,'mouse click restores mouse controls');
+    assert.equal(await evaluate('wasm_exports.controller_active()'),1,'emulated left click retains controller aim');
+    await cdp('Input.dispatchMouseEvent',{type:'mousePressed',x:1000,y:400,button:'middle',clickCount:1});
+    await delay(60);
+    await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',x:1000,y:400,button:'middle',clickCount:1});
+    await delay(60);
+    assert.equal(await evaluate('wasm_exports.controller_active()'),0,'middle click restores mouse controls');
     assert.notEqual(await evaluate("getComputedStyle(document.getElementById('glcanvas')).cursor"),'none','mouse handoff restores cursor');
     await button(9); await seek('RETURN TO LOBBY'); await button(0);
     await until('wasm_exports.game_screen()===1','controller returns to lobby');

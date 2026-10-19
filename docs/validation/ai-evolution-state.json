@@ -1,0 +1,16 @@
+{
+  "required_iterations": 5,
+  "champion": {
+    "name": "v11-flank-and-space",
+    "agent": "fd08a10ba424d6d2d7c0fb65a5f5c7085a0b87d9ccd832901188e4e58657d994",
+    "config.json": "6bd32c883775c5dd01717cead72e91f6ff68deaba734db900777dec03c20debe",
+    "source.tar.gz": "f0eb4a4bc69567f0167a8525c7318fb6add97207e5816b29b6ef1074c0ee5d3d"
+  },
+  "development_parent": {
+    "name": "v40-clear-navigation-and-reverse-recovery",
+    "agent": "caed4f10cd90250d8e85c79fada1041cdbd43c72d2b799737a6d6cb306ddd862",
+    "config.json": "1d5ac5e893f03d0d58583fa26dc2e6687bc0fce1cf85934a002b5c85893fecb3",
+    "source.tar.gz": "dc67fcc04e8c219c1e8de19dff7d0a49942a17f3af50ca062593a0b25f4a4bd6"
+  },
+  "promotions": []
+}

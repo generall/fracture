@@ -20,6 +20,7 @@ pub(super) use profile;
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct PhysicsProfile {
     pub control: f64,
+    pub turrets: f64,
     pub driving: f64,
     pub projectiles: f64,
     pub fracture: f64,
@@ -40,6 +41,7 @@ pub struct PhysicsProfile {
 impl std::ops::AddAssign for PhysicsProfile {
     fn add_assign(&mut self, rhs: Self) {
         self.control += rhs.control;
+        self.turrets += rhs.turrets;
         self.driving += rhs.driving;
         self.projectiles += rhs.projectiles;
         self.fracture += rhs.fracture;

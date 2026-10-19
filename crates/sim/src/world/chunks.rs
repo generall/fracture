@@ -60,6 +60,7 @@ impl World {
     /// A broken bond can only split the chunks that owned its endpoints. The
     /// caller supplies every member of those chunks before changing ownership.
     pub(super) fn rebuild_chunks_for(&mut self, candidates: &[usize]) {
+        self.query_epoch += 1;
         self.ground_members_dirty = true;
         #[cfg(feature = "physics-profile")]
         let started = std::time::Instant::now();

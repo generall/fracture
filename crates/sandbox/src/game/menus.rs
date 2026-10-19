@@ -165,7 +165,7 @@ impl Game {
             self.config.airdrops = !self.config.airdrops;
         }
         text(
-            "Capture the enemy flag to win. Tanks respawn after 3 seconds.",
+            "Capture the enemy flag to win. Choose your vehicle at spawn and after each death.",
             64.0,
             size.y - 115.0,
             18.0,

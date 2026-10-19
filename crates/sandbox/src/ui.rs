@@ -12,6 +12,7 @@ pub const VIOLET: Color = Color::new(0.64, 0.53, 1.0, 1.0);
 pub enum Action {
     Scene(Scene),
     Reset,
+    Vehicle,
     Pause,
     Slow,
     Overlay,
@@ -132,6 +133,7 @@ impl Inspector {
     pub fn captures(&self, mouse: Vec2, size: Vec2) -> bool {
         mouse.y < 82.0
             || mouse.y > size.y - 100.0
+            || Rect::new(size.x - 405.0, 85.0, 250.0, 36.0).contains(mouse)
             || (self.help && Rect::new(24.0, 100.0, 475.0, 490.0).contains(mouse))
     }
     #[allow(clippy::too_many_arguments)]
@@ -187,6 +189,14 @@ impl Inspector {
             actions.push(Action::Pause);
         }
         text(world.scene().description(), 32.0, 113.0, 19.0, MUTED);
+        if button(
+            Rect::new(size.x - 405.0, 85.0, 250.0, 36.0),
+            "U  CHOOSE VEHICLE",
+            mouse,
+            false,
+        ) {
+            actions.push(Action::Vehicle);
+        }
         right_text(
             if slow {
                 "TIME  /  0.2x"
@@ -384,10 +394,14 @@ impl Inspector {
             text("FIELD MANUAL", 44.0, 137.0, 26.0, CYAN);
             for (i, label) in [
                 "W / S    Forward / reverse",
-                "A / D    Differential steering",
+                if world.player_vehicle() == sim::VehicleKind::Scout {
+                    "A / D    Steer wheels while moving"
+                } else {
+                    "A / D    Differential steering"
+                },
                 "Q/E J/K  Rotate turret left / right",
                 "SPACE/F  Fire main gun (or click)",
-                "RELEASE  Tracks brake automatically",
+                "RELEASE  Brakes engage automatically",
                 "MOUSE    Aim turret independently",
                 "G / RMB  Use collected special",
                 if world.scene() == Scene::Level {

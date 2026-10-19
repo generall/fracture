@@ -67,6 +67,7 @@ pub struct Frame {
     pub decorations: Vec<DecorationView>,
     pub bursts: Vec<(DecorationView, f32)>,
     pub pickups: Vec<PickupView>,
+    pub mines: Vec<MineView>,
     pub airdrop: Option<AirdropView>,
     pub stations: Vec<StationView>,
     pub stats: Stats,
@@ -128,6 +129,7 @@ impl Frame {
             decorations: world.decorations().collect(),
             bursts: world.decoration_bursts().collect(),
             pickups: world.pickups().collect(),
+            mines: world.visible_mines().collect(),
             airdrop: world.airdrop(),
             stations: world.stations().collect(),
             stats: world.stats(),
@@ -179,6 +181,8 @@ impl Frame {
         frame.sight_range = world.player_sight_range();
         frame.radar = world.player_in_radar_zone();
         frame.vision = world.host_vision(frame.aim.angle);
+        // Mine detection is team-specific even though scenery is shared.
+        frame.mines = world.visible_mines().collect();
         frame
     }
     /// Interpolation endpoints are consecutive network snapshots, not the host's

@@ -1,5 +1,6 @@
 //! Owns simulation state and the fixed-step update order.
 //! Public data lives in `api`; construction, queries and mechanics live in child modules.
+use crate::VehicleKind;
 use rapier2d::prelude::*;
 
 use crate::{Ammunition, Material};
@@ -11,8 +12,12 @@ use profiling::profile;
 pub const TICK_DT: f32 = 1.0 / 120.0;
 const SUBSTEPS: usize = 4;
 const DEPTH: f32 = 0.25;
+mod ai;
+pub use ai::AiGeometry;
 mod aiming;
 mod airdrops;
+mod mines;
+pub use mines::MineView;
 pub mod multiplayer;
 pub mod replica;
 mod specials;
@@ -49,8 +54,12 @@ mod loads;
 mod plasticity;
 mod refinement;
 mod terrain;
+mod turrets;
 mod vehicle;
-pub use combat::TankView;
+pub use turrets::TurretView;
+#[cfg(test)]
+mod vehicle_tests;
+pub use combat::{RESPAWN_SECONDS, TankView};
 mod weapons;
 
 const DEBRIS_AREA: f32 = 0.075;
@@ -233,6 +242,9 @@ pub struct World {
     tanks: Vec<combat::Tank>,
     enemy: Option<enemy::Enemy>,
     arena_size: Vector,
+    public_layout: Vec<u8>,
+    public_emplacements: Vec<crate::ai::Emplacement>,
+    public_supply_sites: Vec<Vector>,
     scene: Scene,
     tick: u64,
     shots: usize,
@@ -251,6 +263,11 @@ pub struct World {
     special_interval: f32,
     special_reload: f32,
     pickups: Vec<specials::Pickup>,
+    query_index: std::sync::Mutex<collision::ColliderIndex>,
+    query_epoch: u64,
+    in_tick: bool,
+    mines: Vec<MineView>,
+    next_mine_id: u64,
     airdrops: airdrops::Airdrops,
     decorations: Vec<decorations::Decoration>,
     laser_remaining: f32,
@@ -306,6 +323,8 @@ impl World {
     }
 
     fn begin_tick(&mut self, events: &mut Vec<Event>) {
+        self.in_tick = true;
+        self.query_epoch += 1;
         self.sight_cache = None;
         self.structural_residual = 0.0;
         self.elastic_energy = 0.0;
@@ -339,6 +358,11 @@ impl World {
         advance_pickups: bool,
         events: &mut Vec<Event>,
     ) -> [f32; 2] {
+        for command in commands {
+            if let Command::Deploy(kind) = *command {
+                self.choose_vehicle(self.launcher, kind);
+            }
+        }
         self.update_player_aim(commands);
         if decay_reload {
             self.reload = (self.reload - TICK_DT).max(0.0);
@@ -368,7 +392,9 @@ impl World {
                         // Precisely authored material experiments have no player controls.
                         self.fire(shot, events);
                     } else if !shot.ammunition.special() && !self.special_active() {
-                        if shot.ammunition != self.primary_ammunition {
+                        if self.vehicle_kind(self.launcher) != VehicleKind::Tank {
+                            self.fire(shot, events);
+                        } else if shot.ammunition != self.primary_ammunition {
                             self.select_main_ammunition(shot.ammunition);
                         } else {
                             self.fire(shot, events);
@@ -387,6 +413,9 @@ impl World {
     }
 
     fn finish_tick(&mut self, drivers: &[(usize, [f32; 2])], events: &mut Vec<Event>) {
+        if self.winner.is_none() {
+            profile!(self, turrets, { self.update_turrets(events) });
+        }
         for _ in 0..SUBSTEPS {
             let dt = self.physics.integration_parameters.dt;
             profile!(self, driving, {
@@ -421,7 +450,10 @@ impl World {
                 self.detonate_objects(events);
                 self.update_bridges(0.0, events);
             });
-            profile!(self, cleanup, { self.capture_flags(events) });
+            profile!(self, cleanup, {
+                self.advance_mines(dt, events);
+                self.capture_flags(events);
+            });
             if self.winner.is_some() {
                 break;
             }
@@ -435,6 +467,7 @@ impl World {
             self.cleanup_debris();
         });
         self.tick += 1;
+        self.in_tick = false;
     }
 }
 

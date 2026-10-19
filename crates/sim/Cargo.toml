@@ -11,6 +11,10 @@ parallel = ["rapier2d/parallel"]
 name = "physics_benchmark"
 required-features = ["physics-profile"]
 
+[[example]]
+name = "ai_arena"
+required-features = ["physics-profile"]
+
 [dependencies]
 rapier2d.workspace = true
 serde = { version = "=1.0.228", features = ["derive"] }

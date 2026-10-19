@@ -68,12 +68,15 @@ impl Shot {
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Command {
+    Deploy(crate::VehicleKind),
     Fire(Shot),
     SelectAmmunition(Ammunition),
     ActivateSpecial,
     /// Desired player look point; the physical turret turns toward it over time.
     Aim(Vector),
     /// Left and right track throttles in [-1, 1]. Zero engages the brakes.
+    /// Differential tracks for tracked vehicles. For scouts, left + right is
+    /// throttle and left - right is front-wheel steering (each clamped to ±1).
     Tracks {
         left: f32,
         right: f32,
@@ -101,6 +104,8 @@ pub struct TankImpact {
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TankDestruction {
+    pub vehicle: crate::VehicleKind,
+    pub mounted: bool,
     pub id: usize,
     pub hull_angle: f32,
     pub turret_angle: f32,
@@ -260,12 +265,15 @@ pub struct Stats {
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Shell {
+    pub vehicle: crate::VehicleKind,
+    /// Total flight time for arcing mortar rounds; zero for direct fire.
+    pub flight: f32,
     pub ammunition: Ammunition,
     pub position: Vector,
     pub previous_position: Vector,
     pub velocity: Vector,
     pub mass: f32,
-    pub(super) age: f32,
+    pub age: f32,
     pub(super) owner: usize,
 }
 

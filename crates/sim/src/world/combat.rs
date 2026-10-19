@@ -2,15 +2,19 @@
 use super::*;
 use crate::level::Team;
 
-pub(super) const RESPAWN_SECONDS: f32 = 3.0;
+pub const RESPAWN_SECONDS: f32 = 10.0;
 
 pub(super) struct Tank {
     pub id: usize,
     pub team: Team,
     pub spawn: Pose,
     pub health: f32,
+    pub vehicle: VehicleKind,
     pub respawn: Option<f32>,
     pub protection: f32,
+    pub requires_choice: bool,
+    pub choice: Option<VehicleKind>,
+    pub mount: Option<turrets::Mount>,
     pub aim: aiming::AimState,
     pub reload: f32,
     pub track_travel: [f32; 2],
@@ -22,8 +26,11 @@ pub struct TankView {
     pub id: usize,
     pub team: Team,
     pub health: f32,
+    pub vehicle: VehicleKind,
     pub respawn_remaining: Option<f32>,
     pub protected: bool,
+    pub choice: Option<VehicleKind>,
+    pub mount: Option<TurretView>,
     pub turret_angle: f32,
     pub previous_turret_angle: f32,
     pub aim_spread: f32,
@@ -39,6 +46,9 @@ impl World {
                 id: t.id,
                 team: t.team,
                 health: t.health,
+                vehicle: t.vehicle,
+                choice: t.choice,
+                mount: t.mount.map(|m| m.view),
                 respawn_remaining: t.respawn,
                 protected: t.protection > 0.0,
                 turret_angle: t.aim.angle,
@@ -87,6 +97,10 @@ impl World {
             team,
             spawn,
             health: 100.0,
+            vehicle: VehicleKind::Tank,
+            requires_choice: false,
+            mount: None,
+            choice: None,
             respawn: None,
             protection: 0.0,
             aim: aiming::AimState::new(angle),
@@ -122,6 +136,12 @@ impl World {
         } else {
             55_000.0
         };
+        let armor = armor
+            * match tank.vehicle {
+                VehicleKind::Scout => 0.4,
+                VehicleKind::Tank => 1.0,
+                VehicleKind::Mortar => 1.8,
+            };
         let penetration = match ammunition {
             Ammunition::ArmorPiercing => 1.0,
             Ammunition::HighExplosive => 0.65,
@@ -194,14 +214,21 @@ impl World {
             return;
         }
         tank.health = 0.0;
+        tank.choice = None;
         tank.reveal_until = 0;
         tank.respawn = Some(RESPAWN_SECONDS);
         let body = &mut self.physics.bodies[self.pieces[id].body];
         let position = body.translation();
-        let mass = body.mass();
+        let mass = if tank.mount.is_some() {
+            4500.0
+        } else {
+            body.mass()
+        };
         let omega = body.angvel();
         let team = tank.team;
         let details = TankDestruction {
+            vehicle: tank.vehicle,
+            mounted: tank.mount.is_some(),
             id,
             hull_angle: body.rotation().angle(),
             turret_angle: tank.aim.angle,
@@ -234,14 +261,29 @@ impl World {
         for i in 0..self.tanks.len() {
             self.tanks[i].reload = (self.tanks[i].reload - TICK_DT).max(0.0);
             self.tanks[i].protection = (self.tanks[i].protection - TICK_DT).max(0.0);
+            if self.tanks[i].mount.is_some() {
+                continue;
+            }
             let Some(remaining) = self.tanks[i].respawn else {
                 continue;
             };
-            self.tanks[i].respawn = Some((remaining - TICK_DT).max(0.0));
-            if remaining > TICK_DT {
+            let remaining = (remaining - TICK_DT).max(0.0);
+            let remaining = if remaining < TICK_DT * 0.5 {
+                0.0
+            } else {
+                remaining
+            };
+            self.tanks[i].respawn = Some(remaining);
+            if remaining > 0.0 {
+                continue;
+            }
+            if self.tanks[i].requires_choice && self.tanks[i].choice.is_none() {
                 continue;
             }
             let id = self.tanks[i].id;
+            if let Some(kind) = self.tanks[i].choice {
+                self.apply_vehicle(id, kind);
+            }
             let spawn = self.tanks[i].spawn;
             // Prefer the exact spawn; use a nearby clear footprint if occupied.
             let candidate = (0..49).find_map(|n| {
@@ -261,6 +303,7 @@ impl World {
             let tank = &mut self.tanks[i];
             tank.health = 100.0;
             tank.respawn = None;
+            tank.choice = None;
             tank.protection = 1.0;
             tank.reload = 0.5;
             tank.aim = aiming::AimState::new(pose.rotation.angle());
@@ -615,13 +658,12 @@ mod tests {
         for id in [world.launcher, enemy] {
             world.destroy_tank(id, &mut vec![]);
         }
-        for _ in 0..350 {
+        for _ in 0..1199 {
             world.step(&[]);
         }
         assert!(world.tanks.iter().all(|t| t.health == 0.0));
-        for _ in 0..12 {
-            world.step(&[]);
-        }
+        assert!((world.tanks[0].respawn.unwrap() - TICK_DT).abs() < 0.001);
+        world.step(&[]);
         assert!(
             world
                 .tanks
