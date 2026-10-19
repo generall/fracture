@@ -1,66 +1,166 @@
 # Development handoff
 
-## Current AI evolution state — follow-up
+## Current checkpoint — 2026-10-19
 
-Active goal: **five verified dominating iterations; currently 0/5**. Do not
-count ordinary version bumps, probe captures, kills or flag draws as promotions.
-`tools/ai-evolution.py` verifies the frozen identities, actual Deck execution,
-four complete mirrored 240-second 2v2 matches on two seeds, and flag events.
-Champion remains v11; the development branch descends from v40. The exact ledger
-is `docs/validation/ai-evolution-state.json`.
+Code checkpoint: `04df31f` on `master`, pushed to `origin/master`. It contains
+mines, scout/mortar handling and visibility changes, updated built-in maps,
+versioned AI workers, evaluation tools, and the separate Deck battlefield and
+recorded human-challenge application. This handoff update changes documentation
+only. Older implementation notes below are historical; use this section for
+current status and validation.
 
-The user explicitly rejected the parameter/version treadmill. Stop adding
-movement overrides. The new opt-in `task_control` brain bypasses the legacy
-stack: persistent mission, single movement task, cached complete routes,
-independent aim/fire and explicit drive/failure reasons. See
-[the control redesign](AI_CONTROL_REDESIGN.md). Preserve v11 frozen and do not
-count diagnostic captures or kills as promotions.
+**AI evolution is paused at the user's request. Do not resume experiments,
+change the Deck installation, or start matches without a new instruction.**
+The five-dominating-iterations goal remains **0/5**. Nothing in the navigation
+probes, guarded-base contracts or human challenge constitutes a promotion.
 
-Latest frozen candidate is v84; v82, v83 and v84 each drew all four host
-flag comparisons against v11. Still **0/5 promotions**. V84's complete guarded
-fixed tank/scout contract captures at 177.6s Blue / 210.8s Red. Latest working
-source also has an **unfrozen** scout driver correction: measured own speed,
-acceleration/yaw/braking rollout and correct reverse arrival heading. Its real
-garage contract departs at 15.7s Blue / 12.9s Red before the former 20s timeout;
-19/19 host navigation cases retain 100 HP, and the full guarded contract captures
-at 183.6s Blue / 174.0s Red. No new competitive verdict. Workspace: 437 passed,
-eight ignored; strict Clippy passes. Do not overwrite frozen v84.
+### Source, frozen opponents and evaluation
 
-**AI evolution is paused at the user's request.** The recorded human 1v2
-against frozen v11 has completed: Blue captured in 125.47s, with no Blue
-vehicle loss and three Red vehicle losses. The human used a tank and HE
-throughout, without activating a special. A compact, source-hashed analysis
-and interactive route review are in
-`target/ai-arena/human-v11-seed42/review/`; regenerate the report with
-`python3 tools/ai-review-human.py DIRECTORY`. The original full recording
-remains on the Deck. Its inputs contain 15,056 physics ticks; the compact
-decision record contains 3,765 entries. No further AI changes or promotions
-followed this review.
+The champion is frozen **v11**; development descends from the losing v40 branch.
+The latest frozen challenger is **v84**. V82, v83 and v84 each drew all four
+host comparisons on flags. V84's aggregate 22:16 enemy losses did not satisfy
+objective dominance. The ledger is [ai-evolution-state.json](validation/ai-evolution-state.json).
 
-The human challenge application remains available on the Deck.
-Do not stop/restart `fracture-ai-arena.service`, inject controls, or launch
-competing native tests while they play. Current recording prefix:
+A promotion still requires four complete 240-second 2v2 matches, both colors
+for each of at least two seeds, at least 75% flag wins, no flag losses and at
+least 3:1 captures. Actual native Deck execution, frozen source/config/binary
+identities and recorded `FlagCaptured` events must agree. Preserve independent
+uniform random vehicle picks and ten-second respawns; do not guarantee a
+breacher or choose favorable seeds. Improve the previous losing branch after
+each verified promotion. See [AI_EVOLUTION.md](AI_EVOLUTION.md).
+
+The user rejected the long parameter/version treadmill. The opt-in
+`task_control` replacement uses a persistent mission, one owner of movement
+commands, cached complete routes, explicit unreachable/driver outcomes and
+separate aim/fire control. Scouts have independent interception missions;
+heavy vehicles can take complementary routes. Starting-map knowledge is public
+and immutable. Environmental perception retains at least 300 ms delay and
+10 Hz decisions. Twelve planned aim samples per decision smooth ordinary
+120 Hz inputs; they do not introduce extra sensing. Legacy frozen workers keep
+their original held inputs. See [AI_CONTROL_REDESIGN.md](AI_CONTROL_REDESIGN.md).
+
+Implementation entry points: [task executive](../crates/sim/src/ai/task.rs),
+[routing](../crates/sim/src/ai/task/route.rs),
+[vehicle control](../crates/sim/src/ai/task/driver.rs),
+[fire control](../crates/sim/src/ai/task/fire.rs),
+[worker protocol](../crates/sim/src/ai/process.rs), and
+[human challenge](../crates/sandbox/src/arena/challenge.rs).
+
+The committed source is newer than frozen v84. It adds a scout prediction model
+using measured own speed, acceleration, yaw and braking, including reverse
+arrival and stopping within the prediction horizon. The previous controller
+could rock forward/backward at a passing bay until a 20-second timeout. The
+new real-garage contract departs in 15.7s Blue / 12.9s Red. All 19 host navigation
+probes pass with 100 HP. The fixed tank/scout guarded-base contract captures in
+183.6s Blue / 174.0s Red; frozen v84 captured in 177.6s / 210.8s. These fixtures
+hold mobile opponents stationary and are diagnostic, not competitive evidence.
+The newer source has no competitive verdict yet.
+
+Frozen artifacts are in ignored `target/ai-arena/versions/`; never overwrite
+an existing version or rebuild it from current source while retaining its old
+identity. V11's agent SHA-256 is
+`fd08a10ba424d6d2d7c0fb65a5f5c7085a0b87d9ccd832901188e4e58657d994`;
+v84's is `b68fe69d3a58297e83793cd18b2ead9d9e1828062178bb6840925fb473711722`.
+These binaries/source archives and the recordings are local artifacts, not
+part of a fresh Git checkout. Committed configuration files alone cannot
+recreate the exact historical workers. Pin a harness before running comparisons
+and freeze only after its matching source build finishes.
+
+### Completed human 1v2 and recording locations
+
+The user played Blue alone against two frozen v11 Red bots on River Valley,
+seed 42. Blue captured at **125.47s**, with no Blue vehicle loss and three Red
+vehicle losses. The human used a tank, retained HE throughout, activated no
+special and ended at about 58 HP. Death counters do not establish who dealt
+the final damage; 44 human fire requests are not an actual shot count.
+
+Original recording prefix on the Deck:
 `/home/deck/.local/share/fracture-ai-challenge/round-1792359861356`.
-The separate binary supports `--play-v11`; the new desktop launcher is
-`Fracture V11 Challenge.desktop`. Human is Blue (player 0); Red bots are players
-1 and 2, with independently seeded team slots. The timer starts at the human's
-first vehicle choice, lasts 240s, and respawns take 10s. Human fog and camera
-remain ordinary; omniscient `.frames`/`.vision` exist only for review.
+The local compact review is `target/ai-arena/human-v11-seed42/review/`, containing
+`review.json`, `route-review.html`, `compact.jsonl.gz`, `provenance.json`, and
+copied controls/events/metadata/summary. Regenerate it with:
 
-Native silent smoke proof is under `target/ai-arena/challenge-smoke-deck/`:
-1,235 physics ticks, three actors, two v11 workers, human vehicle selection,
-driving (8.34m displacement) and firing. It is partial diagnostic evidence,
-not the user's round. User-match artifacts include `.challenge.json` (frozen
-manifest), `.inputs.jsonl` (all controls each physics tick), `.decisions.jsonl`
-(raw restricted observations/worker output and human view), `.events.jsonl`,
-`.summary.json`, `.frames`, `.vision`, `.status.json`. Read the explicit roster;
-the 1v2 recording uses [Blue, Red, Red], not the arena's alternating sides.
-Review the user's completed round before resuming AI changes. Research remains
-paused; the current request is to commit and push the workspace snapshot.
+```sh
+python3 tools/ai-review-human.py target/ai-arena/human-v11-seed42/review
+```
 
-## AI navigation and team coordination — 2026-10-18
+There are 15,056 applied-input ticks and 3,765 decision/view entries. Read the
+explicit roster **[Blue, Red, Red]**, not the spectator's alternating sides.
+Human is player 0; bot players 1 and 2 use separately seeded team slots. Human
+fog and camera are ordinary; full-field observer data never feeds human or bot
+controls. The source decision log SHA-256 is
+`8b18efb0d86b13062ba8985b34acc4724413e4e6767aa0a92878e1e829f28e65`.
 
-Latest development package: Blue=v40 (`clear-navigation-and-reverse-recovery`),
+The original decision JSONL is about 496 MiB (519,151,430 bytes). A direct SCP
+was interrupted; `target/ai-arena/human-v11-seed42/*.jsonl.partial` is incomplete
+and must not be analyzed as a full recording. The source-hashed compact extract
+omits terrain cells, obstacle polygons and vision boundaries. The full original
+remains on the Deck; `.frames` is about 3.3 MiB and `.vision` about 21 MiB.
+The small analysis archive remains at
+`/tmp/fracture-human-v11-1792359861356.review.tar.gz` on the Deck and
+`target/ai-arena/human-v11-seed42/review.tar.gz` locally. Prefer compact extracts
+or compression to another raw half-gigabyte transfer. The HTML route view shows
+the public **starting layout**, not evolving destruction; full-field snapshots
+are separate.
+
+### Findings to investigate only after research resumes
+
+The recording gives concrete hypotheses, not a proven replacement strategy:
+
+- The human engaged across the river with HE and fired into base cover before
+  entering. A Red base gun was destroyed at 79.83s, and the human reached within
+  14m of the flag at 91.8s. Current task fire control uses AP for tank wall
+  clearing and a 32m target-selection ceiling. Test ammunition choice, safe
+  standoff and cover suppression in actual physics before changing strategy;
+  hidden mobile positions must remain unavailable.
+- V11 spent time driving without positional progress: the mortar had repeated
+  stationary intervals around 10–23s, and the tank around 31.8–37.1s. Following
+  its 51.74s respawn, the tank routed back toward the near-spawn mine pickup
+  at `[-43.267, 67.772]`, delaying its advance. The human used no special.
+  Separate traffic/departure and optional supply-detour failures from combat.
+- The human reached the base without a vehicle loss. Inspect the route review
+  and complete mission sequence before attempting another configuration sweep.
+  Do not copy omniscient replay positions into controller inputs.
+- Recording volume is a separate measured issue: raw repeated observations
+  dominate storage. Any compression/delta change must preserve the restricted
+  observation and applied-input evidence needed for replay and fairness review.
+
+No AI or weapon changes were made from these hypotheses. Research remains
+paused, and no new candidate was frozen or promoted after the human round.
+
+### Deck application and verification
+
+SSH: `ssh deck@192.168.0.10`. The separate application is
+`/home/deck/Games/fracture-ai-arena/`; normal game is
+`/home/deck/Games/fracture/game`. Last verified launch used
+`fracture-ai-arena.service` in human `--play-v11` mode, with recordings under
+`~/.local/share/fracture-ai-challenge/`. Desktop shortcuts are **Fracture AI
+Battlefield** and **Fracture — You vs 2 V11 bots**. The challenge waits for a
+vehicle choice before starting its four-minute limit and allows another round
+after a result. Do not interrupt or inject controls into a user session. The
+current live process state was not rechecked for this documentation update.
+See [AI_ARENA.md](AI_ARENA.md) for launches, controls and recording formats.
+
+Last source validation: **437 workspace tests passed, eight ignored**, strict
+workspace/all-target Clippy passed with the established three allowances, and
+Rust formatting plus Python/shell/JavaScript syntax checks passed. The arena
+release package was built and the 1v2 flow exercised on the actual Deck in a
+silent isolated smoke: vehicle selection, movement (8.34m), firing and all three
+input streams over 1,235 physics ticks. Committed smoke proof:
+[ai-human-challenge-deck-2026-10-18.json.gz](validation/ai-human-challenge-deck-2026-10-18.json.gz).
+It is a partial diagnostic, not the user's completed match. The earlier WASM
+check passed before the final scout-driver/human-mode additions; do not claim
+those later changes received another full browser interaction test. The route
+review was generated from real data and JavaScript syntax-checked, but was not
+visually browser-tested before the pause. No gameplay tests were rerun for this
+documentation-only update.
+
+Internal native tests require `FRACTURE_SILENT=1`; isolated browser tests require
+`--mute-audio`. Preserve saved mixer settings and the normal game installation.
+
+## Historical AI navigation checkpoint — 2026-10-18
+
+At this historical checkpoint the development package was Blue=v40 (`clear-navigation-and-reverse-recovery`),
 Red=frozen v11. Individual controllers now choose complementary breacher,
 support, flank or guard roles from delayed friendly sightings and public roster
 slots. They remember teammates that leave sight and yield through checked paths.
@@ -430,9 +530,9 @@ Use [CONTRIBUTING.md](../CONTRIBUTING.md) for the detailed file map and recipes 
 
 Map geometry helpers and unions live in `sim/level/authoring.rs` (pinned `i_overlay`), with a robust fallback in `object/meshing.rs` for grain clipping. Cached terrain composition lives in `sandbox/terrain_view.rs`; multi-selection/clipboard actions live in `level_editor/selection.rs`. The map schema/runtime live in `sim/level.rs`, `world/level.rs`, and the sandbox `level_editor` modules; `level_storage.rs` / `web/levels.js` own file and draft persistence.
 
-## Validation and next work
+## Earlier validation and longer-term work
 
-Latest verification: **197 simulation + 36 client tests passed**, with one pre-existing ignored test. Formatting passed. Clippy passed with the existing `chunks_exact_to_as_chunks`, `items_after_test_module` and `approx_constant` allowances. Native and WebAssembly release builds for both applications succeeded. The audio browser suite passed with all **32 assets**, real output/mute checks, music visibility transitions, road-to-sand movement audio, actual shrub/crate/timber destruction, settings persistence and input isolation. The vendored mixer has five passing regression tests, run separately via `cargo test -p quad-snd --lib --locked`.
+Historical verification (predating the checkpoint above): **197 simulation + 36 client tests passed**, with one pre-existing ignored test. Formatting passed. Clippy passed with the existing `chunks_exact_to_as_chunks`, `items_after_test_module` and `approx_constant` allowances. Native and WebAssembly release builds for both applications succeeded. The audio browser suite passed with all **32 assets**, real output/mute checks, music visibility transitions, road-to-sand movement audio, actual shrub/crate/timber destruction, settings persistence and input isolation. The vendored mixer has five passing regression tests, run separately via `cargo test -p quad-snd --lib --locked`.
 
 Earlier editor/game/weapon suite results are historical, not fresh validation of this checkpoint. The old general browser smoke test has stale scene-number expectations, and the plasticity smoke test assumes the older fence preset; update those fixtures before using them as a blanket gate.
 
