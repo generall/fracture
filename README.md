@@ -9,6 +9,8 @@ or friends on your local network.
 [**Download the latest release**](https://github.com/generall/fracture/releases/latest)
 for Linux, Steam Deck, or macOS.
 
+[**Watch the trailer (25 seconds)**](docs/videos/fracture-trailer.mp4)
+
 ![Blue and red tanks exchanging fire among village buildings and cover](docs/screenshots/gameplay.png)
 
 *Trade shots around village cover.*
