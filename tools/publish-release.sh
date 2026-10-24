@@ -8,7 +8,7 @@ if [[ "$tag" != "v$version" || $# -gt 1 ]]; then
     printf 'Usage: bash tools/publish-release.sh v%s (must match Cargo.toml)\n' "$version" >&2
     exit 2
 fi
-if [[ -n $(git status --porcelain) ]]; then
+if [[ -n $(git status --porcelain --untracked-files=no) ]]; then
     printf 'Commit all release changes before publishing. Packages must identify the exact source commit.\n' >&2
     exit 1
 fi

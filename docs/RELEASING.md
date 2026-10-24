@@ -95,14 +95,14 @@ the `build-release.sh` commands also install prerequisites and run checks.
 bash tools/publish-release.sh v0.2.0
 ```
 
-The publishing script requires a clean tree, a tag matching the workspace version,
+The publishing script requires clean tracked files, a tag matching the workspace version,
 and all four packages identifying the current commit. It creates a source archive,
 verifies archive checksums, layouts, executable permissions and provenance, pushes
 an annotated tag, creates a draft release, uploads the five archives and their
 checksums, and publishes only after every upload succeeds. It never starts a
 GitHub Actions workflow. A failed draft upload can be retried with the same command;
 already published releases cannot be overwritten. Existing repository visibility
-is preserved.
+is preserved. Unrelated untracked files are excluded from the source archive.
 
 The launch checks establish rendering and startup in the manylinux environment;
 macOS graphics, audio and LAN behavior need a real Mac. Physical Steam Deck controls,

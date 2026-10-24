@@ -3,7 +3,7 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 source tools/release-config.sh
-if [[ -n $(git status --porcelain) ]]; then
+if [[ -n $(git status --porcelain --untracked-files=no) ]]; then
     printf 'Commit the intended release source before building; package provenance requires a clean tree.\n' >&2
     exit 1
 fi

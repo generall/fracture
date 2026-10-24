@@ -98,7 +98,7 @@ def main():
     metadata = {"version": version(), "commit": commit, "platform": args.platform,
                 "sdl_version": CONFIG["FRACTURE_SDL_VERSION"],
                 "rust_version": CONFIG["FRACTURE_RUST_VERSION"], "source_dirty": bool(subprocess.check_output(
-                    ["git", "-c", f"safe.directory={ROOT}", "status", "--porcelain"], cwd=ROOT))}
+                    ["git", "-c", f"safe.directory={ROOT}", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT))}
     if args.platform.startswith("macos-"):
         arch = args.platform.removeprefix("macos-")
         target = "aarch64" if arch == "arm64" else "x86_64"
