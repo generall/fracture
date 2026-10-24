@@ -2187,7 +2187,7 @@ mod tests {
         let c = Controller::new(Config::default(), map());
         let mut o = observation();
         o.vehicle = VehicleKind::Scout;
-        for heading in [1.0, 2.0, 3.14] {
+        for heading in [1.0, 2.0, std::f32::consts::PI - 0.001] {
             let tracks = c.steer(&o, heading, 0.65);
             assert!(tracks[0] + tracks[1] > 0.1);
             assert!(tracks[0] > tracks[1]);

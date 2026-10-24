@@ -452,7 +452,14 @@ fn main() -> Result<(), String> {
         object(&mut level, LibraryPreset::Timber.asset(), x, y, angle);
     }
     for (team, x, y, angle, fx, fy) in [
-        (Team::Red, 192., 920., -0.7853982, 135., 960.),
+        (
+            Team::Red,
+            192.,
+            920.,
+            -std::f32::consts::FRAC_PI_4,
+            135.,
+            960.,
+        ),
         (Team::Blue, 828., 265., 2.3561945, 885., 225.),
     ] {
         level.items.push(LevelItem::Spawn {

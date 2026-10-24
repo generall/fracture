@@ -34,6 +34,294 @@ pub(crate) fn outline(body: &BodyView) -> Vec<Vector> {
         .collect()
 }
 
+impl World {
+    fn ai_grid(&self) -> Map {
+        Map {
+            size: self.arena_size,
+            flags: self.flags().collect(),
+            team: self.team(),
+            layout: vec![],
+            seed: 0,
+            team_slot: 0,
+            emplacements: vec![],
+            supply_sites: vec![],
+        }
+    }
+    pub fn ai_map(&self) -> Map {
+        let mut map = self.ai_grid();
+        map.layout = self.public_layout.clone();
+        map.emplacements = self.public_emplacements.clone();
+        map.supply_sites = self.public_supply_sites.clone();
+        map
+    }
+    // Capture the authored starting layout once, as shown in the human map
+    // preview. It must never be rebuilt from unseen live destruction.
+    pub(super) fn build_public_layout(&self) -> Vec<u8> {
+        let map = self.ai_grid();
+        let mut cells: Vec<u8> = (0..map.width() * map.height())
+            .map(|i| {
+                if self.terrain_at(map.point(i)).blocks_tanks() {
+                    3
+                } else {
+                    1
+                }
+            })
+            .collect();
+        for body in self
+            .bodies()
+            .filter(|b| b.material != Material::Launcher && !b.bridge_deck && b.opacity > 0.0)
+        {
+            let poly = outline(&body);
+            let lo = poly
+                .iter()
+                .copied()
+                .fold(Vector::splat(f32::INFINITY), Vector::min);
+            let hi = poly
+                .iter()
+                .copied()
+                .fold(Vector::splat(f32::NEG_INFINITY), Vector::max);
+            let a = map.index(lo - Vector::splat(map.cell()));
+            let b = map.index(hi + Vector::splat(map.cell()));
+            let class = if matches!(
+                body.material,
+                Material::Rock | Material::Masonry | Material::Panel
+            ) {
+                2
+            } else {
+                4
+            };
+            for y in a / map.width()..=b / map.width() {
+                for x in a % map.width()..=b % map.width() {
+                    let i = y * map.width() + x;
+                    if crate::ai::polygon_distance(map.point(i), &poly) < map.cell() * 0.6 {
+                        cells[i] = cells[i].max(class);
+                    }
+                }
+            }
+        }
+        cells
+    }
+    /// Exactly the current player's rendered detection rules, including cone,
+    /// cover, foliage, radar and allied sight. Never pass a replica Frame to bots:
+    /// trusted presentation frames also contain hidden authoritative metadata.
+    pub fn ai_observation(&self) -> Observation {
+        self.ai_observation_from(&self.ai_geometry())
+    }
+    /// Build once for players observed at the same physics state. Selecting a
+    /// player's controls does not change this geometry; stepping physics does.
+    pub fn ai_geometry(&self) -> AiGeometry {
+        AiGeometry {
+            tick: self.tick_count(),
+            figures: self
+                .bodies()
+                .filter(|b| b.opacity > 0.0)
+                .map(|body| {
+                    let outline = outline(&body);
+                    let min = outline
+                        .iter()
+                        .copied()
+                        .fold(Vector::splat(f32::INFINITY), Vector::min);
+                    let max = outline
+                        .iter()
+                        .copied()
+                        .fold(Vector::splat(f32::NEG_INFINITY), Vector::max);
+                    AiFigure {
+                        body,
+                        outline,
+                        min,
+                        max,
+                    }
+                })
+                .collect(),
+        }
+    }
+    pub fn ai_observation_from(&self, geometry: &AiGeometry) -> Observation {
+        debug_assert_eq!(
+            geometry.tick,
+            self.tick_count(),
+            "AI geometry reused after a physics step"
+        );
+        let vision = self.player_vision(self.player_aim().angle);
+        let own = geometry
+            .figures
+            .iter()
+            .find(|f| f.body.id == self.player_tank_id())
+            .map(|f| &f.body);
+        let regions: Vec<_> = vision
+            .regions()
+            .map(|v| Vision::from_boundary(v.origin, v.boundary.clone()))
+            .collect();
+        let visible = |point| regions.iter().any(|v| v.contains(point));
+        let allied_visible = |tank: &TankView| {
+            tank.team == self.team()
+                && tank.id != self.launcher
+                && tank.health > 0.0
+                && geometry
+                    .figures
+                    .iter()
+                    .find(|f| f.body.id == tank.id)
+                    .is_some_and(|f| {
+                        // The figure's front face clips the sight rays before its
+                        // center. Use the human whole-figure visibility rule.
+                        vision
+                            .tank_visibility(tank.id)
+                            .unwrap_or_else(|| vision.intersects_polygon(&f.outline))
+                    })
+        };
+        let bounds: Vec<_> = regions
+            .iter()
+            .filter(|v| !v.boundary.is_empty())
+            .map(|v| {
+                (
+                    v.boundary
+                        .iter()
+                        .copied()
+                        .fold(Vector::splat(f32::INFINITY), Vector::min),
+                    v.boundary
+                        .iter()
+                        .copied()
+                        .fold(Vector::splat(f32::NEG_INFINITY), Vector::max),
+                )
+            })
+            .collect();
+        let mut obstacles = vec![];
+        let mut targets = vec![];
+        let mut visible_ruins = vec![];
+        for figure in &geometry.figures {
+            let b = &figure.body;
+            if b.material == Material::Launcher {
+                let tank = self.tanks().find(|t| t.id == b.id);
+                if tank.is_some_and(|t| t.mount.is_some() && t.health <= 0.0)
+                    && vision
+                        .tank_visibility(b.id)
+                        .unwrap_or_else(|| vision.intersects_polygon(&figure.outline))
+                {
+                    visible_ruins.push(b.position);
+                }
+                if let Some(t) = tank
+                    && t.team != self.team()
+                    && t.health > 0.0
+                    && (vision.firing_tank_visible(b.id)
+                        || vision
+                            .tank_visibility(b.id)
+                            .unwrap_or_else(|| vision.intersects_polygon(&figure.outline)))
+                {
+                    targets.push(Target {
+                        position: b.position,
+                        mounted: t.mount.is_some(),
+                        vehicle: (t.mount.is_none()
+                            && vision
+                                .tank_visibility(b.id)
+                                .unwrap_or_else(|| vision.intersects_polygon(&figure.outline)))
+                        .then_some(t.vehicle),
+                    });
+                }
+            } else if !b.bridge_deck {
+                let poly = &figure.outline;
+                let lo = figure.min;
+                let hi = figure.max;
+                if bounds
+                    .iter()
+                    .any(|(min, max)| lo.cmple(*max).all() && hi.cmpge(*min).all())
+                    && vision.intersects_polygon(poly)
+                {
+                    obstacles.push(Obstacle {
+                        outline: poly.clone(),
+                        breakable: matches!(
+                            b.material,
+                            Material::Rock | Material::Masonry | Material::Panel
+                        ),
+                    });
+                }
+            }
+        }
+        let map = self.ai_grid();
+        // Most of a large map is outside every sight region. Bound grid work
+        // by the visible polygons, preserving the original sorted cell order.
+        let mut candidates = std::collections::BTreeSet::new();
+        for (lo, hi) in bounds {
+            let a = map.index(lo);
+            let b = map.index(hi);
+            for y in a / map.width()..=b / map.width() {
+                for x in a % map.width()..=b % map.width() {
+                    candidates.insert(y * map.width() + x);
+                }
+            }
+        }
+        let mut terrain = vec![];
+        for i in candidates {
+            let p = map.point(i);
+            if visible(p) {
+                terrain.push((
+                    i,
+                    if self.terrain_at(p).blocks_tanks() {
+                        3
+                    } else {
+                        1
+                    },
+                ));
+            }
+        }
+        Observation {
+            tick: self.tick_count(),
+            position: self.launcher_position(),
+            hull_angle: own.map_or(0.0, |b| b.angle),
+            turret_angle: self.player_aim().angle,
+            alive: self.tank_alive(),
+            health: self
+                .tanks()
+                .find(|t| t.id == self.launcher)
+                .map_or(0.0, |t| t.health),
+            reload: self.reload_remaining(),
+            aim_spread: self.player_aim().spread,
+            vehicle: self.player_vehicle(),
+            special: self.carried_special().map(|weapon| SpecialState {
+                weapon,
+                charges: self.special_charges(),
+                cooldown: self.special_cooldown(),
+                active: self.special_active(),
+            }),
+            supplies: self
+                .pickups()
+                .filter(|p| p.remaining <= 0.0 && visible(p.position))
+                .map(|p| Supply {
+                    position: p.position,
+                    weapon: p.weapon,
+                })
+                .chain(
+                    self.airdrop()
+                        .filter(|p| visible(p.position))
+                        .map(|p| Supply {
+                            position: p.position,
+                            weapon: p.weapon,
+                        }),
+                )
+                .collect(),
+            allies: self
+                .tanks()
+                .filter(allied_visible)
+                .map(|t| self.piece_pose(t.id).translation)
+                .collect(),
+            allied_vehicles: self
+                .tanks()
+                .filter(|t| t.mount.is_none() && allied_visible(t))
+                .map(|t| {
+                    let position = self.piece_pose(t.id).translation;
+                    crate::ai::AlliedVehicle {
+                        position,
+                        vehicle: t.vehicle,
+                    }
+                })
+                .collect(),
+            regions,
+            obstacles,
+            targets,
+            visible_ruins,
+            terrain,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,293 +643,6 @@ mod tests {
                     );
                 }
             }
-        }
-    }
-}
-impl World {
-    fn ai_grid(&self) -> Map {
-        Map {
-            size: self.arena_size,
-            flags: self.flags().collect(),
-            team: self.team(),
-            layout: vec![],
-            seed: 0,
-            team_slot: 0,
-            emplacements: vec![],
-            supply_sites: vec![],
-        }
-    }
-    pub fn ai_map(&self) -> Map {
-        let mut map = self.ai_grid();
-        map.layout = self.public_layout.clone();
-        map.emplacements = self.public_emplacements.clone();
-        map.supply_sites = self.public_supply_sites.clone();
-        map
-    }
-    // Capture the authored starting layout once, as shown in the human map
-    // preview. It must never be rebuilt from unseen live destruction.
-    pub(super) fn build_public_layout(&self) -> Vec<u8> {
-        let map = self.ai_grid();
-        let mut cells: Vec<u8> = (0..map.width() * map.height())
-            .map(|i| {
-                if self.terrain_at(map.point(i)).blocks_tanks() {
-                    3
-                } else {
-                    1
-                }
-            })
-            .collect();
-        for body in self
-            .bodies()
-            .filter(|b| b.material != Material::Launcher && !b.bridge_deck && b.opacity > 0.0)
-        {
-            let poly = outline(&body);
-            let lo = poly
-                .iter()
-                .copied()
-                .fold(Vector::splat(f32::INFINITY), Vector::min);
-            let hi = poly
-                .iter()
-                .copied()
-                .fold(Vector::splat(f32::NEG_INFINITY), Vector::max);
-            let a = map.index(lo - Vector::splat(map.cell()));
-            let b = map.index(hi + Vector::splat(map.cell()));
-            let class = if matches!(
-                body.material,
-                Material::Rock | Material::Masonry | Material::Panel
-            ) {
-                2
-            } else {
-                4
-            };
-            for y in a / map.width()..=b / map.width() {
-                for x in a % map.width()..=b % map.width() {
-                    let i = y * map.width() + x;
-                    if crate::ai::polygon_distance(map.point(i), &poly) < map.cell() * 0.6 {
-                        cells[i] = cells[i].max(class);
-                    }
-                }
-            }
-        }
-        cells
-    }
-    /// Exactly the current player's rendered detection rules, including cone,
-    /// cover, foliage, radar and allied sight. Never pass a replica Frame to bots:
-    /// trusted presentation frames also contain hidden authoritative metadata.
-    pub fn ai_observation(&self) -> Observation {
-        self.ai_observation_from(&self.ai_geometry())
-    }
-    /// Build once for players observed at the same physics state. Selecting a
-    /// player's controls does not change this geometry; stepping physics does.
-    pub fn ai_geometry(&self) -> AiGeometry {
-        AiGeometry {
-            tick: self.tick_count(),
-            figures: self
-                .bodies()
-                .filter(|b| b.opacity > 0.0)
-                .map(|body| {
-                    let outline = outline(&body);
-                    let min = outline
-                        .iter()
-                        .copied()
-                        .fold(Vector::splat(f32::INFINITY), Vector::min);
-                    let max = outline
-                        .iter()
-                        .copied()
-                        .fold(Vector::splat(f32::NEG_INFINITY), Vector::max);
-                    AiFigure {
-                        body,
-                        outline,
-                        min,
-                        max,
-                    }
-                })
-                .collect(),
-        }
-    }
-    pub fn ai_observation_from(&self, geometry: &AiGeometry) -> Observation {
-        debug_assert_eq!(
-            geometry.tick,
-            self.tick_count(),
-            "AI geometry reused after a physics step"
-        );
-        let vision = self.player_vision(self.player_aim().angle);
-        let own = geometry
-            .figures
-            .iter()
-            .find(|f| f.body.id == self.player_tank_id())
-            .map(|f| &f.body);
-        let regions: Vec<_> = vision
-            .regions()
-            .map(|v| Vision::from_boundary(v.origin, v.boundary.clone()))
-            .collect();
-        let visible = |point| regions.iter().any(|v| v.contains(point));
-        let allied_visible = |tank: &TankView| {
-            tank.team == self.team()
-                && tank.id != self.launcher
-                && tank.health > 0.0
-                && geometry
-                    .figures
-                    .iter()
-                    .find(|f| f.body.id == tank.id)
-                    .is_some_and(|f| {
-                        // The figure's front face clips the sight rays before its
-                        // center. Use the human whole-figure visibility rule.
-                        vision
-                            .tank_visibility(tank.id)
-                            .unwrap_or_else(|| vision.intersects_polygon(&f.outline))
-                    })
-        };
-        let bounds: Vec<_> = regions
-            .iter()
-            .filter(|v| !v.boundary.is_empty())
-            .map(|v| {
-                (
-                    v.boundary
-                        .iter()
-                        .copied()
-                        .fold(Vector::splat(f32::INFINITY), Vector::min),
-                    v.boundary
-                        .iter()
-                        .copied()
-                        .fold(Vector::splat(f32::NEG_INFINITY), Vector::max),
-                )
-            })
-            .collect();
-        let mut obstacles = vec![];
-        let mut targets = vec![];
-        let mut visible_ruins = vec![];
-        for figure in &geometry.figures {
-            let b = &figure.body;
-            if b.material == Material::Launcher {
-                let tank = self.tanks().find(|t| t.id == b.id);
-                if tank.is_some_and(|t| t.mount.is_some() && t.health <= 0.0)
-                    && vision
-                        .tank_visibility(b.id)
-                        .unwrap_or_else(|| vision.intersects_polygon(&figure.outline))
-                {
-                    visible_ruins.push(b.position);
-                }
-                if let Some(t) = tank
-                    && t.team != self.team()
-                    && t.health > 0.0
-                    && (vision.firing_tank_visible(b.id)
-                        || vision
-                            .tank_visibility(b.id)
-                            .unwrap_or_else(|| vision.intersects_polygon(&figure.outline)))
-                {
-                    targets.push(Target {
-                        position: b.position,
-                        mounted: t.mount.is_some(),
-                        vehicle: (t.mount.is_none()
-                            && vision
-                                .tank_visibility(b.id)
-                                .unwrap_or_else(|| vision.intersects_polygon(&figure.outline)))
-                        .then_some(t.vehicle),
-                    });
-                }
-            } else if !b.bridge_deck {
-                let poly = &figure.outline;
-                let lo = figure.min;
-                let hi = figure.max;
-                if bounds
-                    .iter()
-                    .any(|(min, max)| lo.cmple(*max).all() && hi.cmpge(*min).all())
-                    && vision.intersects_polygon(poly)
-                {
-                    obstacles.push(Obstacle {
-                        outline: poly.clone(),
-                        breakable: matches!(
-                            b.material,
-                            Material::Rock | Material::Masonry | Material::Panel
-                        ),
-                    });
-                }
-            }
-        }
-        let map = self.ai_grid();
-        // Most of a large map is outside every sight region. Bound grid work
-        // by the visible polygons, preserving the original sorted cell order.
-        let mut candidates = std::collections::BTreeSet::new();
-        for (lo, hi) in bounds {
-            let a = map.index(lo);
-            let b = map.index(hi);
-            for y in a / map.width()..=b / map.width() {
-                for x in a % map.width()..=b % map.width() {
-                    candidates.insert(y * map.width() + x);
-                }
-            }
-        }
-        let mut terrain = vec![];
-        for i in candidates {
-            let p = map.point(i);
-            if visible(p) {
-                terrain.push((
-                    i,
-                    if self.terrain_at(p).blocks_tanks() {
-                        3
-                    } else {
-                        1
-                    },
-                ));
-            }
-        }
-        Observation {
-            tick: self.tick_count(),
-            position: self.launcher_position(),
-            hull_angle: own.map_or(0.0, |b| b.angle),
-            turret_angle: self.player_aim().angle,
-            alive: self.tank_alive(),
-            health: self
-                .tanks()
-                .find(|t| t.id == self.launcher)
-                .map_or(0.0, |t| t.health),
-            reload: self.reload_remaining(),
-            aim_spread: self.player_aim().spread,
-            vehicle: self.player_vehicle(),
-            special: self.carried_special().map(|weapon| SpecialState {
-                weapon,
-                charges: self.special_charges(),
-                cooldown: self.special_cooldown(),
-                active: self.special_active(),
-            }),
-            supplies: self
-                .pickups()
-                .filter(|p| p.remaining <= 0.0 && visible(p.position))
-                .map(|p| Supply {
-                    position: p.position,
-                    weapon: p.weapon,
-                })
-                .chain(
-                    self.airdrop()
-                        .filter(|p| visible(p.position))
-                        .map(|p| Supply {
-                            position: p.position,
-                            weapon: p.weapon,
-                        }),
-                )
-                .collect(),
-            allies: self
-                .tanks()
-                .filter(allied_visible)
-                .map(|t| self.piece_pose(t.id).translation)
-                .collect(),
-            allied_vehicles: self
-                .tanks()
-                .filter(|t| t.mount.is_none() && allied_visible(t))
-                .map(|t| {
-                    let position = self.piece_pose(t.id).translation;
-                    crate::ai::AlliedVehicle {
-                        position,
-                        vehicle: t.vehicle,
-                    }
-                })
-                .collect(),
-            regions,
-            obstacles,
-            targets,
-            visible_ruins,
-            terrain,
         }
     }
 }

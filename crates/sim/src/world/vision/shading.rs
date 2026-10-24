@@ -62,7 +62,7 @@ impl Vision {
             }
             let middle = (lo + hi) * 0.5;
             active.sort_by(|&a, &b| at(a, middle).total_cmp(&at(b, middle)));
-            for pair in active.chunks_exact(2) {
+            for pair in active.as_chunks::<2>().0 {
                 let p = |i, y| Vector::new(at(i, y) as f32, y as f32);
                 let (a, b, c, d) = (
                     p(pair[0], lo),

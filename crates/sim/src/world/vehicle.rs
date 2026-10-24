@@ -3,58 +3,6 @@ mod scout;
 
 const TRACK_OFFSET: f32 = 0.65;
 
-#[cfg(test)]
-mod elevation_tests {
-    use super::*;
-    use crate::{
-        TerrainKind,
-        level::{Level, LevelItem, Team},
-    };
-
-    #[test]
-    fn elevation_edges_strongly_slow_both_climbs_and_descents() {
-        let level = Level {
-            items: vec![
-                LevelItem::Spawn {
-                    team: Team::Blue,
-                    position: [0.0, 0.0],
-                    angle: 0.0,
-                },
-                LevelItem::Terrain {
-                    terrain: TerrainKind::Elevation,
-                    min: [0.0, -5.0],
-                    max: [10.0, 5.0],
-                },
-            ],
-            ..Level::default()
-        };
-        for direction in [1.0, -1.0] {
-            let mut w = World::from_level(&level, Team::Blue).unwrap();
-            let handle = w.pieces[w.launcher].body;
-            w.physics.bodies[handle].set_linvel(Vector::new(direction * 6.5, 0.0), true);
-            w.drive_tracks([direction; 2], TICK_DT);
-            let speed = w.physics.bodies[handle].linvel().x * direction;
-            assert!(speed < 6.5, "edge crossing: {speed}");
-            for _ in 0..120 {
-                w.drive_tracks([direction; 2], TICK_DT);
-            }
-            let edge_speed = w.physics.bodies[handle].linvel().x.abs();
-            assert!(
-                (edge_speed - 6.5 * 0.25).abs() < 0.01,
-                "edge speed: {edge_speed}"
-            );
-            assert!(w.physics.bodies[handle].angvel().abs() < 0.001);
-            w.physics.bodies[handle].set_translation(Vector::new(5.0, 0.0), true);
-            w.physics.bodies[handle].set_linvel(Vector::new(direction * 6.5, 0.0), true);
-            w.drive_tracks([direction; 2], TICK_DT);
-            assert!(
-                (w.physics.bodies[handle].linvel().x.abs() - 6.5).abs() < 0.001,
-                "plateau has normal speed"
-            );
-        }
-    }
-}
-
 /// Hull and track cuboids (offset, half extents), shared with replica sight.
 pub(super) fn tank_colliders() -> [(Vector, Vector); 3] {
     [
@@ -469,5 +417,57 @@ impl World {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod elevation_tests {
+    use super::*;
+    use crate::{
+        TerrainKind,
+        level::{Level, LevelItem, Team},
+    };
+
+    #[test]
+    fn elevation_edges_strongly_slow_both_climbs_and_descents() {
+        let level = Level {
+            items: vec![
+                LevelItem::Spawn {
+                    team: Team::Blue,
+                    position: [0.0, 0.0],
+                    angle: 0.0,
+                },
+                LevelItem::Terrain {
+                    terrain: TerrainKind::Elevation,
+                    min: [0.0, -5.0],
+                    max: [10.0, 5.0],
+                },
+            ],
+            ..Level::default()
+        };
+        for direction in [1.0, -1.0] {
+            let mut w = World::from_level(&level, Team::Blue).unwrap();
+            let handle = w.pieces[w.launcher].body;
+            w.physics.bodies[handle].set_linvel(Vector::new(direction * 6.5, 0.0), true);
+            w.drive_tracks([direction; 2], TICK_DT);
+            let speed = w.physics.bodies[handle].linvel().x * direction;
+            assert!(speed < 6.5, "edge crossing: {speed}");
+            for _ in 0..120 {
+                w.drive_tracks([direction; 2], TICK_DT);
+            }
+            let edge_speed = w.physics.bodies[handle].linvel().x.abs();
+            assert!(
+                (edge_speed - 6.5 * 0.25).abs() < 0.01,
+                "edge speed: {edge_speed}"
+            );
+            assert!(w.physics.bodies[handle].angvel().abs() < 0.001);
+            w.physics.bodies[handle].set_translation(Vector::new(5.0, 0.0), true);
+            w.physics.bodies[handle].set_linvel(Vector::new(direction * 6.5, 0.0), true);
+            w.drive_tracks([direction; 2], TICK_DT);
+            assert!(
+                (w.physics.bodies[handle].linvel().x.abs() - 6.5).abs() < 0.001,
+                "plateau has normal speed"
+            );
+        }
     }
 }

@@ -241,6 +241,16 @@ fn fit_clipboard(items: &mut [LevelItem], size: sim::Vec2) -> Result<(), String>
     Ok(())
 }
 
+pub(super) fn item_bounds(item: &LevelItem) -> (sim::Vec2, sim::Vec2) {
+    item.world_outline().into_iter().fold(
+        (
+            sim::Vec2::splat(f32::INFINITY),
+            sim::Vec2::splat(f32::NEG_INFINITY),
+        ),
+        |(lo, hi), p| (lo.min(p), hi.max(p)),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,14 +291,4 @@ mod tests {
             Level::from_json(&editor.level.to_json().unwrap()).unwrap()
         );
     }
-}
-
-pub(super) fn item_bounds(item: &LevelItem) -> (sim::Vec2, sim::Vec2) {
-    item.world_outline().into_iter().fold(
-        (
-            sim::Vec2::splat(f32::INFINITY),
-            sim::Vec2::splat(f32::NEG_INFINITY),
-        ),
-        |(lo, hi), p| (lo.min(p), hi.max(p)),
-    )
 }
