@@ -1,5 +1,12 @@
 **A tank combat game built around physical destruction.**
 
+**Install without building:** download a package from [the latest release](https://github.com/generall/fracture/releases/latest)
+for Linux, Steam Deck, Apple Silicon or Intel macOS. Linux: extract and run
+`./fracture.sh`, or `./install.sh` for an application menu entry. Steam Deck: use
+the Deck package and add the installed `fracture-deck.sh` as a non-Steam game.
+macOS: drag `Fracture.app` to Applications. See [installation and local releases](docs/RELEASING.md)
+for requirements, macOS opening instructions and scripts for the next version.
+
 The game now opens at a title screen. Choose **Enter Local Lobby**, choose **River Valley**, **Classic Tanks 2**, or import a map, choose your team and match length, then **Start Match** against the AI. Capture the enemy flag to win; results offer a rematch or return to the lobby. **Esc** opens the match menu. See [local game mode](docs/GAME_MODE.md).
 
 Desktop **Play on local network** supports a host and up to five guests. Join by IP or discovery, select teams, ready up, and let the host start the match. The host runs all physics; clients receive compressed, visibility-filtered updates. See [LAN multiplayer](docs/LAN_MULTIPLAYER.md) for setup and validation.
@@ -21,7 +28,7 @@ Build a map with **M / Level Editor**: place library objects, draw long walls, r
 **Run on desktop:**
 
 Steam Deck / gamepad support: [controls, Linux package and testing](docs/STEAM_DECK.md).
-`bash tools/build-linux.sh` creates a native Linux archive; launch `fracture.sh --deck`
+`bash tools/build-release.sh linux` creates portable Linux and Deck archives; launch `fracture-deck.sh`
 for fullscreen handheld play. Game menus and the HUD adapt to 1280×800 and 1280×720.
 
 ```sh
@@ -29,9 +36,9 @@ cargo run --release --locked -p game      # game, local and LAN lobbies
 cargo run --release --locked -p sandbox   # sandbox and editors
 ```
 
-Apple Silicon macOS builds: [build and packaging instructions](docs/MACOS_BUILD.md).
-Run `bash tools/build-macos-arm64.sh` on a Mac, or supply a macOS SDK for Linux
-cross-compilation. The archive contains separate game and sandbox executables.
+macOS builds: [Apple Silicon and Intel packaging instructions](docs/MACOS_BUILD.md).
+Build locally on a Mac, or supply a macOS SDK for Linux cross-compilation.
+The archives contain separate game and sandbox app bundles.
 
 **Run in a browser:**
 

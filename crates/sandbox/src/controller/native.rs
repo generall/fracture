@@ -133,9 +133,22 @@ impl Backend {
         } else {
             vec!["libSDL2-2.0.so.0", "libSDL2.so"]
         };
+        // Resolve the packaged runtime independently of the working directory:
+        // the client changes it to the player's save directory at startup.
+        let bundled = std::env::current_exe().ok().and_then(|exe| {
+            let directory = exe.parent()?;
+            Some(if cfg!(target_os = "macos") {
+                directory.join("../Frameworks/libSDL2.dylib")
+            } else {
+                directory.join("lib/libSDL2-2.0.so.0")
+            })
+        });
         Self(
-            names
+            bundled
+                .as_ref()
+                .and_then(|path| path.to_str())
                 .into_iter()
+                .chain(names)
                 .find_map(|name| unsafe { Sdl::load(name).ok() }),
         )
     }

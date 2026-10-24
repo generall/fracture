@@ -37,6 +37,11 @@ For physics and frame-time changes, use the opt-in profilers and replay comparis
 in [the Deck performance guide](docs/PHYSICS_PERFORMANCE.md). Headless physics
 timings alone do not establish gameplay FPS.
 
+For locally built Linux, Steam Deck and macOS downloads, see the
+[release guide](docs/RELEASING.md). `bash tools/build-release.sh` builds and checks
+all packages locally; `bash tools/publish-release.sh vX.Y.Z` publishes them without
+GitHub Actions.
+
 ## Code map
 
 `crates/sim` owns physics, assets and reproducible experiments. It has no renderer, window, browser or runtime network dependency. `crates/game` launches the game; `crates/sandbox` launches the development sandbox and provides their shared `fracture_client` library. That library owns input, drawing, editor/comparison state and platform persistence. Public simulation imports remain available from `sim::{World, Command, Shot, ...}` and `sim::experiment::{Experiment, Runner, ...}`.

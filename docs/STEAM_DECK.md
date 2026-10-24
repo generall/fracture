@@ -7,18 +7,22 @@ file import dialogs still need a pointer; use the Deck trackpad or a mouse.
 
 ## Play on Deck
 
-Build on x86_64 Linux:
+Download the Steam Deck archive from [the latest release](https://github.com/generall/fracture/releases/latest).
+In Desktop Mode, extract it and run `./install.sh`. Add the installed
+`~/.local/opt/fracture/fracture-deck.sh` as a non-Steam game and select Steam Input's
+**Gamepad** template. Launch it from Gaming Mode. This is a native Linux executable;
+leave Proton disabled. The Deck launcher selects fullscreen 1280×800 automatically.
+`SteamDeck=1` also selects this startup configuration. The layout follows the
+actual window size, including 720p and docked displays. F11 toggles fullscreen.
+
+To build locally on x86_64 Linux with Docker, run:
 
 ```sh
-bash tools/build-linux.sh
+bash tools/build-release.sh linux
 ```
 
-Copy `target/fracture-linux-x86_64.tar.gz` to the Deck and extract it. In Desktop
-Mode, add `fracture/fracture.sh` as a non-Steam game. Set its launch options to
-`--deck` and select Steam Input's **Gamepad** template. Launch it from Gaming
-Mode. This is a native Linux executable; do not force Proton. `SteamDeck=1` also
-selects the fullscreen 1280×800 startup configuration. The layout follows the
-actual window size, including 720p and docked displays. F11 toggles fullscreen.
+The versioned Linux and Deck archives are written to `target/dist/`.
+See [local builds and releases](RELEASING.md) for the complete release process.
 
 The launcher saves to `$XDG_DATA_HOME/fracture`, defaulting to
 `~/.local/share/fracture`. Override with `FRACTURE_DATA_DIR`. Maps, drafts, audio
@@ -26,13 +30,15 @@ settings and checkpoints stay there when replacing the installation. Direct
 `cargo run` keeps the existing working-directory save behavior unless that
 variable is set. Existing development saves are not automatically moved.
 
-The package embeds game assets. Linux requires OpenGL/X11, ALSA, and an SDL2
-runtime (`libSDL2-2.0.so.0`) for controllers. Keyboard/mouse play works without
-SDL2. The build uses the host's compiler and libraries: an arbitrary Linux build
-is not a universal binary. For Steam distribution, build and test inside Valve's
+The package embeds game assets and bundles SDL2 controller support. It uses the
+manylinux 2.28 build baseline, with an audited maximum glibc requirement of 2.28.
+Linux also needs X11/XWayland (libX11, libXi, libxkbcommon), OpenGL, ALSA and
+libgcc_s, supplied by a normal SteamOS desktop installation. The release builder
+runs silent installation and launch checks in that baseline container.
+For a Steam store distribution, build and test inside Valve's
 [Steam Runtime SDK](https://github.com/ValveSoftware/steam-runtime) and configure
-the matching Steam Linux Runtime in Steamworks. The packaging script can run
-inside that SDK; this repository does not download an SDK or publish a Steam depot.
+the matching Steam Linux Runtime in Steamworks. The download release process
+does not publish a Steam depot.
 
 ## Controls
 
