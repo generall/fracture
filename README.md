@@ -1,147 +1,113 @@
-**A tank combat game built around physical destruction.**
+# Fracture
 
-**Install without building:** download a package from [the latest release](https://github.com/generall/fracture/releases/latest)
-for Linux, Steam Deck, Apple Silicon or Intel macOS. Linux: extract and run
-`./fracture.sh`, or `./install.sh` for an application menu entry. Steam Deck: use
-the Deck package and add the installed `fracture-deck.sh` as a non-Steam game.
-macOS: drag `Fracture.app` to Applications. See [installation and local releases](docs/RELEASING.md)
-for requirements, macOS opening instructions and scripts for the next version.
+**Tank combat where you can break a path through the battlefield.**
 
-The game now opens at a title screen. Choose **Enter Local Lobby**, choose **River Valley**, **Classic Tanks 2**, or import a map, choose your team and match length, then **Start Match** against the AI. Capture the enemy flag to win; results offer a rematch or return to the lobby. **Esc** opens the match menu. See [local game mode](docs/GAME_MODE.md).
+Blast holes in walls, bring down bridges, and fight through the rubble to reach
+the enemy flag. Pick a scout car, tank, or mortar carrier and play against the AI
+or friends on your local network.
 
-Desktop **Play on local network** supports a host and up to five guests. Join by IP or discovery, select teams, ready up, and let the host start the match. The host runs all physics; clients receive compressed, visibility-filtered updates. See [LAN multiplayer](docs/LAN_MULTIPLAYER.md) for setup and validation.
+[**Download the latest release**](https://github.com/generall/fracture/releases/latest)
+for Linux, Steam Deck, or macOS.
 
-An orchestral military march shifts into a faster battle arrangement when an enemy becomes visible. Weapons, engine, tracks, impacts and destruction have sound effects. Open **Sound Settings / F7** for master, music, effects and interface-cue sliders. **F8** mutes all sound; **F9 / F10** adjust music/effects. Browser audio starts after the first click or key press. See [sound design](docs/AUDIO.md).
+![Blue and red tanks exchanging fire among village buildings and cover](docs/screenshots/gameplay.png)
 
-The development sandbox is a separate application: run `cargo run --release --locked -p sandbox` or open `/sandbox.html` in the browser. The controls below describe those tools.
+*Trade shots around village cover.*
 
-A Rust sandbox with free movement, a dark wireframe battlefield, and destruction driven by forces and broken connections. No health points or textured surfaces. Runs natively and in a browser using Rapier 2D and Macroquad.
+## Start playing
 
-Continuing development? Start with the [current development summary](docs/HANDOFF.md). The [contributor guide](CONTRIBUTING.md) maps code locations, extension points and verification commands; [development history](docs/DEVELOPMENT_HISTORY.md) preserves earlier decisions and rejected tuning.
+- **Linux:** extract the Linux package and run `fracture.sh`. Run `install.sh` to
+  add Fracture to your application menu.
+- **Steam Deck:** extract the Deck package in Desktop Mode and run `install.sh`.
+  Add the installed `fracture-deck.sh` as a non-Steam game, select the **Gamepad**
+  controller template, and launch from Gaming Mode. Leave Proton disabled.
+- **macOS:** choose the Apple Silicon or Intel package, extract it, and drag
+  **Fracture.app** to Applications.
 
-Drive a tracked tank, aim the turret with the mouse or Q/E (J/K), and choose explosive shells, armor-piercing shells, machine-gun bullets or a cutting laser. Projectiles are consumed at impact; the laser progressively removes fine cells without applying force. Structures split along irregular polygon seams; small disconnected fragments fade out while larger sections remain physical.
+See the [installation guide](docs/RELEASING.md) for requirements and help opening
+the macOS app.
 
-Build a map with **M / Level Editor**: place library objects, draw long walls, resize rocks, paint seamless terrain, add large bridges and unbreakable walls, and place team spawns and flags. Shift-click or box-select groups, copy/paste with Ctrl C/V, and merge rocks or walls with Ctrl J. Large objects coarsen their mesh automatically; resizing and placement stick to map limits. Playtest as Blue or Red; touching an enemy flag wins. Valid drafts save locally and maps can be exported/imported as JSON. See the [level editor guide](docs/LEVEL_EDITOR.md). **File → Load River Valley** opens the large village-and-river map, with lightweight decorative shrubs, crates and timber that break into visual effects without physical debris.
+For your first match, choose **Enter Local Lobby**, pick **River Valley** or
+**Classic Tanks 2**, select your team and match length, then choose **Start Match**.
 
-**Demo map:** open **M → File → Load Demo / Quarry → Play Level**. [Quarry Crossing](docs/DEMO_MAP.md) has a central bridge rush, a sandy northern bypass, a southern road, and editable cover and barrel yards.
+## Reach their flag. Protect yours.
 
-**Run on desktop:**
+Touch the enemy flag to win—there is no return trip carrying it home. If your
+vehicle is destroyed, choose another and return after the respawn delay. The
+battlefield stays damaged, so a breach you opened can become the next attack route.
+Timed matches end in a draw if neither team reaches the enemy flag.
 
-Steam Deck / gamepad support: [controls, Linux package and testing](docs/STEAM_DECK.md).
-`bash tools/build-release.sh linux` creates portable Linux and Deck archives; launch `fracture-deck.sh`
-for fullscreen handheld play. Game menus and the HUD adapt to 1280×800 and 1280×720.
+Choose a vehicle at the start and whenever you respawn:
 
-```sh
-cargo run --release --locked -p game      # game, local and LAN lobbies
-cargo run --release --locked -p sandbox   # sandbox and editors
-```
-
-macOS builds: [Apple Silicon and Intel packaging instructions](docs/MACOS_BUILD.md).
-Build locally on a Mac, or supply a macOS SDK for Linux cross-compilation.
-The archives contain separate game and sandbox app bundles.
-
-**Run in a browser:**
-
-```sh
-rustup target add wasm32-unknown-unknown
-bash tools/build-web.sh
-python3 tools/serve.py
-```
-
-Open [the game](http://127.0.0.1:8000/) or [the sandbox](http://127.0.0.1:8000/sandbox.html). The build produces separate `game.wasm` and `sandbox.wasm` binaries. The loader and bold font are bundled locally; no CDN, Node, or JavaScript build step is required. Python only serves the files. Use `python3 tools/serve.py --port 8080` to change the port.
-
-**Try it:** aim at the barrier and click. Use **T** for slow motion and **Tab** to inspect the stress spreading through the structure. Fire again after the reload indicator fills. **R** rebuilds the scene.
-
-| Control | Action |
+| Vehicle | Play style |
 | --- | --- |
-| W / S | Both tracks forward / reverse |
-| A / D | Differential steering, including turning in place |
-| Q / E or J / K | Rotate turret left / right |
-| Release movement keys | Apply the track brakes |
-| Mouse | Aim turret; moving it resumes mouse aiming after keyboard rotation |
-| Space / left click / F | Fire at the current aim point |
-| 5 / 6 | HE / AP; switching starts a reload |
-| B | Cycle ammunition |
-| G / right click | Use a collected laser, rocket, plasma or mine charge |
-| H | Toggle field manual and simulation controls |
-| O | Open the object editor / return from testing |
-| M | Open the level editor / return from level playtesting |
-| P | Pause or resume the sandbox |
-| N | Pause and advance one physics tick |
-| T | Toggle 0.2x slow motion |
-| Tab | Show recent connection stress |
-| R | Rebuild the scene |
-| 1 / 2 / 3 / 4 | Barrier / barrel against rubble / rock field / object yard |
-| 9 | Terrain and destructible bridge range |
-| Wheel / Home | Zoom / recenter; level camera follows the tank with mouse look-ahead |
-| Middle drag | Pan in material test scenes |
+| **Scout car** | Fast and lightly armored, with all-around vision and a rapid-fire gun for fighting vehicles. Scout routes and make a dash for the flag. |
+| **Tank** | A rotating turret, explosive and armor-piercing shells, and access to special weapons. Break through cover or hold a crossing. |
+| **Mortar carrier** | Slow and heavily armored, with arcing shells that pass over cover. Stop to tighten your aim before firing. |
 
-The main gun swaps HE/AP rounds with a 0.9-second reload. Rockets, lasers, plasma cannons and mines must be collected from editor-placed pickup pads, with configurable charge counts and cooldowns. Rockets travel slowly and shatter rock; the wide laser fires continuously for three seconds and ignores aim spread. The plasma cannon charges for one second, then delivers the full laser cutting budget in one pulse. See [ammunition controls and behavior](docs/AMMUNITION.md). A shot requested while paused waits for a step or resume. The tracks use front/rear ground contacts, limited engine force, and strong braking. Steering limits the requested track-speed difference, and releasing the controls arrests rotation as well as translation. The turret aims independently of the hull. There is no projectile accumulation limit because shells are consumed on impact.
+The map gives you more choices than a straight shootout:
 
-**River crossing:** press **9**. Road increases tank speed and grip; sand slows it down; water blocks the hull and tracks. Shots pass over the deck; target the booths marked A/B to destroy the crossing. They resist pushing and slow bumps, but remain vulnerable to shooting and forceful direct rams. Losing the connection between its two banks collapses the span, closes the crossing, and sinks a tank standing on it. **R** restores the scene. See [terrain and bridge rules](docs/TERRAIN.md).
+- **Change the routes.** Break walls, push through loose debris, or collapse a
+  bridge to cut off a crossing. A ruined bridge can be repaired and reopened.
+- **Choose your ground.** Roads help you move quickly, sand slows you down, and
+  tall grass can conceal your approach. Solid cover blocks sight and direct fire.
+- **Watch what you reveal.** Fog of war hides enemy movement. Firing from grass
+  gives away your position, so choose when to attack.
+- **Find extra firepower.** Collect rockets, cutting lasers, plasma cannons, or
+  mines. The tank can carry special weapons; the scout relies on its own gun.
 
-Zoom uses normalized mouse-wheel input and time-based easing, independently of pause and slow motion. Editors and material tests anchor zoom at the cursor; level gameplay follows the tank and limits the visible span to twice its sight range.
+Read the [game guide](docs/GAME_MODE.md) or [weapons guide](docs/AMMUNITION.md)
+for more about vehicles, combat, and pickups.
 
-**Start from the object library:** press **O**, then **L** (or **FILE → OBJECT LIBRARY**). Green barrels, red explosive barrels, amber walls, violet rocks and blue metal fences have distinct editable response profiles. Save named copies, edit color in **SHAPE**, and open **MATERIAL → OBJECT BEHAVIOR** for impact resistance, crushing and explosions. Press **4** in the proving ground for the shared object yard. See [the library guide](docs/OBJECT_LIBRARY.md) for component units, persistence and the current physical approximations.
+![A tank firing a bright blue laser through destructible cover](docs/screenshots/laser.png)
 
-**Permanent dents and bends:** barrels flatten and bulge sideways under compression, retaining their dents after the tank releases them. The blue metal fence bends while its pinned edge stays attached. Choose **MATERIAL → YIELD & HARDENING**, or switch any object through **OBJECT BEHAVIOR → PERMANENT DEFORMATION**. Deformable frames stay connected under impact; the laser can cut them. Rocks and walls still fracture. See [the deformation guide](docs/PLASTICITY.md) for controls, replay and physical limits.
+*Cut through cover with a collected laser.*
 
-**Build your own objects:** press **O**, or click **EDITOR**. Use **FILE** to start from a rock, wall, plate, or concave L-block. **SHAPE**, **FRACTURE**, and **MATERIAL** group the sidebar tools; advanced settings expand when needed. Drag outline vertices, Shift-click an edge to insert a vertex, or enter exact X/Y coordinates. Edit density, thickness, friction, bounciness, tensile/compressive/shear seam strengths, fracture detail, and grain cohesion. Select a vertex and pin its outgoing edge to add a breakable fixed support. The preview shows the mesh, area, and mass.
+## Play with friends
 
-**Enter / TEST** creates the object in the firing range. **R** rebuilds it; **O** returns to the unchanged draft. Undo/redo includes shape edits, property edits, presets, and imports. Valid drafts save automatically. Browser **FILE → EXPORT / IMPORT JSON** downloads and opens versioned JSON files; on desktop these buttons open native Save As/Open dialogs for the chosen JSON file. Desktop drafts live in `objects/draft.json`; browser drafts live in local storage. See [the editor guide](docs/EDITOR.md) for controls, property units, and current limits.
+Desktop LAN matches support up to **six players**. Choose **Play on local network**;
+one player hosts, and the others join the discovered lobby or enter the host's
+address. Pick teams, ready up, and let the host start the match.
 
-**Shape the fractures:** open **FRACTURE** and choose **STONES** or **BRICKS**. Adjust grain width/height, drag stone grain points, Shift-click to add a point, or Delete to remove one. Bright grain seams are separate from the internal solver triangles. E and Gc are now editable too.
+Play on the same local network; internet matchmaking is not available.
+See the [multiplayer guide](docs/LAN_MULTIPLAYER.md) for connection help.
 
-**Compare ten barrels:** open [the prepared crush simulation](http://127.0.0.1:8000/sandbox.html?experiment=barrels) while the server is running. Ten synchronized tank/backstop trials span different plastic yield stress and hardening. Click a case, focus it, and mark/save your favorite. Desktop: `cargo run --release -p sandbox -- --barrels`.
+## Controls
 
-**Updated obstacles:** the library Wall has weaker masonry seams and a single breakable support: a standard shell produces rubble, while a tank ram separates larger blocks. Rock uses the former wall’s seam strengths and a central ground attachment. Load either through **O → L**; **SHAPE** exposes the ground anchor and individual edge pins.
+| Action | Keyboard / mouse | Gamepad / Steam Deck |
+| --- | --- | --- |
+| Drive and steer | W / A / S / D | Left stick |
+| Aim | Mouse | Right stick |
+| Fire main weapon | Left click / Space / F | RT |
+| Change tank ammunition | B or 5 / 6 | RB |
+| Use special weapon | G / right click | LT |
+| Match menu | Esc | Menu / Start |
+| Show help | H | X |
+| Sound settings | F7 | Y |
 
-**Less spinning:** ground rotational friction is four times stronger for objects and debris. Reload the browser build and use **RUN ALL** to see it in saved comparisons.
+With the tank, **Q / E** or **J / K** also rotate the turret. With the mortar,
+these keys adjust firing range; on a controller, hold the right stick up or down
+to adjust range and release it to keep your aim.
 
-**Barrel wall release:** [open the new six-case trial](http://127.0.0.1:8000/sandbox.html?experiment=barrel-release). Case 2 is the selected barrel default: it separates from the close wall while matching the constant-bounce case 2's no-backstop motion within 1 mm on the same build. The material uses stronger bounce for softer collisions and low bounce for hard impacts; friction remains 0.09. Edit **MATERIAL → BOUNCE >** in the editor, or **FOCUS CASE → MATERIAL → BOUNCE RESPONSE >** in comparisons. Desktop: `cargo run --release -p sandbox -- --barrel-release`.
+See [Steam Deck and controller controls](docs/STEAM_DECK.md) for menu navigation
+and handheld tips.
 
-**Compare barrel bounce and friction:** open [the six shell-impact trials](http://127.0.0.1:8000/sandbox.html?experiment=barrel-shot), or **O → L → SHOT RESPONSE / 6**. Columns use friction **0.02 / 0.09 / 0.40**; rows use bounciness **0.04 / 0.70**. All use the accepted barrel profile (strain limit 3), the same 6 kg / 220 m/s shell and a backstop. Playback loops in slow motion. Edit the shared shot controls then **RUN ALL**, or focus a case to edit **MATERIAL → FRICTION / BOUNCINESS**. Desktop: `cargo run --release -p sandbox -- --barrel-shot`.
+## Make your own battlefield
 
-The selected shot references are **case 6 with the backstop** and **[case 2 without it](http://127.0.0.1:8000/sandbox.html?experiment=barrel-shot-free)**. Each link remembers its own favorite. Without the close fixture, the barrel can still strike the outer arena walls, now visible in recorded comparisons.
+Every package includes a separate **sandbox** for trying weapons, experimenting
+with destruction, and building maps. On Linux or Deck, launch `sandbox.sh`;
+on macOS, open **Fracture Sandbox.app**.
 
-**Compare deformation:** open [the six-case simulation](http://127.0.0.1:8000/sandbox.html?experiment=crush), or **O → L → DEFORMATION / 6**. Six barrels use strain limits **0.4 / 0.8 / 1.2 / 1.6 / 2.2 / 3.0** under identical impacts. The **TEST ALL CASES** bar edits speed, approach angle, offset, tank mass, duration and backstop while all six views stay visible. Choose **RUN ALL** to recalculate in the running app—no compilation or page reload. **FOCUS CASE → MATERIAL** edits one object's properties; **MAKE 6 VARIANTS** creates another material sweep. Mark/save your favorite and export/import experiments as usual. Desktop: `cargo run --release -p sandbox -- --crush`.
+![Quarry Crossing in the map editor, showing routes, a river crossing, cover, and team flags](docs/screenshots/map-editor.png)
 
-**Compare destruction:** choose **COMPARE** to run four synchronized shell or tank trials. Sweep material, grain size, mass or speed; scrub the shared timeline; mark a favorite and bring it back to the editor. **SAVE** stores the reproducible recipe and selected visual frame. **LIBRARY** reloads trials; **EXPORT / IMPORT** shares them as JSON. See [the comparison guide](docs/EXPERIMENTS.md).
+*Build your own routes and crossings in the map editor.*
 
-**Simulation:** `crates/sim` advances at 120 Hz, with four physics substeps per tick. Each connected chunk is one Rapier rigid body, regardless of its internal cell count. A separate elastic interface graph estimates tension, compression, shear, and bending. Overloaded seams can break if the impact supplies enough fracture work; stress is recalculated after each crack. Splitting preserves mass and the parent's rigid velocity field.
+Open **M / Level Editor** to lay out roads, rivers, bridges, cover, weapon pickups,
+spawns, and flags. Playtest as either team, then export your map and use
+**Import Map** in the game lobby to play it. The object editor lets you create
+and test your own walls, rocks, barrels, and other destructible scenery.
 
-Strong impacts locally subdivide large triangles, including cells inside whole objects and previously detached chunks. New internal seams start intact. This gives later shots somewhere to crack a large triangle without making finely detailed rocks flexible. Disconnected chunks below 0.075 m² fade after roughly 3–4 simulation seconds. Press **H** to see chunk/cell counts and refinement limits.
+Start with the [map editor guide](docs/LEVEL_EDITOR.md) or
+[object editor guide](docs/EDITOR.md). Editors work best with a mouse or Deck trackpad.
 
-Destructible objects use a rigid-chunk brittle-fracture approximation. Its stress graph is quasistatic, its material constants are illustrative, and its crack-work budget is not a full cohesive traction/separation or dynamic FEM model. Crack paths still follow triangular edges. Barrels and metal fences use a separate permanent deformation mode; armor penetration and general vertical physics are still deferred. Bridges use an explicit 2.5D collapse rule. High initial detail still increases collision and fracture costs; start coarse and let impacts add local detail. See [the simulation notes](docs/SANDBOX.md) for implementation, measured limits, and validation.
-
-**Validate:**
-
-```sh
-bash tools/check.sh                 # format, tests, clippy
-bash tools/check.sh --web           # also build the browser version
-cargo run --release -p sim --example measure
-cargo run --release -p sim --example impact
-cargo run --release -p sim --example resolution
-```
-
-`bash tools/check-browser.sh` runs all browser suites sequentially; append suite names to select them (for example `editor comparison terrain`). `node tools/browser-smoke.mjs` runs the gameplay interaction checks and saves screenshots to `target/screenshots/`. It needs Node 22+, the local server, and an isolated Chrome instance with remote debugging on port 9227. See [the browser verification instructions](docs/SANDBOX.md).
-
-`node tools/editor-smoke.mjs` checks authoring, physics testing, undo/redo, file import/export, draft restoration, invalid input, and high-DPI rendering in the same browser setup.
-
-`node tools/comparison-smoke.mjs` checks editable grains, synchronized shell/tank trials, exact replay, saved checkpoints, library persistence and experiment file round trips.
-
-`node tools/library-smoke.mjs` checks the original four starters, component/color editing, saved copies, reload, invalid-save preservation, explosions and yard navigation.
-
-`node tools/plasticity-smoke.mjs` checks deformation settings, undo/save/reload, real tank/fence contact, permanent bends and reset. `node tools/barrel-smoke.mjs` verifies ten deformable barrels and exact shape replay.
-
-`node tools/crush-smoke.mjs` verifies six deformation limits, shared runtime impact settings (including actual approach angles), separate material edits, saved favorites and exact replay.
-
-[The original project plan](docs/PLAN.md) covers the engine comparison, architecture, and later milestones.
-
-[The destruction architecture](docs/DESTRUCTION.md) explains rigid chunks, stress transmission, adaptive refinement, and the remaining physics limitations.
-
-`node tools/barrel-shot-smoke.mjs` checks friction/bounce variants, rebound travel, exact replay, runtime shot/material edits, editor persistence and the library shortcut.
-
-The separate [AI battlefield spectator and match harness](docs/AI_ARENA.md) runs
-four-minute 2v2 matches with team vision, independent random vehicles and seekable
-recordings. Build its Deck package with `bash tools/build-ai-arena.sh`.
+Building from source or contributing? See [CONTRIBUTING.md](CONTRIBUTING.md) and
+the [local release guide](docs/RELEASING.md).
