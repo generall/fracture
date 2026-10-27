@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080c14">
+  <meta name="description" content="Fracture is tank combat on a destructible battlefield. Break through cover, reach the enemy flag, and play solo or with friends on your local network.">
+  <meta property="og:title" content="Fracture — Break your own path">
+  <meta property="og:description" content="Destructible battlefields. Three vehicles. One enemy flag. Tank combat for Linux, Steam Deck, and macOS.">
+  <meta property="og:type" content="website">
+  <title>Fracture — Break your own path</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="nav wrap">
+    <a class="brand" href="#" aria-label="Fracture home"><span class="brand-mark" aria-hidden="true">F</span> FRACTURE</a>
+    <nav aria-label="Main navigation"><a href="#battlefield">The game</a><a href="#arsenal">Vehicles</a><a href="#download" class="nav-download">Download <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy"><p class="eyebrow"><span class="dot"></span> DESTRUCTIBLE TANK COMBAT</p>
+        <h1 id="hero-title">BREAK<br>YOUR OWN<br><span>PATH.</span></h1>
+        <p class="intro">Walls are temporary. The battlefield remembers.<br>Blast a way through and reach the enemy flag.</p>
+        <div class="actions"><a class="button" href="#download">Get Fracture <span aria-hidden="true">↓</span></a><a class="text-link" href="#battlefield">Explore the battlefield <span aria-hidden="true">↘</span></a></div>
+        <p class="platforms">LINUX <span>/</span> STEAM DECK <span>/</span> macOS</p>
+      </div>
+      <figure class="hero-image"><img src="assets/gameplay.png" width="1600" height="1000" alt="Cyan and pink tanks face off among buildings and destructible cover"><figcaption><span>FIELD REPORT / 001</span><span>EVERY BREACH IS A NEW ROUTE</span></figcaption></figure>
+    </section>
+    <div class="facts wrap"><span>01 <strong>Persistent destruction</strong></span><span>02 <strong>Solo against AI</strong></span><span>03 <strong>Up to 6 players on LAN</strong></span></div>
+    <section class="section wrap trailer" aria-labelledby="trailer-title">
+      <div class="section-heading"><div><p class="eyebrow">SEE IT IN ACTION</p><h2 id="trailer-title">25 seconds on the front line.</h2></div><p>Watch the gameplay trailer.</p></div>
+      <video controls muted playsinline preload="none" poster="assets/gameplay.png" aria-label="Fracture gameplay trailer"><source src="assets/fracture-trailer.mp4" type="video/mp4">Your browser does not support embedded video. <a href="assets/fracture-trailer.mp4">Download the trailer.</a></video>
+    </section>
+    <section id="battlefield" class="section wrap split">
+      <div><p class="eyebrow">THE BATTLEFIELD IS YOURS TO CHANGE</p><h2>Cover today.<br>Rubble tomorrow.</h2><p>Break walls, bring down bridges, and push through the debris. The damage stays, turning yesterday’s cover into your next attack route.</p><p>Use roads for speed, disappear into tall grass, and watch the fog of war. Touch the enemy flag to win. Get destroyed? Pick another vehicle and get back in the fight.</p><a class="text-link" href="https://github.com/generall/fracture/blob/master/docs/GAME_MODE.md">Read the field guide <span aria-hidden="true">↗</span></a></div>
+      <figure class="image-panel"><img src="assets/laser.png" width="1600" height="1000" loading="lazy" alt="A tank cuts through battlefield cover with a bright cyan laser"><figcaption>Collect lasers, rockets, plasma cannons, and mines.</figcaption></figure>
+    </section>
+    <section id="arsenal" class="section wrap">
+      <div class="section-heading"><div><p class="eyebrow">CHOOSE YOUR APPROACH</p><h2>Three ways to break through.</h2></div><p>Pick your ride at the start.<br>Change your tactics when you respawn.</p></div>
+      <div class="vehicles">
+        <article><span class="vehicle-number">01 / RECON</span><h3>Scout car</h3><p class="vehicle-tag">Speed. Vision. Opportunity.</p><p>Light armor, all-around vision, and a rapid-fire gun. Find a gap and make a dash for the flag.</p></article>
+        <article><span class="vehicle-number">02 / ASSAULT</span><h3>Tank</h3><p class="vehicle-tag">Make an entrance.</p><p>A rotating turret, explosive and armor-piercing shells, plus special weapons. Open a route or hold the crossing.</p></article>
+        <article><span class="vehicle-number">03 / SUPPORT</span><h3>Mortar carrier</h3><p class="vehicle-tag">Go over their defenses.</p><p>Heavy armor and arcing shells that pass over cover. Stop to tighten your aim and make every shot count.</p></article>
+      </div>
+    </section>
+    <section class="section wrap split editor">
+      <figure class="image-panel"><img src="assets/map-editor.png" width="1600" height="1000" loading="lazy" alt="The map editor shows a river, bridges, cover, and team flags"><figcaption>YOUR MAP. YOUR CROSSINGS. YOUR RULES OF ENGAGEMENT.</figcaption></figure>
+      <div><p class="eyebrow">SANDBOX INCLUDED</p><h2>Build the next<br>battleground.</h2><p>Lay out roads, rivers, bridges, cover, and pickups. Playtest as either team, export your map, and bring it into the game lobby.</p><p>The separate sandbox also lets you experiment with weapons and create your own destructible scenery.</p><a class="text-link" href="https://github.com/generall/fracture/blob/master/docs/LEVEL_EDITOR.md">Open the map editor guide <span aria-hidden="true">↗</span></a></div>
+    </section>
+    <section id="download" class="section wrap download">
+      <p class="eyebrow">READY WHEN YOU ARE</p><h2>Your next match<br>starts with a breach.</h2><p>Play against the AI or gather up to six players on your local network.<br>One player hosts. Everyone picks a team. The battlefield does the rest.</p>
+      <a class="button" href="https://github.com/generall/fracture/releases/latest">Download the latest release <span aria-hidden="true">↗</span></a>
+      <div class="install-grid"><div><h3>Linux</h3><p>Extract the package and run <code>fracture.sh</code>. Use <code>install.sh</code> to add it to your app menu.</p></div><div><h3>Steam Deck</h3><p>Install in Desktop Mode, add <code>fracture-deck.sh</code> as a non-Steam game, and use the Gamepad template. Leave Proton disabled.</p></div><div><h3>macOS</h3><p>Choose Apple Silicon or Intel, extract the package, and drag Fracture.app to Applications.</p></div></div>
+      <div class="download-notes"><a href="https://github.com/generall/fracture/blob/master/docs/RELEASING.md">Installation help ↗</a><a href="https://github.com/generall/fracture/blob/master/docs/LAN_MULTIPLAYER.md">LAN setup ↗</a><span>Local network multiplayer · No internet matchmaking</span></div>
+    </section>
+  </main>
+  <footer class="wrap"><a class="brand" href="#">FRACTURE</a><span>Leave your mark on the battlefield.</span><a href="https://github.com/generall/fracture">View on GitHub ↗</a></footer>
+</body>
+</html>
