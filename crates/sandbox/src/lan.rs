@@ -1,5 +1,4 @@
 //! Desktop LAN screens and snapshot presentation. No simulation runs here.
-mod playout;
 use crate::ui::PINK;
 use crate::{
     game::{Action, Game, Screen},
@@ -7,7 +6,6 @@ use crate::{
     ui::*,
 };
 use macroquad::prelude::*;
-use playout::Playout;
 use sim::{
     level::Team,
     matchplay::MatchProgress,
@@ -21,6 +19,7 @@ use std::{
 };
 use tank_net::{
     discovery::{self, Discovery},
+    playout::Playout,
     protocol::{ClientMessage, Input, Lobby, ServerMessage},
     replication::{self, Decoder},
     session::{Client, Host, HostCommand},
@@ -46,6 +45,9 @@ pub struct Lan {
     sequence: u32,
     fire: u32,
     special: u32,
+    /// Vehicle choices made, and the latest one, repeated in every input.
+    deploys: u32,
+    deploy: Option<sim::VehicleKind>,
     last_input: Instant,
 }
 impl Default for Lan {
@@ -69,6 +71,8 @@ impl Default for Lan {
             sequence: 0,
             fire: 0,
             special: 0,
+            deploys: 0,
+            deploy: None,
             last_input: Instant::now(),
         }
     }
@@ -130,6 +134,8 @@ impl Lan {
         self.sequence = 0;
         self.fire = 0;
         self.special = 0;
+        self.deploys = 0;
+        self.deploy = None;
     }
     fn poll(&mut self, game: &mut Game, lab: &mut Lab) {
         if let Some(rx) = &self.connecting
@@ -158,7 +164,7 @@ impl Lan {
         };
         for message in messages {
             match message {
-                ServerMessage::Welcome { slot } => {
+                ServerMessage::Welcome { slot, .. } => {
                     self.slot = Some(slot);
                     self.status.clear();
                 }
@@ -185,11 +191,12 @@ impl Lan {
                     delta,
                     events,
                     progress,
+                    sent,
                 } => match self.decoder.decode(*delta) {
                     Ok(frame) => {
-                        let host = frame.stats.ticks as f64 * f64::from(sim::TICK_DT);
                         let now = self.epoch.elapsed().as_secs_f64();
-                        self.playout.push(host, now, (frame, events, progress));
+                        self.playout
+                            .push(sent as f64 * 1e-6, now, (frame, events, progress));
                     }
                     Err(e) => {
                         self.status = format!("Invalid host update: {e}");
@@ -346,6 +353,10 @@ impl Lan {
             }
         });
         lab.pending.clear();
+        if deploy.is_some() {
+            self.deploys = self.deploys.wrapping_add(1);
+            self.deploy = deploy;
+        }
         if deploy.is_none()
             && !fire
             && !special
@@ -355,19 +366,25 @@ impl Lan {
         }
         self.sequence = self.sequence.wrapping_add(1);
         self.last_input = Instant::now();
-        self.send(ClientMessage::Input(Input {
+        let input = Input {
             sequence: self.sequence,
             fire: self.fire,
             special: self.special,
+            deploy: self.deploys,
             control: PlayerInput {
-                deploy,
+                deploy: self.deploy,
                 tracks: if enabled { tracks } else { [0.0; 2] },
                 aim: sim::Vec2::new(lab.aim.x, lab.aim.y),
                 ammunition: lab.inspector.ammunition,
                 fire: false,
                 special: false,
             },
-        }));
+        };
+        if let Some(client) = &mut self.client
+            && let Err(e) = client.send_input(input)
+        {
+            self.status = format!("Connection error: {e}");
+        }
     }
     pub fn draw(&mut self, game: &mut Game, size: Vec2, mouse: Vec2) -> Option<Action> {
         let compact = size.x < 1400.0 || size.y < 860.0;

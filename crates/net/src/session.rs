@@ -1,9 +1,9 @@
 //! Dedicated host simulation thread and a common TCP client for host and guests.
 use crate::{
-    discovery,
+    codec, discovery,
     protocol::*,
     replication::{self, Encoder},
-    transport::Connection,
+    transport::{self, Connection},
 };
 use sim::{
     level::{Level, Team},
@@ -14,7 +14,7 @@ use sim::{
 use std::{
     collections::{BTreeMap, VecDeque},
     io,
-    net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, UdpSocket},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener, TcpStream, UdpSocket},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -26,9 +26,14 @@ use std::{
 
 /// Every fourth 120 Hz tick; clients buffer and interpolate between snapshots.
 const SNAPSHOT_INTERVAL: Duration = Duration::from_nanos(1_000_000_000 / 30);
+/// Movement brakes when no input arrives for this long. Long enough to ride
+/// out a typical Wi-Fi latency spike instead of stopping and lurching.
+const STALE_INPUT: Duration = Duration::from_millis(500);
 
 pub struct Client {
     connection: Connection,
+    /// Unreliable copies of input, with this client's slot and token.
+    inputs: Option<(UdpSocket, u8, u64)>,
     last_ping: Instant,
     last_received: Instant,
 }
@@ -55,6 +60,7 @@ impl Client {
         connection.flush()?;
         Ok(Self {
             connection,
+            inputs: None,
             last_ping: Instant::now(),
             last_received: Instant::now(),
         })
@@ -62,6 +68,39 @@ impl Client {
     pub fn send(&mut self, message: ClientMessage) -> io::Result<()> {
         self.connection.send(&message)?;
         self.connection.flush()
+    }
+    /// Sends controls over UDP and TCP; the host keeps whichever arrives
+    /// first. A lost datagram costs nothing, and a TCP retransmission stall
+    /// no longer delays steering while datagrams get through.
+    pub fn send_input(&mut self, input: Input) -> io::Result<()> {
+        if let Some((socket, slot, token)) = &self.inputs {
+            let datagram = InputDatagram {
+                slot: *slot,
+                token: *token,
+                input,
+            };
+            if let Ok(bytes) = codec::encode(&datagram) {
+                let _ = socket.send(&bytes);
+            }
+        }
+        self.send(ClientMessage::Input(input))
+    }
+    /// True once the host has offered, and this client opened, the UDP channel.
+    pub fn has_input_channel(&self) -> bool {
+        self.inputs.is_some()
+    }
+    fn open_input_channel(&self, port: u16) -> io::Result<UdpSocket> {
+        let host = SocketAddr::new(self.connection.peer_addr()?.ip(), port);
+        let any: IpAddr = if host.is_ipv4() {
+            Ipv4Addr::UNSPECIFIED.into()
+        } else {
+            Ipv6Addr::UNSPECIFIED.into()
+        };
+        let socket = UdpSocket::bind((any, 0))?;
+        socket.connect(host)?;
+        socket.set_nonblocking(true)?;
+        transport::mark((&socket).into(), transport::INPUT_TOS);
+        Ok(socket)
     }
     pub fn poll(&mut self) -> io::Result<Vec<ServerMessage>> {
         if self.last_ping.elapsed() >= Duration::from_secs(1) {
@@ -72,6 +111,19 @@ impl Client {
         let messages = self.connection.receive()?;
         if !messages.is_empty() {
             self.last_received = Instant::now();
+        }
+        for message in &messages {
+            if let ServerMessage::Welcome {
+                slot,
+                input: Some(channel),
+            } = message
+            {
+                // Without the channel, input still travels reliably over TCP.
+                self.inputs = self
+                    .open_input_channel(channel.port)
+                    .ok()
+                    .map(|socket| (socket, *slot, channel.token));
+            }
         }
         if self.last_received.elapsed() > Duration::from_secs(10) {
             return Err(io::Error::new(
@@ -116,6 +168,8 @@ pub struct Host {
     metrics: Arc<Mutex<Metrics>>,
     pub address: SocketAddr,
     pub discovery_port: Option<u16>,
+    /// UDP port for input datagrams, if it could be opened.
+    pub input_port: Option<u16>,
     commands: SyncSender<HostCommand>,
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
@@ -169,6 +223,16 @@ impl Host {
             .as_ref()
             .and_then(|s| s.local_addr().ok())
             .map(|a| a.port());
+        // Input datagrams share the session's port number where it is free.
+        // Without them, guests fall back to TCP input alone.
+        let inputs = UdpSocket::bind(address)
+            .or_else(|_| UdpSocket::bind(SocketAddr::new(address.ip(), 0)))
+            .and_then(|socket| socket.set_nonblocking(true).map(|_| socket))
+            .ok();
+        let input_port = inputs
+            .as_ref()
+            .and_then(|s| s.local_addr().ok())
+            .map(|a| a.port());
         let mut peers = BTreeMap::new();
         peers.insert(0, Peer::new(host_stream).map_err(|e| e.to_string())?);
         let lobby = Lobby {
@@ -193,6 +257,8 @@ impl Host {
                     metrics: worker_metrics,
                     listener,
                     discovery,
+                    inputs,
+                    epoch: Instant::now(),
                     port: address.port(),
                     peers,
                     lobby,
@@ -222,6 +288,7 @@ impl Host {
                 metrics,
                 address,
                 discovery_port,
+                input_port,
                 commands,
                 stop,
                 thread: Some(worker),
@@ -258,6 +325,10 @@ fn validate_config(config: MatchConfig) -> Result<(), String> {
 }
 struct Peer {
     connection: Connection,
+    /// Authenticates this peer's input datagrams, which must also come from
+    /// the TCP peer's address.
+    token: u64,
+    ip: Option<IpAddr>,
     player: Option<Player>,
     index: Option<usize>,
     last_seen: Instant,
@@ -267,7 +338,9 @@ struct Peer {
 impl Peer {
     fn new(stream: TcpStream) -> io::Result<Self> {
         Ok(Self {
+            ip: stream.peer_addr().ok().map(|a| a.ip()),
             connection: Connection::new(stream)?,
+            token: token(),
             player: None,
             index: None,
             last_seen: Instant::now(),
@@ -299,12 +372,25 @@ impl Peer {
         });
     }
 }
+/// Not cryptographic: it keeps stray or forged LAN datagrams off other slots.
+fn token() -> u64 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+    hasher.write_u128(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos(),
+    );
+    hasher.finish()
+}
 struct ControlState {
     last_input: Instant,
     input: PlayerInput,
     sequence: Option<u32>,
     fire: u32,
     special: u32,
+    deploy: u32,
 }
 impl ControlState {
     fn new() -> Self {
@@ -314,6 +400,7 @@ impl ControlState {
             sequence: None,
             fire: 0,
             special: 0,
+            deploy: 0,
         }
     }
     fn take(&mut self) -> PlayerInput {
@@ -321,7 +408,7 @@ impl ControlState {
         self.input.fire = false;
         self.input.special = false;
         self.input.deploy = None;
-        if self.last_input.elapsed() > Duration::from_millis(250) {
+        if self.last_input.elapsed() > STALE_INPUT {
             input.tracks = [0.0; 2];
             // Brake stale movement, but deliver an accepted one-shot action once.
             // A host scheduling stall must not silently discard reliable input.
@@ -339,12 +426,20 @@ impl ControlState {
         }
         let fire_delta = input.fire.wrapping_sub(self.fire);
         let special_delta = input.special.wrapping_sub(self.special);
-        if fire_delta > u32::MAX / 2 || special_delta > u32::MAX / 2 {
+        let deploy_delta = input.deploy.wrapping_sub(self.deploy);
+        if [fire_delta, special_delta, deploy_delta]
+            .iter()
+            .any(|&delta| delta > u32::MAX / 2)
+        {
             return;
         }
         let fire = self.input.fire || fire_delta > 0;
         let special = self.input.special || special_delta > 0;
-        let deploy = input.control.deploy.or(self.input.deploy);
+        let deploy = input
+            .control
+            .deploy
+            .filter(|_| deploy_delta > 0)
+            .or(self.input.deploy);
         self.input = input.control;
         self.input.deploy = deploy;
         self.input.fire = fire;
@@ -352,6 +447,7 @@ impl ControlState {
         self.sequence = Some(input.sequence);
         self.fire = input.fire;
         self.special = input.special;
+        self.deploy = input.deploy;
         self.last_input = Instant::now();
     }
 }
@@ -359,6 +455,9 @@ struct Server {
     metrics: Arc<Mutex<Metrics>>,
     listener: TcpListener,
     discovery: Option<UdpSocket>,
+    inputs: Option<UdpSocket>,
+    /// Origin of the snapshot send timestamps.
+    epoch: Instant,
     port: u16,
     peers: BTreeMap<u8, Peer>,
     lobby: Lobby,
@@ -499,7 +598,17 @@ impl Server {
                     team,
                     ready: false,
                 });
-                let _ = peer.connection.send(&ServerMessage::Welcome { slot });
+                let input = self
+                    .inputs
+                    .as_ref()
+                    .and_then(|socket| socket.local_addr().ok())
+                    .map(|address| InputChannel {
+                        port: address.port(),
+                        token: peer.token,
+                    });
+                let _ = peer
+                    .connection
+                    .send(&ServerMessage::Welcome { slot, input });
                 if let (Some(index), Some(game), Some(map)) = (index, &mut self.game, &self.map) {
                     peer.enter(index, game, map, &self.progress);
                 }
@@ -544,6 +653,30 @@ impl Server {
             _ => {}
         }
         true
+    }
+    /// Applies the newest authenticated input datagrams. Stale, duplicate or
+    /// reordered copies are rejected by the same sequence check as TCP input.
+    fn receive_datagrams(&mut self) {
+        let Some(socket) = &self.inputs else {
+            return;
+        };
+        let mut data = [0u8; 512];
+        for _ in 0..64 {
+            let Ok((n, from)) = socket.recv_from(&mut data) else {
+                break;
+            };
+            let Ok(Some((datagram, used))) = codec::decode::<InputDatagram>(&data[..n]) else {
+                continue;
+            };
+            if let Some(peer) = self.peers.get_mut(&datagram.slot)
+                && used == n
+                && peer.token == datagram.token
+                && peer.index.is_some()
+                && peer.ip == Some(from.ip())
+            {
+                peer.controls.receive_input(datagram.input);
+            }
+        }
     }
     fn remove(&mut self, slot: u8) {
         if let Some(mut peer) = self.peers.remove(&slot) {
@@ -604,6 +737,7 @@ impl Server {
         if !self.peers.contains_key(&0) {
             return false;
         }
+        self.receive_datagrams();
         if self.dirty {
             self.roster();
             let lobby = ServerMessage::Lobby(self.lobby.clone());
@@ -646,6 +780,7 @@ impl Server {
             }
             if Instant::now() >= self.next_snapshot {
                 let started = Instant::now();
+                let sent = started.duration_since(self.epoch).as_micros() as u64;
                 game.prepare_snapshot();
                 let mut shared = Frame::capture(game.for_player(0).unwrap());
                 shared.weapons = game.weapon_effects();
@@ -684,6 +819,7 @@ impl Server {
                             delta: Box::new(delta),
                             events,
                             progress,
+                            sent,
                         })
                         .is_err()
                     {
@@ -719,11 +855,33 @@ mod input_tests {
             sequence,
             fire,
             special,
+            deploy: 0,
             control: PlayerInput {
                 tracks: [1.0; 2],
                 ..Default::default()
             },
         }
+    }
+    #[test]
+    fn vehicle_choice_survives_being_overtaken_and_repeats_do_not_redeploy() {
+        let choose = |sequence, deploy| {
+            let mut input = input(sequence, 0, 0);
+            input.deploy = deploy;
+            input.control.deploy = Some(sim::VehicleKind::Scout);
+            input
+        };
+        let mut controls = ControlState::new();
+        // The datagram after the choice overtakes the TCP copy carrying it.
+        controls.receive_input(choose(2, 1));
+        controls.receive_input(choose(1, 1));
+        assert_eq!(controls.take().deploy, Some(sim::VehicleKind::Scout));
+        // Later inputs repeat the choice without counting a new one.
+        controls.receive_input(choose(3, 1));
+        assert_eq!(controls.take().deploy, None);
+        controls.receive_input(choose(4, 0));
+        assert_eq!(controls.sequence, Some(3), "regressing counter is rejected");
+        controls.receive_input(choose(5, 2));
+        assert_eq!(controls.take().deploy, Some(sim::VehicleKind::Scout));
     }
     #[test]
     fn accepted_actions_survive_stalls_once_while_stale_movement_brakes() {

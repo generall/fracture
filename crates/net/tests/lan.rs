@@ -7,13 +7,19 @@ use sim::{
     replica::Frame,
 };
 use std::{
-    net::{Ipv4Addr, SocketAddr},
+    io::{Read, Write},
+    net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream, UdpSocket},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::{Duration, Instant},
 };
 use tank_net::{
+    codec,
     discovery::Discovery,
-    protocol::{ClientMessage, Input, Lobby, ServerMessage},
+    protocol::{ClientMessage, Input, InputDatagram, Lobby, ServerMessage},
     replication::Decoder,
     session::{Client, Host, HostCommand},
 };
@@ -66,6 +72,7 @@ impl TestClient {
                             sequence: self.starts as u32 - 1,
                             fire: 0,
                             special: 0,
+                            deploy: self.starts as u32,
                             control: PlayerInput {
                                 deploy: Some(sim::VehicleKind::Tank),
                                 ..Default::default()
@@ -77,6 +84,7 @@ impl TestClient {
                     delta,
                     events,
                     progress,
+                    ..
                 } => {
                     let frame = self.decoder.decode(*delta).unwrap();
                     if let Some(map) = self.pending_map.take() {
@@ -202,6 +210,7 @@ fn six_clients_discover_ready_play_and_return_to_lobby() {
                     sequence,
                     fire: 0,
                     special: 0,
+                    deploy: 1,
                     control: PlayerInput {
                         tracks: if index == 2 { [1.0; 2] } else { [0.0; 2] },
                         aim: starts[index] + Vec2::Y * 20.0,
@@ -447,6 +456,7 @@ fn remote_plasma_charges_once_destroys_props_kills_and_respawns_host() {
         sequence: 1,
         fire: 0,
         special: 1,
+        deploy: 1,
         control: PlayerInput {
             aim: Vec2::new(-6.0, 0.0),
             ..Default::default()
@@ -520,6 +530,7 @@ fn remote_plasma_charges_once_destroys_props_kills_and_respawns_host() {
             sequence: 2,
             fire: 0,
             special: 0,
+            deploy: 2,
             control: PlayerInput {
                 deploy: Some(sim::VehicleKind::Tank),
                 ..Default::default()
@@ -562,6 +573,7 @@ fn backed_up_reader_skips_snapshots_without_stalling_others_and_recovers_deltas(
                 sequence,
                 fire: 0,
                 special: 0,
+                deploy: 1,
                 control: PlayerInput {
                     aim: origin + Vec2::from_angle(sequence as f32 * 0.1) * 20.0,
                     ..Default::default()
@@ -647,6 +659,7 @@ fn late_joiners_enter_running_match_deploy_drive_and_reuse_departed_slots() {
                 sequence,
                 fire: 0,
                 special: 0,
+                deploy: 1,
                 control: PlayerInput {
                     tracks: [1.0; 2],
                     aim: start + Vec2::Y * 20.0,
@@ -690,6 +703,126 @@ fn late_joiners_enter_running_match_deploy_drive_and_reuse_departed_slots() {
     assert_eq!(clients[2].frame.as_ref().unwrap().player, id);
     wait(&mut clients, Duration::from_secs(2), |c| {
         c[0].frame.as_ref().unwrap().tanks.len() == tanks
+    });
+    assert!(clients.iter().all(|c| c.errors.is_empty()));
+}
+/// Relays one guest's TCP connection. While `hold` is set, guest → host bytes
+/// wait, as a Wi-Fi TCP stream does behind a lost segment's retransmission.
+fn stalling_relay(host: SocketAddr, hold: Arc<AtomicBool>) -> SocketAddr {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let address = listener.local_addr().unwrap();
+    thread::spawn(move || {
+        let (mut guest, _) = listener.accept().unwrap();
+        let mut upstream = TcpStream::connect(host).unwrap();
+        let (mut down_from, mut down_to) =
+            (upstream.try_clone().unwrap(), guest.try_clone().unwrap());
+        thread::spawn(move || {
+            let _ = std::io::copy(&mut down_from, &mut down_to);
+        });
+        guest.set_nonblocking(true).unwrap();
+        let mut buffer = [0u8; 4096];
+        loop {
+            if hold.load(Ordering::Relaxed) {
+                thread::sleep(Duration::from_millis(1));
+                continue;
+            }
+            match guest.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(n) => {
+                    if upstream.write_all(&buffer[..n]).is_err() {
+                        break;
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(1));
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    address
+}
+#[test]
+#[ignore = "requires local TCP and UDP sockets"]
+fn udp_input_keeps_steering_while_guest_tcp_stalls_and_rejects_forged_datagrams() {
+    let config = MatchConfig {
+        airdrops: false,
+        ..Default::default()
+    };
+    let (host, mut clients) = connect_players(Level::default(), config, 1);
+    let hold = Arc::new(AtomicBool::new(false));
+    let relay = stalling_relay(host.address, hold.clone());
+    clients.push(TestClient::new(
+        Client::connect(relay, "Wi-Fi guest").unwrap(),
+    ));
+    wait(&mut clients, Duration::from_secs(3), |c| {
+        c.iter()
+            .all(|c| c.lobby.as_ref().is_some_and(|l| l.players.len() == 2))
+    });
+    ready_and_start(&host, &mut clients);
+    wait(&mut clients, Duration::from_secs(5), |c| {
+        c.iter().all(|c| c.frame.as_ref().is_some_and(|f| f.alive))
+    });
+    assert!(clients[1].client.has_input_channel());
+    let guest_start = clients[1].frame.as_ref().unwrap().position;
+    let host_start = clients[0].frame.as_ref().unwrap().position;
+    let forger = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let drive = |sequence| Input {
+        sequence,
+        fire: 0,
+        special: 0,
+        deploy: 1,
+        control: PlayerInput {
+            tracks: [1.0; 2],
+            aim: guest_start + Vec2::Y * 20.0,
+            ..Default::default()
+        },
+    };
+    hold.store(true, Ordering::Relaxed);
+    let stalled = Instant::now();
+    let mut sequence = 0;
+    while stalled.elapsed() < Duration::from_millis(1500) {
+        sequence += 1;
+        clients[1].client.send_input(drive(sequence)).unwrap();
+        // Another LAN device guessing the host player's slot cannot steer it.
+        let forged = InputDatagram {
+            slot: 0,
+            token: 0x5eed,
+            input: drive(sequence),
+        };
+        forger
+            .send_to(
+                &codec::encode(&forged).unwrap(),
+                (Ipv4Addr::LOCALHOST, host.input_port.unwrap()),
+            )
+            .unwrap();
+        for c in &mut clients {
+            c.poll();
+        }
+        thread::sleep(Duration::from_millis(16));
+    }
+    // Every TCP input is still held, yet the guest kept driving past the
+    // stale-input brake and the snapshots coming back show it.
+    let guest = clients[1].frame.as_ref().unwrap();
+    assert!(
+        guest.position.distance(guest_start) > 1.0,
+        "{guest_start} → {}",
+        guest.position
+    );
+    assert!(
+        guest.tracks.iter().all(|speed| *speed > 0.2),
+        "{:?}",
+        guest.tracks
+    );
+    let host_now = clients[0].frame.as_ref().unwrap().position;
+    assert!(
+        host_now.distance(host_start) < 0.05,
+        "forged input moved the host"
+    );
+    hold.store(false, Ordering::Relaxed);
+    let tick = clients[1].frame.as_ref().unwrap().stats.ticks;
+    wait(&mut clients, Duration::from_secs(2), |c| {
+        c[1].frame.as_ref().unwrap().stats.ticks > tick + 60
     });
     assert!(clients.iter().all(|c| c.errors.is_empty()));
 }

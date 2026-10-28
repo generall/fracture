@@ -6,7 +6,7 @@ use sim::{
     multiplayer::PlayerInput,
     replica::Map,
 };
-pub const VERSION: u32 = 9;
+pub const VERSION: u32 = 10;
 pub const PORT: u16 = 45771;
 pub const DISCOVERY_PORT: u16 = 45770;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,12 +37,31 @@ impl Lobby {
             && self.players.iter().any(|p| p.team == Team::Red)
     }
 }
+/// Latest controls. One-shot actions are cumulative counters, so any newer
+/// input carries every earlier action and a lost or overtaken copy is harmless.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Input {
     pub sequence: u32,
     pub fire: u32,
     pub special: u32,
+    /// Counts vehicle choices; `control.deploy` repeats the latest one.
+    pub deploy: u32,
     pub control: PlayerInput,
+}
+/// Where to send unreliable input copies, and the session secret proving the
+/// sender owns its slot.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct InputChannel {
+    pub port: u16,
+    pub token: u64,
+}
+/// A UDP copy of the latest input. Each one supersedes earlier ones, so loss
+/// or reordering never holds controls behind a TCP retransmission.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct InputDatagram {
+    pub slot: u8,
+    pub token: u64,
+    pub input: Input,
 }
 #[derive(Serialize, Deserialize)]
 pub enum ClientMessage {
@@ -57,6 +76,7 @@ pub enum ClientMessage {
 pub enum ServerMessage {
     Welcome {
         slot: u8,
+        input: Option<InputChannel>,
     },
     Lobby(Lobby),
     Started {
@@ -67,6 +87,10 @@ pub enum ServerMessage {
         delta: Box<Delta>,
         events: Vec<sim::Event>,
         progress: MatchProgress,
+        /// Host clock at capture, in microseconds. Unlike the tick count it
+        /// advances through the countdown and host catch-up limits, so clients
+        /// can measure network jitter from it.
+        sent: u64,
     },
     Error(String),
     Pong,
