@@ -605,3 +605,91 @@ fn backed_up_reader_skips_snapshots_without_stalling_others_and_recovers_deltas(
         metrics.skipped_snapshots, metrics.peak_queued_bytes
     );
 }
+#[test]
+#[ignore = "requires local TCP sockets"]
+fn late_joiners_enter_running_match_deploy_drive_and_reuse_departed_slots() {
+    let config = MatchConfig {
+        airdrops: false,
+        ..Default::default()
+    };
+    let (host, mut clients) = connect_players(Level::default(), config, 2);
+    ready_and_start(&host, &mut clients);
+    wait(&mut clients, Duration::from_secs(3), |c| {
+        c.iter()
+            .all(|c| c.frame.as_ref().is_some_and(|f| f.stats.ticks >= 120))
+    });
+    clients.push(TestClient::new(
+        Client::connect(host.address, "Latecomer").unwrap(),
+    ));
+    wait(&mut clients, Duration::from_secs(5), |c| {
+        c[2].frame.as_ref().is_some_and(|f| f.alive)
+            && c[0].lobby.as_ref().unwrap().players.len() == 3
+    });
+    let late = &clients[2];
+    assert_eq!(late.starts, 1);
+    assert!(late.errors.is_empty(), "{:?}", late.errors);
+    assert!(late.progress.as_ref().unwrap().elapsed_ticks >= 120);
+    let frame = late.frame.clone().unwrap();
+    // Two players are split evenly, so the newcomer balances onto Blue.
+    assert_eq!(frame.team, Team::Blue);
+    assert!(
+        frame.bodies.len() > 3,
+        "the first snapshot carries the whole scene"
+    );
+    let lobby = clients[0].lobby.clone().unwrap();
+    assert!(lobby.playing);
+    assert_eq!(lobby.players[2].team, Team::Blue);
+    let start = frame.position;
+    for sequence in 1..=40 {
+        clients[2]
+            .client
+            .send(ClientMessage::Input(Input {
+                sequence,
+                fire: 0,
+                special: 0,
+                control: PlayerInput {
+                    tracks: [1.0; 2],
+                    aim: start + Vec2::Y * 20.0,
+                    ..Default::default()
+                },
+            }))
+            .unwrap();
+        for c in &mut clients {
+            c.poll();
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    wait(&mut clients, Duration::from_secs(2), |c| {
+        c[2].frame
+            .as_ref()
+            .is_some_and(|f| f.position.distance(start) > 0.2)
+    });
+    let id = clients[2].frame.as_ref().unwrap().player;
+    for c in &clients[..2] {
+        let tank = c.frame.as_ref().unwrap().tanks.iter().find(|t| t.id == id);
+        assert!(tank.is_some_and(|t| t.team == Team::Blue && t.health > 0.0));
+    }
+    // A departure frees both the session slot and the tank for the next guest.
+    let tanks = clients[0].frame.as_ref().unwrap().tanks.len();
+    clients
+        .pop()
+        .unwrap()
+        .client
+        .send(ClientMessage::Leave)
+        .unwrap();
+    wait(&mut clients, Duration::from_secs(2), |c| {
+        c[0].lobby.as_ref().unwrap().players.len() == 2
+    });
+    assert!(clients[0].frame.as_ref().unwrap().winner.is_none());
+    clients.push(TestClient::new(
+        Client::connect(host.address, "Second latecomer").unwrap(),
+    ));
+    wait(&mut clients, Duration::from_secs(5), |c| {
+        c[2].frame.as_ref().is_some_and(|f| f.alive)
+    });
+    assert_eq!(clients[2].frame.as_ref().unwrap().player, id);
+    wait(&mut clients, Duration::from_secs(2), |c| {
+        c[0].frame.as_ref().unwrap().tanks.len() == tanks
+    });
+    assert!(clients.iter().all(|c| c.errors.is_empty()));
+}

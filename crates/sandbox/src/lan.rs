@@ -168,13 +168,17 @@ impl Lan {
                         game.menu = false;
                         self.reset_snapshots();
                     }
+                    if lobby.playing && game.screen == Screen::Match {
+                        self.announce_roster(&lobby, lab);
+                    }
                     self.lobby = Some(lobby);
                 }
                 ServerMessage::Started { map, progress } => {
                     self.map = Some(map);
                     self.reset_snapshots();
+                    // Joining a running match skips the opening countdown.
+                    game.countdown = if progress.elapsed_ticks > 0 { 0.0 } else { 3.0 };
                     lab.match_progress = Some(progress);
-                    game.countdown = 3.0;
                     game.menu = false;
                 }
                 ServerMessage::Snapshot {
@@ -222,6 +226,35 @@ impl Lan {
                 }
             }
             lab.present_events(&events);
+        }
+    }
+    /// Names players who joined or left the running match since the last roster.
+    fn announce_roster(&self, lobby: &Lobby, lab: &mut Lab) {
+        let Some(old) = &self.lobby else {
+            return;
+        };
+        let joined = lobby
+            .players
+            .iter()
+            .filter(|p| Some(p.slot) != self.slot)
+            .find(|p| {
+                !old.players
+                    .iter()
+                    .any(|o| o.slot == p.slot && o.name == p.name)
+            })
+            .map(|p| format!("{} joined {}", p.name, p.team.label()));
+        let left = old
+            .players
+            .iter()
+            .find(|o| {
+                !lobby
+                    .players
+                    .iter()
+                    .any(|p| p.slot == o.slot && p.name == o.name)
+            })
+            .map(|o| format!("{} left the match", o.name));
+        if let Some(message) = joined.or(left) {
+            lab.notice = Some((message, 3.0));
         }
     }
     /// Shows one buffered snapshot. Returns false if the session was abandoned.
@@ -433,7 +466,15 @@ impl Lan {
                     if p.ready { CYAN } else { MUTED },
                 );
             }
-            if let Some(player) = lobby.players.iter().find(|p| Some(p.slot) == self.slot) {
+            if lobby.playing {
+                text(
+                    "Match in progress. Joining…",
+                    64.0,
+                    if compact { size.y - 230.0 } else { 670.0 },
+                    18.0,
+                    MUTED,
+                );
+            } else if let Some(player) = lobby.players.iter().find(|p| Some(p.slot) == self.slot) {
                 if button(
                     Rect::new(
                         64.0,
@@ -464,7 +505,7 @@ impl Lan {
                     });
                 }
             }
-            if self.is_host() {
+            if self.is_host() && !lobby.playing {
                 for (index, label) in game.map_choices().into_iter().enumerate() {
                     if button(
                         Rect::new(
@@ -554,7 +595,7 @@ impl Lan {
                 ) {
                     self.command(HostCommand::Start);
                 }
-            } else {
+            } else if !lobby.playing {
                 text(
                     "The host chooses the map and starts when everyone is ready.",
                     64.0,
@@ -621,18 +662,23 @@ impl Lan {
             }
             for (i, (address, ad)) in found.into_iter().take(6).enumerate() {
                 let y = 230.0 + i as f32 * 76.0;
+                let full = ad.players >= 6;
                 let label = format!(
                     "{}  /  {}/6{}",
                     ad.name,
                     ad.players,
-                    if ad.playing { " / IN MATCH" } else { "" }
+                    match (ad.playing, full) {
+                        (_, true) => " / FULL",
+                        (true, false) => " / IN MATCH / JOIN",
+                        (false, false) => "",
+                    }
                 );
                 if button(
                     Rect::new(590.0, y, size.x - 654.0, 44.0),
                     &label,
                     mouse,
                     false,
-                ) && !ad.playing
+                ) && !full
                     && self.client.is_none()
                     && self.connecting.is_none()
                 {

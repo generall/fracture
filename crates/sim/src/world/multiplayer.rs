@@ -222,6 +222,57 @@ impl MultiplayerWorld {
             self.world.require_vehicle_choice(player.id);
         }
     }
+    /// Adds a human to a running match and returns their player index. A
+    /// disconnected player's tank is reused first, so a session never holds more
+    /// than MAX_PLAYERS tanks. The tank stays disabled until its vehicle choice;
+    /// deployment then uses the ordinary clear-spawn search.
+    pub fn join(&mut self, team: Team) -> Result<usize, String> {
+        // Every match starts with a human tank on both teams; reuse its spawn.
+        let spawn = self
+            .world
+            .tanks
+            .iter()
+            .find(|t| t.mount.is_none() && t.team == team)
+            .filter(|_| team != Team::Neutral)
+            .map(|t| t.spawn)
+            .ok_or("Team spawn missing")?;
+        let index = match self.players.iter().position(|p| !p.connected) {
+            Some(index) => index,
+            None if self.players.len() < MAX_PLAYERS => {
+                let id = self.world.add_tank();
+                self.world
+                    .register_tank(id, team, spawn.translation, spawn.rotation.angle());
+                self.players.push(Player {
+                    id,
+                    team,
+                    weapons: Weapons::default(),
+                    connected: false,
+                    shots: 0,
+                });
+                self.players.len() - 1
+            }
+            None => return Err("This match is full.".into()),
+        };
+        let id = self.players[index].id;
+        let tank = self.world.tanks.iter_mut().find(|t| t.id == id).unwrap();
+        if tank.team != team {
+            tank.team = team;
+            tank.spawn = spawn;
+        }
+        self.players[index] = Player {
+            id,
+            team,
+            weapons: Weapons::default(),
+            connected: true,
+            shots: 0,
+        };
+        self.world.require_vehicle_choice(id);
+        self.world
+            .physics
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.world.physics.colliders);
+        Ok(index)
+    }
     pub fn player_count(&self) -> usize {
         self.players.len()
     }
@@ -392,6 +443,63 @@ mod tests {
             far.mines.is_empty(),
             "leaving detection immediately hides it again"
         );
+    }
+    #[test]
+    fn late_joiners_deploy_mid_match_and_reuse_disconnected_tanks() {
+        let mut game = MultiplayerWorld::new(&Level::default(), &[Team::Blue, Team::Red]).unwrap();
+        game.require_vehicle_choices();
+        let mut inputs = vec![
+            PlayerInput {
+                deploy: Some(VehicleKind::Tank),
+                ..Default::default()
+            };
+            2
+        ];
+        for _ in 0..240 {
+            game.step(&inputs);
+            inputs.iter_mut().for_each(|i| i.deploy = None);
+        }
+        let tanks = game.world.tanks.len();
+        let joined = game.join(Team::Red).unwrap();
+        assert_eq!(joined, 2);
+        assert_eq!(game.world.tanks.len(), tanks + 1);
+        assert!(game.for_player(joined).unwrap().player_choosing_vehicle());
+        inputs.push(PlayerInput {
+            deploy: Some(VehicleKind::Scout),
+            ..Default::default()
+        });
+        game.step(&inputs);
+        inputs[2].deploy = None;
+        game.step(&inputs);
+        let view = game.for_player(joined).unwrap();
+        assert!(view.tank_alive());
+        assert_eq!(view.player_vehicle(), VehicleKind::Scout);
+        assert_eq!(view.team(), Team::Red);
+        let red_spawn = game.for_player(1).unwrap().launcher_position();
+        let joined_at = game.for_player(joined).unwrap().launcher_position();
+        assert!(
+            joined_at.distance(red_spawn) < 12.0,
+            "deploys near its team"
+        );
+        // A departed Red player's tank is reused for a Blue newcomer.
+        game.disconnect(joined);
+        assert_eq!(game.world.winner(), None);
+        let rejoined = game.join(Team::Blue).unwrap();
+        assert_eq!(rejoined, joined);
+        assert_eq!(game.player_count(), 3);
+        assert_eq!(game.world.tanks.len(), tanks + 1);
+        let tank = game.tank_id(rejoined).unwrap();
+        assert_eq!(
+            game.world().tanks().find(|t| t.id == tank).unwrap().team,
+            Team::Blue
+        );
+        assert_eq!(game.shots(rejoined), 0);
+        for _ in 0..3 {
+            game.join(Team::Blue).unwrap();
+        }
+        assert_eq!(game.player_count(), MAX_PLAYERS);
+        assert!(game.join(Team::Red).is_err(), "six humans fill a match");
+        assert!(game.join(Team::Neutral).is_err());
     }
     #[test]
     fn each_player_deploys_independently_and_must_choose_again_after_death() {

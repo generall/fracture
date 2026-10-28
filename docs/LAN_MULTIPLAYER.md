@@ -23,6 +23,13 @@ need a player; the host starts after all players are ready. Changing the map or
 match settings clears readiness. Changing a player's team clears that player's
 readiness.
 
+Guests can also join a match that is already running: choose a discovered lobby
+marked **IN MATCH / JOIN**, or join by IP as usual. The newcomer goes to the team
+with fewer players, receives the map and the current battlefield (including
+destruction so far), chooses a vehicle, and deploys at that team's spawn. A
+departed player's tank is reused, so a session never exceeds six players. Other
+players see a short notice when someone joins or leaves.
+
 The countdown lasts three seconds. Capture the enemy flag to win; destroyed tanks
 require a vehicle selection after every death and respawn after a minimum of ten seconds when their spawn is clear. Initial deployment also offers Scout Car, Regular Tank and Mortar. The host can return the
 session to the lobby for another map or match. A guest can leave independently.
@@ -31,8 +38,8 @@ the shared simulation; that player's movement input is neutral while a menu is o
 
 Default ports are **TCP 45771** for the session and **UDP 45770** for discovery.
 Discovery uses IPv4 broadcast and a loopback query. IP joining works when broadcasts
-are unavailable. This is LAN play, without internet matchmaking, NAT traversal,
-late joining during a match, or host migration. Browser builds retain local play;
+are unavailable. This is LAN play, without internet matchmaking, NAT traversal or host
+migration. Browser builds retain local play;
 raw LAN sockets are desktop-only.
 
 ## Authority and wire format

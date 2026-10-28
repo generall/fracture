@@ -198,6 +198,7 @@ impl Host {
                     lobby,
                     level,
                     game: None,
+                    map: None,
                     progress: MatchProgress::new(config),
                     events: vec![],
                     next_tick: Instant::now(),
@@ -274,6 +275,29 @@ impl Peer {
             encoder: Encoder::default(),
         })
     }
+    /// Enter a match (at its start or already running) as `index`. A fresh
+    /// encoder makes the first snapshot carry every body definition.
+    fn enter(
+        &mut self,
+        index: usize,
+        game: &mut MultiplayerWorld,
+        map: &Map,
+        progress: &MatchProgress,
+    ) {
+        self.index = Some(index);
+        self.encoder = Encoder::default();
+        let view = game.for_player(index).unwrap();
+        self.controls.input = PlayerInput {
+            aim: view.launcher_position() + sim::Vec2::from_angle(view.player_aim().angle) * 20.0,
+            ..Default::default()
+        };
+        let mut progress = progress.clone();
+        progress.config.team = view.team();
+        let _ = self.connection.send(&ServerMessage::Started {
+            map: map.clone(),
+            progress,
+        });
+    }
 }
 struct ControlState {
     last_input: Instant,
@@ -340,6 +364,8 @@ struct Server {
     lobby: Lobby,
     level: Level,
     game: Option<MultiplayerWorld>,
+    /// Immutable terrain of the running match, resent to late joiners.
+    map: Option<Map>,
     progress: MatchProgress,
     events: Vec<sim::Event>,
     next_tick: Instant,
@@ -408,22 +434,10 @@ impl Server {
                 self.progress = MatchProgress::new(self.lobby.config);
                 for (index, slot) in self.lobby.players.iter().map(|p| p.slot).enumerate() {
                     let peer = self.peers.get_mut(&slot).unwrap();
-                    peer.index = Some(index);
-                    peer.encoder = Encoder::default();
-                    let view = game.for_player(index).unwrap();
-                    peer.controls.input = PlayerInput {
-                        aim: view.launcher_position()
-                            + sim::Vec2::from_angle(view.player_aim().angle) * 20.0,
-                        ..Default::default()
-                    };
-                    let mut progress = self.progress.clone();
-                    progress.config.team = teams[index];
-                    let _ = peer.connection.send(&ServerMessage::Started {
-                        map: map.clone(),
-                        progress,
-                    });
+                    peer.enter(index, &mut game, &map, &self.progress);
                 }
                 self.game = Some(game);
+                self.map = Some(map);
                 self.lobby.playing = true;
                 self.events.clear();
                 self.next_tick = Instant::now() + Duration::from_secs(3);
@@ -432,6 +446,7 @@ impl Server {
             }
             HostCommand::ReturnToLobby => {
                 self.game = None;
+                self.map = None;
                 self.lobby.playing = false;
                 self.lobby.revision += 1;
                 self.events.clear();
@@ -449,8 +464,8 @@ impl Server {
         let registered = self.peers[&slot].player.is_some();
         match message {
             ClientMessage::Hello { version, name } => {
-                if registered || version != VERSION || !valid_name(&name) || self.game.is_some() {
-                    self.error(slot,"Cannot join: incompatible version, invalid name, or match already running.");
+                if registered || version != VERSION || !valid_name(&name) {
+                    self.error(slot, "Cannot join: incompatible version or invalid name.");
                     return false;
                 }
                 let blue = self
@@ -465,14 +480,29 @@ impl Server {
                     .filter_map(|p| p.player.as_ref())
                     .filter(|p| p.team == Team::Red)
                     .count();
+                let team = if blue <= red { Team::Blue } else { Team::Red };
+                // A running match takes the newcomer on the smaller team at once.
+                let index = match &mut self.game {
+                    Some(game) => match game.join(team) {
+                        Ok(index) => Some(index),
+                        Err(e) => {
+                            self.error(slot, format!("Cannot join: {e}"));
+                            return false;
+                        }
+                    },
+                    None => None,
+                };
                 let peer = self.peers.get_mut(&slot).unwrap();
                 peer.player = Some(Player {
                     slot,
                     name: name.trim().into(),
-                    team: if blue <= red { Team::Blue } else { Team::Red },
+                    team,
                     ready: false,
                 });
                 let _ = peer.connection.send(&ServerMessage::Welcome { slot });
+                if let (Some(index), Some(game), Some(map)) = (index, &mut self.game, &self.map) {
+                    peer.enter(index, game, map, &self.progress);
+                }
                 self.dirty = true;
             }
             ClientMessage::Leave => return false,
@@ -529,17 +559,13 @@ impl Server {
             let Ok((stream, _)) = self.listener.accept() else {
                 break;
             };
-            let slot = (1..6)
-                .find(|slot| !self.peers.contains_key(slot))
-                .filter(|_| self.game.is_none());
+            let slot = (1..6).find(|slot| !self.peers.contains_key(slot));
             if let Some(slot) = slot {
                 if let Ok(peer) = Peer::new(stream) {
                     self.peers.insert(slot, peer);
                 }
             } else if let Ok(mut c) = Connection::new(stream) {
-                let _ = c.send(&ServerMessage::Error(
-                    "Lobby is full or a match is running.".into(),
-                ));
+                let _ = c.send(&ServerMessage::Error("Lobby is full.".into()));
                 let _ = c.flush();
             }
         }
