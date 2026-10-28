@@ -119,16 +119,18 @@ fn main() {
                 sequence += 1;
                 last_input = Instant::now();
                 for (i, c) in clients.iter_mut().enumerate() {
-                    c.send(ClientMessage::Input(Input {
+                    c.send_input(Input {
                         sequence,
                         fire: sequence / 60,
                         special: 0,
+                        deploy: 1,
                         control: PlayerInput {
+                            deploy: Some(sim::VehicleKind::Tank),
                             tracks: [0.75, 0.75],
                             aim: Vec2::new(0.0, ((i as f32) * 1.5).sin() * 15.0),
                             ..Default::default()
                         },
-                    }))
+                    })
                     .unwrap();
                 }
             }

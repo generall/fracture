@@ -1,5 +1,4 @@
 //! Desktop LAN screens and snapshot presentation. No simulation runs here.
-mod playout;
 use crate::ui::PINK;
 use crate::{
     game::{Action, Game, Screen},
@@ -7,7 +6,6 @@ use crate::{
     ui::*,
 };
 use macroquad::prelude::*;
-use playout::Playout;
 use sim::{
     level::Team,
     matchplay::MatchProgress,
@@ -21,6 +19,7 @@ use std::{
 };
 use tank_net::{
     discovery::{self, Discovery},
+    playout::Playout,
     protocol::{ClientMessage, Input, Lobby, ServerMessage},
     replication::{self, Decoder},
     session::{Client, Host, HostCommand},
@@ -46,6 +45,9 @@ pub struct Lan {
     sequence: u32,
     fire: u32,
     special: u32,
+    /// Vehicle choices made, and the latest one, repeated in every input.
+    deploys: u32,
+    deploy: Option<sim::VehicleKind>,
     last_input: Instant,
 }
 impl Default for Lan {
@@ -69,6 +71,8 @@ impl Default for Lan {
             sequence: 0,
             fire: 0,
             special: 0,
+            deploys: 0,
+            deploy: None,
             last_input: Instant::now(),
         }
     }
@@ -130,6 +134,8 @@ impl Lan {
         self.sequence = 0;
         self.fire = 0;
         self.special = 0;
+        self.deploys = 0;
+        self.deploy = None;
     }
     fn poll(&mut self, game: &mut Game, lab: &mut Lab) {
         if let Some(rx) = &self.connecting
@@ -158,7 +164,7 @@ impl Lan {
         };
         for message in messages {
             match message {
-                ServerMessage::Welcome { slot } => {
+                ServerMessage::Welcome { slot, .. } => {
                     self.slot = Some(slot);
                     self.status.clear();
                 }
@@ -168,24 +174,29 @@ impl Lan {
                         game.menu = false;
                         self.reset_snapshots();
                     }
+                    if lobby.playing && game.screen == Screen::Match {
+                        self.announce_roster(&lobby, lab);
+                    }
                     self.lobby = Some(lobby);
                 }
                 ServerMessage::Started { map, progress } => {
                     self.map = Some(map);
                     self.reset_snapshots();
+                    // Joining a running match skips the opening countdown.
+                    game.countdown = if progress.elapsed_ticks > 0 { 0.0 } else { 3.0 };
                     lab.match_progress = Some(progress);
-                    game.countdown = 3.0;
                     game.menu = false;
                 }
                 ServerMessage::Snapshot {
                     delta,
                     events,
                     progress,
+                    sent,
                 } => match self.decoder.decode(*delta) {
                     Ok(frame) => {
-                        let host = frame.stats.ticks as f64 * f64::from(sim::TICK_DT);
                         let now = self.epoch.elapsed().as_secs_f64();
-                        self.playout.push(host, now, (frame, events, progress));
+                        self.playout
+                            .push(sent as f64 * 1e-6, now, (frame, events, progress));
                     }
                     Err(e) => {
                         self.status = format!("Invalid host update: {e}");
@@ -222,6 +233,35 @@ impl Lan {
                 }
             }
             lab.present_events(&events);
+        }
+    }
+    /// Names players who joined or left the running match since the last roster.
+    fn announce_roster(&self, lobby: &Lobby, lab: &mut Lab) {
+        let Some(old) = &self.lobby else {
+            return;
+        };
+        let joined = lobby
+            .players
+            .iter()
+            .filter(|p| Some(p.slot) != self.slot)
+            .find(|p| {
+                !old.players
+                    .iter()
+                    .any(|o| o.slot == p.slot && o.name == p.name)
+            })
+            .map(|p| format!("{} joined {}", p.name, p.team.label()));
+        let left = old
+            .players
+            .iter()
+            .find(|o| {
+                !lobby
+                    .players
+                    .iter()
+                    .any(|p| p.slot == o.slot && p.name == o.name)
+            })
+            .map(|o| format!("{} left the match", o.name));
+        if let Some(message) = joined.or(left) {
+            lab.notice = Some((message, 3.0));
         }
     }
     /// Shows one buffered snapshot. Returns false if the session was abandoned.
@@ -313,6 +353,10 @@ impl Lan {
             }
         });
         lab.pending.clear();
+        if deploy.is_some() {
+            self.deploys = self.deploys.wrapping_add(1);
+            self.deploy = deploy;
+        }
         if deploy.is_none()
             && !fire
             && !special
@@ -322,19 +366,25 @@ impl Lan {
         }
         self.sequence = self.sequence.wrapping_add(1);
         self.last_input = Instant::now();
-        self.send(ClientMessage::Input(Input {
+        let input = Input {
             sequence: self.sequence,
             fire: self.fire,
             special: self.special,
+            deploy: self.deploys,
             control: PlayerInput {
-                deploy,
+                deploy: self.deploy,
                 tracks: if enabled { tracks } else { [0.0; 2] },
                 aim: sim::Vec2::new(lab.aim.x, lab.aim.y),
                 ammunition: lab.inspector.ammunition,
                 fire: false,
                 special: false,
             },
-        }));
+        };
+        if let Some(client) = &mut self.client
+            && let Err(e) = client.send_input(input)
+        {
+            self.status = format!("Connection error: {e}");
+        }
     }
     pub fn draw(&mut self, game: &mut Game, size: Vec2, mouse: Vec2) -> Option<Action> {
         let compact = size.x < 1400.0 || size.y < 860.0;
@@ -433,7 +483,15 @@ impl Lan {
                     if p.ready { CYAN } else { MUTED },
                 );
             }
-            if let Some(player) = lobby.players.iter().find(|p| Some(p.slot) == self.slot) {
+            if lobby.playing {
+                text(
+                    "Match in progress. Joining…",
+                    64.0,
+                    if compact { size.y - 230.0 } else { 670.0 },
+                    18.0,
+                    MUTED,
+                );
+            } else if let Some(player) = lobby.players.iter().find(|p| Some(p.slot) == self.slot) {
                 if button(
                     Rect::new(
                         64.0,
@@ -464,7 +522,7 @@ impl Lan {
                     });
                 }
             }
-            if self.is_host() {
+            if self.is_host() && !lobby.playing {
                 for (index, label) in game.map_choices().into_iter().enumerate() {
                     if button(
                         Rect::new(
@@ -554,7 +612,7 @@ impl Lan {
                 ) {
                     self.command(HostCommand::Start);
                 }
-            } else {
+            } else if !lobby.playing {
                 text(
                     "The host chooses the map and starts when everyone is ready.",
                     64.0,
@@ -621,18 +679,23 @@ impl Lan {
             }
             for (i, (address, ad)) in found.into_iter().take(6).enumerate() {
                 let y = 230.0 + i as f32 * 76.0;
+                let full = ad.players >= 6;
                 let label = format!(
                     "{}  /  {}/6{}",
                     ad.name,
                     ad.players,
-                    if ad.playing { " / IN MATCH" } else { "" }
+                    match (ad.playing, full) {
+                        (_, true) => " / FULL",
+                        (true, false) => " / IN MATCH / JOIN",
+                        (false, false) => "",
+                    }
                 );
                 if button(
                     Rect::new(590.0, y, size.x - 654.0, 44.0),
                     &label,
                     mouse,
                     false,
-                ) && !ad.playing
+                ) && !full
                     && self.client.is_none()
                     && self.connecting.is_none()
                 {

@@ -4,9 +4,57 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::{
     collections::VecDeque,
     io::{self, Read, Write},
-    net::TcpStream,
+    net::{SocketAddr, TcpStream},
 };
 const QUEUE_LIMIT: usize = 12 * 1024 * 1024;
+/// Unsent bytes the kernel may hold. In-flight data still grows with the
+/// congestion window, so a small buffer does not cap throughput on a
+/// higher-latency Wi-Fi link, yet obsolete snapshots cannot queue up unsent.
+const UNSENT_LIMIT: u32 = 16 * 1024;
+/// Bounds in-flight plus unsent data where the unsent limit is available.
+const SEND_BUFFER: usize = 128 * 1024;
+/// Without an unsent limit, the whole kernel buffer must stay small.
+const FALLBACK_SEND_BUFFER: usize = 32 * 1024;
+/// DSCP CS4 (real-time interactive). Wi-Fi maps it to the WMM video access
+/// category (RFC 8325), which contends for airtime ahead of best effort.
+const STREAM_TOS: u32 = 0x80;
+/// DSCP EF for the small input datagrams: the WMM voice access category.
+pub(crate) const INPUT_TOS: u32 = 0xb8;
+
+/// Best effort: some platforms, networks or IPv6 sockets ignore DSCP marking.
+pub(crate) fn mark(socket: socket2::SockRef<'_>, tos: u32) {
+    let _ = socket.set_tos_v4(tos);
+}
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn limit_unsent(stream: &TcpStream) -> io::Result<()> {
+    socket2::SockRef::from(stream).set_tcp_notsent_lowat(UNSENT_LIMIT)
+}
+#[cfg(target_vendor = "apple")]
+fn limit_unsent(stream: &TcpStream) -> io::Result<()> {
+    use std::os::fd::AsRawFd;
+    // <netinet/tcp.h>; the libc crate does not export it for Apple targets.
+    const TCP_NOTSENT_LOWAT: libc::c_int = 0x201;
+    let value = UNSENT_LIMIT as libc::c_int;
+    // SAFETY: a valid socket descriptor and a correctly sized option value.
+    let result = unsafe {
+        libc::setsockopt(
+            stream.as_raw_fd(),
+            libc::IPPROTO_TCP,
+            TCP_NOTSENT_LOWAT,
+            (&raw const value).cast(),
+            size_of::<libc::c_int>() as libc::socklen_t,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+#[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+fn limit_unsent(_: &TcpStream) -> io::Result<()> {
+    Err(io::ErrorKind::Unsupported.into())
+}
 pub struct Connection {
     stream: TcpStream,
     input: Vec<u8>,
@@ -21,7 +69,13 @@ impl Connection {
     pub fn new(stream: TcpStream) -> io::Result<Self> {
         // Bound kernel buffering too: otherwise a slow reader can accumulate
         // seconds of obsolete snapshots even with an empty application queue.
-        socket2::SockRef::from(&stream).set_send_buffer_size(32 * 1024)?;
+        let socket = socket2::SockRef::from(&stream);
+        socket.set_send_buffer_size(if limit_unsent(&stream).is_ok() {
+            SEND_BUFFER
+        } else {
+            FALLBACK_SEND_BUFFER
+        })?;
+        mark(socket, STREAM_TOS);
         stream.set_nonblocking(true)?;
         stream.set_nodelay(true)?;
         Ok(Self {
@@ -34,6 +88,9 @@ impl Connection {
             sent: 0,
             received: 0,
         })
+    }
+    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
+        self.stream.peer_addr()
     }
     pub fn pending(&self) -> usize {
         self.queued

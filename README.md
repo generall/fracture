@@ -68,7 +68,8 @@ for more about vehicles, combat, and pickups.
 
 Desktop LAN matches support up to **six players**. Choose **Play on local network**;
 one player hosts, and the others join the discovered lobby or enter the host's
-address. Pick teams, ready up, and let the host start the match.
+address. Pick teams, ready up, and let the host start the match. Friends can also
+join a match that is already running.
 
 Play on the same local network; internet matchmaking is not available.
 See the [multiplayer guide](docs/LAN_MULTIPLAYER.md) for connection help.
